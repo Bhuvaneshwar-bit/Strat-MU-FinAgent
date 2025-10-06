@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, Building, DollarSign, Globe, CreditCard, BarChart3, Upload, FileText, CheckCircle, Loader } from 'lucide-react';
 import PasswordModal from './PasswordModal';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/OnboardingQuestionnaire.css';
 
 const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
@@ -135,7 +136,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
           const formData = new FormData();
           formData.append('document', file);
           
-          const response = await fetch('http://localhost:5001/api/password-protected/check-password', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.CHECK_PASSWORD), {
             method: 'POST',
             body: formData,
           });
@@ -187,7 +188,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
       formData.append('accountingMethod', 'accrual');
       formData.append('documentType', 'bank_statement');
       
-      const response = await fetch('http://localhost:5001/api/password-protected/process-with-password', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.PROCESS_WITH_PASSWORD), {
         method: 'POST',
         body: formData,
       });
@@ -259,11 +260,11 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
 
       // Call both APIs simultaneously
       const [plResponse, bookkeepingResponse] = await Promise.all([
-        fetch('http://localhost:5001/api/pl-statements/analyze', {
+        fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
           method: 'POST',
           body: formData
         }),
-        fetch('http://localhost:5001/api/bookkeeping/process-document', {
+        fetch(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
           method: 'POST',
           body: bookkeepingFormData
         })
@@ -335,11 +336,11 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
 
       console.log('Starting API calls...');
       const [plResponse, bookkeepingResponse] = await Promise.all([
-        fetchWithTimeout('http://localhost:5001/api/pl-statements/analyze', {
+        fetchWithTimeout(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
           method: 'POST',
           body: formData
         }, 60000), // 60 second timeout
-        fetchWithTimeout('http://localhost:5001/api/bookkeeping/process-document', {
+        fetchWithTimeout(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
           method: 'POST',
           body: bookkeepingFormData
         }, 60000) // 60 second timeout
