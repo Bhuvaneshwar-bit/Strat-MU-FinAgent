@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node multi-server.js",
+    "start": "node server.js",
+    "start:multi": "node multi-server.js",
     "start:auth": "node simple-server.js",
     "start:api": "node server.js",
     "dev": "nodemon server.js",
