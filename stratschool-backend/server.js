@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./src/config/database');
@@ -64,12 +65,21 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Handle undefined routes - must be last
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.originalUrl} not found`
-  });
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, '../stratschool-landing/dist')));
+
+// Handle React routing - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      message: `API route ${req.originalUrl} not found`
+    });
+  }
+  
+  // Serve React app for all other routes
+  res.sendFile(path.join(__dirname, '../stratschool-landing/dist/index.html'));
 });
 
 // Global error handler
