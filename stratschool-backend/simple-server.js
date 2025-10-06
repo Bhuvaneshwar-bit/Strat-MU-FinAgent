@@ -264,7 +264,8 @@ app.post('/api/pl/analyze', authenticateToken, async (req, res) => {
   }
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 StratSchool Auth Server running on port ${PORT}`);
+  console.log(`🔐 Authentication and MongoDB login services active`);
 });

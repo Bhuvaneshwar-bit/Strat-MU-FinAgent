@@ -93,9 +93,11 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
-  console.log(`🚀 StratSchool server running on port ${PORT}`);
+  console.log(`🚀 StratSchool API server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Frontend served from: /`);
+  console.log(`📡 API endpoints: /api/*`);
 });
