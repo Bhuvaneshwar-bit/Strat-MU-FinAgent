@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const connectDB = require('./src/config/database');
@@ -50,6 +52,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
+app.use('/api', require('./src/routes/authRoutes')); // Direct auth routes (signin, signup)
 app.use('/api/invoices', require('./src/routes/invoiceRoutes'));
 app.use('/api/pl-statements', require('./src/routes/plStatements'));
 app.use('/api/chat', require('./src/routes/chat'));
