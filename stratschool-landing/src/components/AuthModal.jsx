@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/AuthModal.css';
 
 const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess }) => {
@@ -82,7 +83,7 @@ const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess }) => 
     setIsSubmitting(true);
     
     try {
-      const endpoint = type === 'signin' ? '/api/signin' : '/api/signup';
+      const endpoint = type === 'signin' ? API_ENDPOINTS.SIGNIN : API_ENDPOINTS.SIGNUP;
       const payload = type === 'signin' 
         ? { email: formData.email, password: formData.password }
         : { 
@@ -92,7 +93,7 @@ const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess }) => 
             password: formData.password 
           };
 
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
