@@ -1,16 +1,8 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const User = require('../models/User'); // Use existing User model
 const router = express.Router();
-
-// Simple User Schema (matching simple-server.js)
-const User = mongoose.model('User', {
-  firstName: String,
-  lastName: String, 
-  email: { type: String, unique: true },
-  password: String
-});
 
 // Sign Up Route
 router.post('/signup', async (req, res) => {
@@ -20,19 +12,17 @@ router.post('/signup', async (req, res) => {
     console.log('🔐 Signup attempt for:', email);
     
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.json({ success: false, message: 'User already exists with this email' });
     }
     
-    // Hash password for security
-    const hashedPassword = await bcrypt.hash(password, 12);
-    
+    // Create new user (password will be automatically hashed by pre-save middleware)
     const user = new User({ 
       firstName, 
       lastName, 
-      email, 
-      password: hashedPassword 
+      email: email.toLowerCase(), 
+      password 
     });
     
     await user.save();
@@ -52,25 +42,22 @@ router.post('/signin', async (req, res) => {
     
     console.log('🔐 Signin attempt for:', email);
     
-    const user = await User.findOne({ email });
+    // Use the existing findForAuth method
+    const user = await User.findForAuth(email.toLowerCase());
     
     if (!user) {
       console.log('❌ User not found:', email);
       return res.json({ success: false, message: 'Invalid credentials' });
     }
     
-    // For backward compatibility, check both hashed and plain passwords
-    let isValidPassword = false;
-    
-    if (user.password.startsWith('$2')) {
-      // Hashed password
-      isValidPassword = await bcrypt.compare(password, user.password);
-    } else {
-      // Plain text password (legacy)
-      isValidPassword = password === user.password;
-    }
+    // Use the existing comparePassword method
+    const isValidPassword = await user.comparePassword(password);
     
     if (isValidPassword) {
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+      
       // Generate JWT token
       const token = jwt.sign(
         { userId: user._id, email: user.email },
