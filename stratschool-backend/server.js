@@ -69,7 +69,7 @@ app.get('/api/health', (req, res) => {
 app.use(express.static(path.join(__dirname, '../stratschool-landing/dist')));
 
 // Handle React routing - serve index.html for all non-API routes
-app.get('*', (req, res) => {
+app.use((req, res, next) => {
   // Skip API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({
