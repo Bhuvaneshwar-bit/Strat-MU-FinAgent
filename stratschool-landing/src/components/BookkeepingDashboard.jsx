@@ -27,6 +27,7 @@ import {
   Eye,
   RefreshCw
 } from 'lucide-react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/AutomationPanel.css';
 
 const BookkeepingDashboard = ({ user }) => {
@@ -53,9 +54,10 @@ const BookkeepingDashboard = ({ user }) => {
   const loadExistingBookkeepingData = async () => {
     try {
       setIsLoadingData(true);
-      console.log('🔍 Fetching bookkeeping data from:', 'http://localhost:5001/api/bookkeeping/entries');
+      const apiUrl = buildApiUrl(API_ENDPOINTS.BOOKKEEPING_ENTRIES);
+      console.log('🔍 Fetching bookkeeping data from:', apiUrl);
       
-      const response = await fetch('http://localhost:5001/api/bookkeeping/entries', {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
