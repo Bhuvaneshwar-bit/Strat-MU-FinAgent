@@ -15,6 +15,10 @@ router.get('/dashboard-overview', async (req, res) => {
     const bookkeepingEntries = await BookkeepingModels.JournalEntry.find({}).sort({ date: -1 });
     
     console.log(`Found ${plStatements.length} P&L statements and ${bookkeepingEntries.length} bookkeeping entries`);
+    
+    if (plStatements.length > 0) {
+      console.log(`Latest P&L: Revenue ₹${plStatements[0].analysis?.totalRevenue}, Expenses ₹${plStatements[0].analysis?.totalExpenses}`);
+    }
 
     // Calculate real metrics
     const metrics = calculateRealMetrics(plStatements, bookkeepingEntries);
@@ -43,24 +47,32 @@ function calculateRealMetrics(plStatements, bookkeepingEntries) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   
-  // Recent P&L data (last 30 days)
+  // Get the most recent P&L statement (latest business snapshot)
+  const latestPL = plStatements.length > 0 ? plStatements[0] : null;
+  
+  // Also get recent entries for trend analysis (last 30 days)
   const recentPL = plStatements.filter(pl => new Date(pl.createdAt) > thirtyDaysAgo);
   const recentEntries = bookkeepingEntries.filter(entry => new Date(entry.date) > thirtyDaysAgo);
 
-  // Cash Flow Health Calculation
-  const totalRevenue = recentPL.reduce((sum, pl) => {
-    const revenue = pl.analysis?.totalRevenue || 0;
-    return sum + (typeof revenue === 'number' ? revenue : 0);
+  // Cash Flow Health Calculation - Use LATEST P&L for current status
+  const currentRevenue = latestPL?.analysis?.totalRevenue || 0;
+  const currentExpenses = latestPL?.analysis?.totalExpenses || 0;
+  const netCashFlow = currentRevenue - currentExpenses;
+  
+  // Calculate trend from recent data (for percentage change)
+  const recentTotalRevenue = recentPL.slice(0, 5).reduce((sum, pl) => {
+    return sum + (pl.analysis?.totalRevenue || 0);
   }, 0);
-
-  const totalExpenses = recentPL.reduce((sum, pl) => {
-    const expenses = pl.analysis?.totalExpenses || 0;
-    return sum + (typeof expenses === 'number' ? expenses : 0);
+  
+  const previousRevenue = recentPL.slice(5, 10).reduce((sum, pl) => {
+    return sum + (pl.analysis?.totalRevenue || 0);
   }, 0);
+  
+  const trendPercentage = previousRevenue > 0 ? 
+    ((recentTotalRevenue - previousRevenue) / previousRevenue * 100).toFixed(1) : '0.0';
 
-  const netCashFlow = totalRevenue - totalExpenses;
   const cashFlowHealth = netCashFlow > 0 ? 'Excellent' : netCashFlow > -10000 ? 'Good' : 'Needs Attention';
-  const cashFlowPercentage = totalRevenue > 0 ? ((netCashFlow / totalRevenue) * 100).toFixed(1) : '0.0';
+  const cashFlowPercentage = currentRevenue > 0 ? ((netCashFlow / currentRevenue) * 100).toFixed(1) : '0.0';
 
   // AI Automation Metrics
   const totalTransactions = recentEntries.length;
@@ -71,18 +83,15 @@ function calculateRealMetrics(plStatements, bookkeepingEntries) {
   const automationPercentage = totalTransactions > 0 ? 
     ((automatedTransactions / totalTransactions) * 100).toFixed(1) : '0.0';
 
-  // Cost Optimization
-  const previousPeriodExpenses = plStatements
-    .filter(pl => {
-      const date = new Date(pl.createdAt);
-      return date < thirtyDaysAgo && date > new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-    })
-    .reduce((sum, pl) => sum + (pl.analysis?.totalExpenses || 0), 0);
+  // Cost Optimization - Compare latest vs previous period
+  const previousPeriodPL = recentPL.slice(5, 10); // Previous 5 P&L statements
+  const previousPeriodExpenses = previousPeriodPL.reduce((sum, pl) => 
+    sum + (pl.analysis?.totalExpenses || 0), 0) / Math.max(1, previousPeriodPL.length);
 
   const expenseReduction = previousPeriodExpenses > 0 ? 
-    ((previousPeriodExpenses - totalExpenses) / previousPeriodExpenses * 100).toFixed(1) : '0.0';
+    ((previousPeriodExpenses - currentExpenses) / previousPeriodExpenses * 100).toFixed(1) : '0.0';
   
-  const costOptimizationAmount = Math.max(0, previousPeriodExpenses - totalExpenses);
+  const costOptimizationAmount = Math.max(0, previousPeriodExpenses - currentExpenses);
 
   // Forecast Accuracy (based on data consistency and transaction patterns)
   const dataConsistency = calculateDataConsistency(recentPL, recentEntries);
@@ -93,10 +102,10 @@ function calculateRealMetrics(plStatements, bookkeepingEntries) {
     cashFlowHealth: {
       status: cashFlowHealth,
       amount: Math.abs(netCashFlow),
-      percentage: `${cashFlowPercentage > 0 ? '+' : ''}${cashFlowPercentage}%`,
-      trend: netCashFlow > 0 ? 'up' : 'down',
+      percentage: `${trendPercentage > 0 ? '+' : ''}${trendPercentage}%`,
+      trend: parseFloat(trendPercentage) > 0 ? 'up' : 'down',
       description: netCashFlow > 0 ? 
-        `${Math.floor(netCashFlow / totalRevenue * 30)}-day runway secured` : 
+        `Current period: ₹${netCashFlow.toLocaleString()}` : 
         'Cash flow optimization needed'
     },
     
