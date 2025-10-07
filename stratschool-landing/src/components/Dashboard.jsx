@@ -116,7 +116,7 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
       {
         title: 'Cash Flow Health',
         value: overviewData.cashFlowHealth.status,
-        subValue: `$${overviewData.cashFlowHealth.amount.toLocaleString()}`,
+        subValue: `₹${overviewData.cashFlowHealth.amount.toLocaleString()}`,
         change: overviewData.cashFlowHealth.percentage,
         trend: overviewData.cashFlowHealth.trend,
         icon: DollarSign,
@@ -134,7 +134,7 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
       {
         title: 'Cost Optimization',
         value: overviewData.costOptimization.status,
-        subValue: `$${overviewData.costOptimization.amount.toLocaleString()}`,
+        subValue: `₹${overviewData.costOptimization.amount.toLocaleString()}`,
         change: overviewData.costOptimization.percentage,
         trend: overviewData.costOptimization.trend,
         icon: Target,
