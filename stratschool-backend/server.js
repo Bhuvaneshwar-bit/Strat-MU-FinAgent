@@ -58,6 +58,7 @@ app.use('/api/pl-statements', require('./src/routes/plStatements'));
 app.use('/api/chat', require('./src/routes/chat'));
 app.use('/api/bookkeeping', require('./src/routes/automatedBookkeeping'));
 app.use('/api/password-protected', require('./src/routes/passwordProtectedDocuments'));
+app.use('/api/overview', require('./src/routes/overview')); // Real-time overview data
 
 // Health check route
 app.get('/api/health', (req, res) => {

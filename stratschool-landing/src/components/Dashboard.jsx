@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -22,6 +22,7 @@ import {
   Receipt,
   BookOpen
 } from 'lucide-react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
 import AutomationPanel from './AutomationPanel';
@@ -29,6 +30,50 @@ import BookkeepingDashboard from './BookkeepingDashboard';
 
 const Dashboard = ({ user, onLogout, onboardingData }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [overviewData, setOverviewData] = useState(null);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Load real-time overview data
+  useEffect(() => {
+    loadOverviewData();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadOverviewData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Trigger animation when data loads
+  useEffect(() => {
+    if (overviewData && !isAnimating) {
+      setIsAnimating(true);
+    }
+  }, [overviewData]);
+
+  const loadOverviewData = async () => {
+    try {
+      setIsLoadingOverview(true);
+      console.log('📊 Loading real-time overview data...');
+      
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.OVERVIEW_DASHBOARD));
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Overview data loaded:', result);
+        setOverviewData(result.data);
+      } else {
+        console.error('❌ Failed to load overview data:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error loading overview data:', error);
+    } finally {
+      setIsLoadingOverview(false);
+    }
+  };
+
+  const handleRefreshOverview = () => {
+    setIsAnimating(false);
+    loadOverviewData();
+  };
 
   const handleQuickAction = (actionType) => {
     switch (actionType) {
@@ -56,79 +101,119 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
-  const aiMetrics = [
-    {
-      title: 'Cash Flow Health',
-      value: 'Excellent',
-      subValue: '$127,340',
-      change: '+18.2%',
-      trend: 'positive',
-      icon: DollarSign,
-      description: '3-month runway secured'
-    },
-    {
-      title: 'AI Automation',
-      value: '24/7 Active',
-      subValue: '847 tasks',
-      change: '+156%',
-      trend: 'positive',
-      icon: Zap,
-      description: 'Processed this month'
-    },
-    {
-      title: 'Cost Optimization',
-      value: 'Saving 23%',
-      subValue: '$8,420',
-      change: '+$2,100',
-      trend: 'positive',
-      icon: Target,
-      description: 'Monthly savings identified'
-    },
-    {
-      title: 'Forecast Accuracy',
-      value: '97.4%',
-      subValue: 'High confidence',
-      change: '+2.1%',
-      trend: 'positive',
-      icon: Brain,
-      description: 'Prediction reliability'
+  // Dynamic AI metrics based on real data
+  const getAiMetrics = () => {
+    if (!overviewData) {
+      return [
+        { title: 'Cash Flow Health', value: 'Loading...', subValue: '', change: '', trend: 'neutral', icon: DollarSign, description: 'Calculating...' },
+        { title: 'AI Automation', value: 'Loading...', subValue: '', change: '', trend: 'neutral', icon: Zap, description: 'Analyzing...' },
+        { title: 'Cost Optimization', value: 'Loading...', subValue: '', change: '', trend: 'neutral', icon: Target, description: 'Processing...' },
+        { title: 'Forecast Accuracy', value: 'Loading...', subValue: '', change: '', trend: 'neutral', icon: Brain, description: 'Computing...' }
+      ];
     }
-  ];
 
-  const coreCapabilities = [
-    {
-      title: 'Intelligent Bookkeeping',
-      description: 'AI automatically categorizes transactions, reconciles accounts, and maintains accurate records with 99.7% precision.',
-      features: ['Real-time transaction processing', 'Smart categorization engine', 'Automated reconciliation', 'Receipt scanning & OCR'],
-      status: 'active',
-      icon: Calculator,
-      color: 'blue'
-    },
-    {
-      title: 'Advanced Cash Flow Management',
-      description: 'Predictive cash flow modeling with 13-week rolling forecasts and intelligent payment optimization strategies.',
-      features: ['13-week cash flow forecasts', 'Payment timing optimization', 'Scenario planning', 'Risk alerts & notifications'],
-      status: 'active',
-      icon: DollarSign,
-      color: 'green'
-    },
-    {
-      title: 'Professional Financial Reports',
-      description: 'Generate investor-ready financial statements with AI-powered insights and comprehensive analytics.',
-      features: ['P&L statements', 'Balance sheets', 'Cash flow reports', 'Executive summaries'],
-      status: 'active',
-      icon: FileText,
-      color: 'purple'
-    },
-    {
-      title: 'Strategic Financial Advisory',
-      description: 'CFO-level insights and recommendations powered by AI analysis of your business performance.',
-      features: ['Growth strategy recommendations', 'Investment guidance', 'Risk mitigation plans', 'Cost optimization alerts'],
-      status: 'active',
-      icon: Lightbulb,
-      color: 'orange'
+    return [
+      {
+        title: 'Cash Flow Health',
+        value: overviewData.cashFlowHealth.status,
+        subValue: `$${overviewData.cashFlowHealth.amount.toLocaleString()}`,
+        change: overviewData.cashFlowHealth.percentage,
+        trend: overviewData.cashFlowHealth.trend,
+        icon: DollarSign,
+        description: overviewData.cashFlowHealth.description
+      },
+      {
+        title: 'AI Automation',
+        value: overviewData.aiAutomation.status,
+        subValue: `${overviewData.aiAutomation.tasksProcessed} tasks`,
+        change: overviewData.aiAutomation.automationRate,
+        trend: overviewData.aiAutomation.trend,
+        icon: Zap,
+        description: overviewData.aiAutomation.description
+      },
+      {
+        title: 'Cost Optimization',
+        value: overviewData.costOptimization.status,
+        subValue: `$${overviewData.costOptimization.amount.toLocaleString()}`,
+        change: overviewData.costOptimization.percentage,
+        trend: overviewData.costOptimization.trend,
+        icon: Target,
+        description: overviewData.costOptimization.description
+      },
+      {
+        title: 'Forecast Accuracy',
+        value: overviewData.forecastAccuracy.percentage,
+        subValue: overviewData.forecastAccuracy.confidence,
+        change: '+2.1%',
+        trend: overviewData.forecastAccuracy.trend,
+        icon: Brain,
+        description: overviewData.forecastAccuracy.description
+      }
+    ];
+  };
+
+  // Dynamic core capabilities
+  const getCoreCapabilities = () => {
+    if (!overviewData) {
+      return [
+        {
+          title: 'Intelligent Bookkeeping',
+          description: 'Loading real-time bookkeeping data...',
+          features: ['Initializing...'],
+          status: 'loading',
+          icon: Calculator,
+          color: 'blue'
+        },
+        {
+          title: 'Advanced Cash Flow Management',
+          description: 'Calculating cash flow metrics...',
+          features: ['Processing...'],
+          status: 'loading',
+          icon: DollarSign,
+          color: 'green'
+        }
+      ];
     }
-  ];
+
+    return [
+      {
+        title: 'Intelligent Bookkeeping',
+        description: `AI automatically categorizes transactions, reconciles accounts, and maintains accurate records with ${overviewData.capabilities.intelligentBookkeeping.precision} precision.`,
+        features: overviewData.capabilities.intelligentBookkeeping.features
+          .filter(f => f.active)
+          .map(f => f.name),
+        status: overviewData.capabilities.intelligentBookkeeping.active ? 'active' : 'inactive',
+        icon: Calculator,
+        color: 'blue'
+      },
+      {
+        title: 'Advanced Cash Flow Management',
+        description: 'Predictive cash flow modeling with 13-week rolling forecasts and intelligent payment optimization strategies.',
+        features: overviewData.capabilities.cashFlowManagement.features
+          .filter(f => f.active)
+          .map(f => f.name),
+        status: overviewData.capabilities.cashFlowManagement.active ? 'active' : 'inactive',
+        icon: DollarSign,
+        color: 'green'
+      },
+      {
+        title: 'Professional Financial Reports',
+        description: 'Generate investor-ready financial statements with AI-powered insights and comprehensive analytics.',
+        features: ['P&L statements', 'Balance sheets', 'Cash flow reports', 'Executive summaries'],
+        status: 'active',
+        icon: FileText,
+        color: 'purple'
+      },
+      {
+        title: 'Strategic Financial Advisory',
+        description: 'CFO-level insights and recommendations powered by AI analysis of your business performance.',
+        features: ['Growth strategy recommendations', 'Investment guidance', 'Risk mitigation plans', 'Cost optimization alerts'],
+        status: 'active',
+        icon: Lightbulb,
+        color: 'orange'
+      }
+    ];
+  };
 
   const quickActions = [
     { title: 'Process Bank Statement', icon: BookOpen, action: 'bookkeeping' },
@@ -247,8 +332,12 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
                 <div className="section-header">
                   <h3>AI-Powered Insights</h3>
                   <div className="header-actions">
-                    <button className="secondary-button">
-                      <RefreshCw className="button-icon" />
+                    <button 
+                      className="secondary-button"
+                      onClick={handleRefreshOverview}
+                      disabled={isLoadingOverview}
+                    >
+                      <RefreshCw className={`button-icon ${isLoadingOverview ? 'spinning' : ''}`} />
                       Refresh
                     </button>
                     <button className="primary-button">
@@ -259,10 +348,19 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
                 </div>
 
                 <div className="metrics-grid">
-                  {aiMetrics.map((metric, index) => {
+                  {getAiMetrics().map((metric, index) => {
                     const Icon = metric.icon;
                     return (
-                      <div key={index} className="metric-card">
+                      <div 
+                        key={index} 
+                        className={`metric-card ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: `${index * 150}ms`,
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
                         <div className="metric-header">
                           <div className="metric-icon">
                             <Icon />
@@ -292,15 +390,27 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
                   <h3>Your AI CFO Capabilities</h3>
                   <span className="capability-badge">
                     <Brain className="badge-icon" />
-                    4 AI Systems Active
+                    {overviewData ? 
+                      `${Object.values(overviewData.capabilities).filter(cap => cap.active).length} AI Systems Active` : 
+                      'Initializing AI Systems...'
+                    }
                   </span>
                 </div>
 
                 <div className="capabilities-grid">
-                  {coreCapabilities.map((capability, index) => {
+                  {getCoreCapabilities().map((capability, index) => {
                     const Icon = capability.icon;
                     return (
-                      <div key={index} className={`capability-card ${capability.color}`}>
+                      <div 
+                        key={index} 
+                        className={`capability-card ${capability.color} ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: `${(index + 4) * 150}ms`,
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
                         <div className="capability-header">
                           <div className="capability-icon">
                             <Icon />
