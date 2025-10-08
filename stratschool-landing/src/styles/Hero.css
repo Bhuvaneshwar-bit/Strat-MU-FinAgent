@@ -177,7 +177,7 @@
   transform: perspective(1000px) rotateY(-5deg) rotateX(5deg);
   transition: transform 0.3s ease;
   width: 100%;
-  max-width: 600px;
+  max-width: 750px;
 }
 
 .dashboard-mockup:hover {
@@ -225,11 +225,11 @@
 
 .mockup-content {
   display: flex;
-  height: 400px;
+  height: 480px;
 }
 
 .mockup-sidebar {
-  width: 200px;
+  width: 220px;
   background: #f9fafb;
   padding: 1rem;
   border-right: 1px solid #e5e7eb;
@@ -257,19 +257,19 @@
 
 .mockup-main {
   flex: 1;
-  padding: 1rem;
+  padding: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
   grid-template-rows: auto 1fr;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .metric-card {
   background: #f9fafb;
-  padding: 0.75rem 0.4rem;
+  padding: 1rem 0.75rem;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  min-width: 130px;
+  min-width: 150px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -277,24 +277,24 @@
 }
 
 .metric-label {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: #6b7280;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
   font-weight: 500;
   line-height: 1.2;
 }
 
 .metric-value {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #1f2937;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .metric-change {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 600;
   line-height: 1.2;
 }
