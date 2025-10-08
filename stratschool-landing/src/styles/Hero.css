@@ -257,49 +257,45 @@
 
 .mockup-main {
   flex: 1;
-  padding: 1.5rem;
+  padding: 1rem;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: auto 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .metric-card {
   background: #f9fafb;
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  min-width: 0; /* Allow shrinking */
-  overflow: hidden; /* Prevent overflow */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .metric-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #6b7280;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.metric-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
   margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
   line-height: 1.2;
 }
 
+.metric-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+  line-height: 1.1;
+  word-break: break-word;
+}
+
 .metric-change {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .metric-change.positive {
