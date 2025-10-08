@@ -20,6 +20,7 @@ import {
   User,
   Bot
 } from 'lucide-react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/AutomationPanel.css';
 
 const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = null }) => {
@@ -442,7 +443,7 @@ const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = nul
       console.log('🤖 Calling Claude AI API...');
       
       // Real API call to Claude AI
-      const response = await fetch('http://localhost:5001/api/chat', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.CHAT), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
