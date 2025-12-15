@@ -57,7 +57,7 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   'General Expenses'
 ];
 
-const Dashboard = ({ user, onLogout, onboardingData }) => {
+const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [plData, setPlData] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -67,6 +67,26 @@ const Dashboard = ({ user, onLogout, onboardingData }) => {
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customCategories, setCustomCategories] = useState({ revenue: [], expenses: [] });
+
+  // Get user from prop or localStorage (localStorage has the real user data from signup)
+  const getUser = () => {
+    // If prop user has a real name (not fallback), use it
+    if (propUser?.firstName && propUser.firstName !== 'User') {
+      return propUser;
+    }
+    // Otherwise try localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        return propUser;
+      }
+    }
+    return propUser;
+  };
+  
+  const user = getUser();
 
   // Helper function to get user-specific localStorage key
   const getUserPlDataKey = () => {
