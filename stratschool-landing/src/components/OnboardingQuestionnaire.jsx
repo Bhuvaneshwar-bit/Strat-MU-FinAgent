@@ -181,29 +181,32 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
     
     try {
       const formData = new FormData();
-      formData.append('document', pendingFile);
+      formData.append('pdf', pendingFile);
       formData.append('password', password);
-      formData.append('businessName', 'Your Business');
-      formData.append('industry', 'Technology');
-      formData.append('accountingMethod', 'accrual');
-      formData.append('documentType', 'bank_statement');
+      formData.append('async', 'false');
       
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.PROCESS_WITH_PASSWORD), {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:5001/api/upload/bank-statement', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 401) {
+        if (errorData.error === 'INCORRECT_PASSWORD') {
           setPasswordError('Incorrect password. Please try again.');
           setIsProcessingPassword(false);
           return;
         }
-        throw new Error(errorData.error || 'Failed to process document');
+        throw new Error(errorData.message || 'Failed to process document');
       }
       
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data;
       
       // Success - transition to processing stage
       setShowPasswordModal(false);
@@ -305,76 +308,49 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
     setProcessingStage('Uploading and analyzing your bank statement...');
 
     try {
-      // Create FormData for both API calls
-      const formData = new FormData();
-      formData.append('bankStatement', uploadedFile);
-      formData.append('period', 'Monthly'); // Default period
-      formData.append('businessInfo', JSON.stringify({
-        companyName: 'Your Business',
-        industry: 'General'
-      }));
-
-      const bookkeepingFormData = new FormData();
-      bookkeepingFormData.append('document', uploadedFile);
-      bookkeepingFormData.append('businessName', 'Your Business');
-      bookkeepingFormData.append('industry', 'General');
-      bookkeepingFormData.append('accountingMethod', 'accrual');
-      bookkeepingFormData.append('documentType', 'bank_statement');
-
-      // Call both APIs simultaneously with timeout
-      setProcessingStage('Generating P&L statement and processing bookkeeping...');
+      // Use AWS Textract for ALL PDFs (password-protected or not)
+      const textractFormData = new FormData();
+      textractFormData.append('pdf', uploadedFile);
+      textractFormData.append('async', 'false');
       
-      // Add timeout wrapper
-      const fetchWithTimeout = (url, options, timeout = 30000) => {
-        return Promise.race([
-          fetch(url, options),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout')), timeout)
-          )
-        ]);
-      };
+      const token = localStorage.getItem('token');
 
-      console.log('Starting API calls...');
-      const [plResponse, bookkeepingResponse] = await Promise.all([
-        fetchWithTimeout(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
-          method: 'POST',
-          body: formData
-        }, 60000), // 60 second timeout
-        fetchWithTimeout(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
-          method: 'POST',
-          body: bookkeepingFormData
-        }, 60000) // 60 second timeout
-      ]);
-
-      console.log('API calls completed');
-
-      setProcessingStage('Finalizing your financial setup...');
-
-      console.log('P&L Response status:', plResponse.status);
-      console.log('Bookkeeping Response status:', bookkeepingResponse.status);
-
-      // Parse responses with better error handling
-      let plResult, bookkeepingResult;
+      setProcessingStage('🔍 Analyzing bank statement with AWS Textract...');
       
-      try {
-        plResult = await plResponse.json();
-        console.log('P&L Result:', plResult);
-      } catch (err) {
-        console.error('Failed to parse P&L response:', err);
-        throw new Error('Failed to parse P&L response');
+      console.log('Starting AWS Textract analysis...');
+      console.log('File:', uploadedFile.name, 'Size:', (uploadedFile.size / 1024).toFixed(2), 'KB');
+      
+      const textractResponse = await fetch('http://localhost:5001/api/upload/bank-statement', {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: textractFormData
+      });
+
+      console.log('Textract response status:', textractResponse.status);
+
+      if (!textractResponse.ok) {
+        const errorData = await textractResponse.json();
+        throw new Error(errorData.message || 'Failed to process bank statement');
       }
 
-      try {
-        bookkeepingResult = await bookkeepingResponse.json();
-        console.log('Bookkeeping Result:', bookkeepingResult);
-      } catch (err) {
-        console.error('Failed to parse bookkeeping response:', err);
-        throw new Error('Failed to parse bookkeeping response');
-      }
+      const textractResult = await textractResponse.json();
+      console.log('✅ Textract analysis complete!');
+      console.log('Extracted data:', textractResult.data);
 
-      // Check if both operations succeeded
-      const plSuccess = plResponse.ok && plResult && (plResult.success !== false);
-      const bookkeepingSuccess = bookkeepingResponse.ok && bookkeepingResult && (bookkeepingResult.success !== false);
+      setProcessingStage('✅ Bank statement analyzed successfully!');
+
+      // Use the Textract result as our P&L data
+      let plResult = textractResult.data;
+      let bookkeepingResult = textractResult.data;
+
+      console.log('P&L Result:', plResult);
+      console.log('Bookkeeping Result:', bookkeepingResult);
+
+      // Check if the operation succeeded
+      const plSuccess = textractResult.success && plResult;
+      const bookkeepingSuccess = textractResult.success && bookkeepingResult;
 
       console.log('P&L Success:', plSuccess);
       console.log('Bookkeeping Success:', bookkeepingSuccess);
@@ -386,8 +362,8 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
         setTimeout(() => {
           onComplete({
             ...answers,
-            plData: plResult.data || plResult,
-            bookkeepingData: bookkeepingResult.data || bookkeepingResult,
+            plData: plResult,
+            bookkeepingData: bookkeepingResult,
             hasProcessedBankStatement: true
           });
           onClose();
@@ -400,8 +376,8 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
         setTimeout(() => {
           onComplete({
             ...answers,
-            plData: plResult?.data || plResult,
-            bookkeepingData: bookkeepingResult?.data || bookkeepingResult,
+            plData: plResult,
+            bookkeepingData: bookkeepingResult,
             hasProcessedBankStatement: true
           });
           onClose();

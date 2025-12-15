@@ -224,41 +224,49 @@ const BookkeepingPanel = ({ user }) => {
     
     try {
       const formData = new FormData();
-      formData.append('document', pendingFile);
+      formData.append('pdf', pendingFile); // Changed from 'document' to 'pdf'
       formData.append('password', password);
-      formData.append('businessName', 'StratSchool Demo');
-      formData.append('industry', 'Technology');
-      formData.append('accountingMethod', 'accrual');
-      formData.append('documentType', 'bank_statement');
+      formData.append('async', 'false');
       
-      const response = await fetch('http://localhost:5001/api/password-protected/process-with-password', {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:5001/api/upload/bank-statement', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 401) {
+        if (errorData.error === 'INCORRECT_PASSWORD') {
           setPasswordError('Incorrect password. Please try again.');
           setIsProcessingPassword(false);
           return;
         }
-        throw new Error(errorData.error || 'Failed to process document');
+        throw new Error(errorData.message || 'Failed to process document');
       }
       
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data; // AWS Textract returns data in 'data' field
       
       // Success - close modal and set as uploaded file
       setShowPasswordModal(false);
-      setUploadedFile(pendingFile); // Now set as uploaded file
+      setUploadedFile(pendingFile);
       setPendingFile(null);
       setPasswordError('');
       setIsProcessingPassword(false);
       
-      // Set the results in the same format as regular processing
+      // Set the results - format for display
       setBookkeepingResults({
         success: true,
-        ...data
+        account_holder: data.account_holder,
+        account_number: data.account_number,
+        bank_name: data.bank_name,
+        transactions: data.transactions || [],
+        summary: data.summary,
+        metadata: data.metadata
       });
       setCurrentStep(4);
       
