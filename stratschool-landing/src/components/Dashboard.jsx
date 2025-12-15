@@ -68,8 +68,14 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customCategories, setCustomCategories] = useState({ revenue: [], expenses: [] });
 
-  // Get user from prop or localStorage (localStorage has the real user data from signup)
+  // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
+    // First check onboardingData.user (passed from questionnaire during signup)
+    if (onboardingData?.user?.firstName && onboardingData.user.firstName !== 'User') {
+      // Save to localStorage for future use
+      localStorage.setItem('user', JSON.stringify(onboardingData.user));
+      return onboardingData.user;
+    }
     // If prop user has a real name (not fallback), use it
     if (propUser?.firstName && propUser.firstName !== 'User') {
       return propUser;
