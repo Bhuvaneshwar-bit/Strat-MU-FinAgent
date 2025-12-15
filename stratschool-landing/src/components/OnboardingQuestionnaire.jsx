@@ -216,7 +216,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser }
       
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:5001/api/upload/bank-statement', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -350,7 +350,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser }
       console.log('Starting AWS Textract analysis...');
       console.log('File:', uploadedFile.name, 'Size:', (uploadedFile.size / 1024).toFixed(2), 'KB');
       
-      const textractResponse = await fetch('http://localhost:5001/api/upload/bank-statement', {
+      const textractResponse = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''

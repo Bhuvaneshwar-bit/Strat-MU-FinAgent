@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PasswordModal from './PasswordModal';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import { 
   Brain, 
   Zap, 
@@ -176,7 +177,7 @@ const BookkeepingPanel = ({ user }) => {
             const formData = new FormData();
             formData.append('document', file);
             
-            const response = await fetch('http://localhost:5001/api/password-protected/check-password', {
+            const response = await fetch(buildApiUrl(API_ENDPOINTS.CHECK_PASSWORD), {
               method: 'POST',
               body: formData,
             });
@@ -230,7 +231,7 @@ const BookkeepingPanel = ({ user }) => {
       
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:5001/api/upload/bank-statement', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -307,7 +308,7 @@ const BookkeepingPanel = ({ user }) => {
       formData.append('accountingMethod', 'accrual');
       formData.append('documentType', 'bank_statement');
 
-      const response = await fetch('http://localhost:5001/api/bookkeeping/process-document', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
         method: 'POST',
         body: formData,
       });

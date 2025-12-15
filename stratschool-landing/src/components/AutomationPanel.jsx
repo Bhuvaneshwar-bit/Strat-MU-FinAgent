@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import { 
   Brain, 
   Zap, 
@@ -167,7 +168,7 @@ const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = nul
           const formData = new FormData();
           formData.append('document', file);
           
-          const response = await fetch('http://localhost:5001/api/password-protected/check-password', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.CHECK_PASSWORD), {
             method: 'POST',
             body: formData,
           });
@@ -213,7 +214,7 @@ const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = nul
       // Skip the old analyzeWithAI function and go directly to our new API call
       console.log('📊 File size:', uploadedFile.size, 'bytes');
       
-      const apiUrl = 'http://localhost:5001/api/pl-statements/analyze';
+      const apiUrl = buildApiUrl(API_ENDPOINTS.PL_ANALYZE);
       console.log('🔗 API URL:', apiUrl);
       
       // Create FormData for file upload
@@ -241,7 +242,7 @@ const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = nul
       // Simple connectivity test first
       console.log('🧪 Testing direct connectivity...');
       try {
-        const testResponse = await fetch('http://localhost:5001/api/pl-statements/analyze', {
+        const testResponse = await fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
           method: 'OPTIONS'
         });
         console.log('✅ OPTIONS test successful:', testResponse.status);
@@ -347,7 +348,7 @@ const AutomationPanel = ({ user, hasProcessedBankStatement = false, plData = nul
   const savePLStatementToBackend = async (aiData) => {
     try {
       console.log('Saving real P&L data to backend...');
-      const response = await fetch('http://localhost:5001/api/pl/save-statement', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.PL_SAVE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

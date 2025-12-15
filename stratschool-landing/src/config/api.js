@@ -30,6 +30,9 @@ export const API_ENDPOINTS = {
   BOOKKEEPING_PROCESS: '/api/bookkeeping/process-document',
   BOOKKEEPING_ENTRIES: '/api/bookkeeping/entries',
   
+  // Bank Statement Upload
+  UPLOAD_BANK_STATEMENT: '/api/upload/bank-statement',
+  
   // Overview Dashboard
   OVERVIEW_DASHBOARD: '/api/overview/dashboard-overview',
   

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import { 
   FileText, 
   Upload, 
@@ -101,7 +102,7 @@ const PLGenerator = ({ user }) => {
           const checkFormData = new FormData();
           checkFormData.append('document', uploadedFile);
           
-          const checkResponse = await fetch('http://localhost:5001/api/password-protected/check-password', {
+          const checkResponse = await fetch(buildApiUrl(API_ENDPOINTS.CHECK_PASSWORD), {
             method: 'POST',
             body: checkFormData,
           });
@@ -132,7 +133,7 @@ const PLGenerator = ({ user }) => {
         industry: 'General'
       }));
 
-      const response = await fetch('http://localhost:5001/api/pl-statements/analyze', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
         method: 'POST',
         body: formData
       });
