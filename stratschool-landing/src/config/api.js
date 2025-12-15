@@ -1,16 +1,12 @@
 // API Configuration for StratSchool FinAgent
 const getApiUrl = () => {
-  // Always use the deployed Render backend
-  return 'https://strat-mu-finagent.onrender.com';
+  // In development (localhost), use local backend
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5001';
+  }
   
-  // Commented out for now - using deployed backend
-  // // In production (deployed), use the current domain
-  // if (window.location.hostname !== 'localhost') {
-  //   return window.location.origin;
-  // }
-  // 
-  // // In development, use localhost
-  // return 'http://localhost:5001';
+  // In production (deployed), use the Render backend
+  return 'https://strat-mu-finagent.onrender.com';
 };
 
 export const API_BASE_URL = getApiUrl();

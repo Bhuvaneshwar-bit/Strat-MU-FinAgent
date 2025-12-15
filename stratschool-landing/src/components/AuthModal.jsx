@@ -3,7 +3,7 @@ import { X, Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/AuthModal.css';
 
-const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess }) => {
+const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess, onSignUpSuccess }) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -103,14 +103,20 @@ const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess }) => 
 
       const data = await response.json();
       
+      console.log('📧 Auth response:', data);
+      console.log('📧 Auth type:', type);
+      console.log('📧 User data received:', data.user);
+      
       if (data.success) {
         if (type === 'signin') {
-          // Trigger onboarding for sign-in
-          handleClose();
+          // Go directly to dashboard for existing users
+          console.log('🔑 Calling onSignInSuccess with:', data.user);
           onSignInSuccess && onSignInSuccess(data.user);
+          handleClose();
         } else {
-          // Just show success for sign-up
-          alert(`Sign Up successful! Welcome ${data.user?.firstName || 'to StratSchool'}!`);
+          // Show questionnaire for new sign-ups
+          console.log('🆕 Calling onSignUpSuccess with:', data.user);
+          onSignUpSuccess && onSignUpSuccess(data.user);
           handleClose();
         }
       } else {

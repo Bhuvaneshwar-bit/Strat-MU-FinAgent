@@ -1,10 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, Building, DollarSign, Globe, CreditCard, BarChart3, Upload, FileText, CheckCircle, Loader } from 'lucide-react';
 import PasswordModal from './PasswordModal';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/OnboardingQuestionnaire.css';
 
-const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
+const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser }) => {
+  // Get user from prop OR localStorage - localStorage is more reliable during long async operations
+  const [storedUser, setStoredUser] = useState(null);
+  
+  useEffect(() => {
+    console.log('📦 OnboardingQuestionnaire MOUNTED');
+    console.log('📦 propUser received:', propUser);
+    console.log('📦 Checking localStorage for user...');
+    
+    // Try to get user from localStorage on mount
+    const savedUser = localStorage.getItem('user');
+    console.log('📦 localStorage user raw:', savedUser);
+    
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        console.log('📦 OnboardingQuestionnaire: Got user from localStorage:', parsed.email);
+        setStoredUser(parsed);
+      } catch (e) {
+        console.error('📦 OnboardingQuestionnaire: Failed to parse user from localStorage');
+      }
+    } else {
+      console.log('📦 No user found in localStorage!');
+    }
+  }, [propUser]);
+  
+  // Use prop user if available, otherwise use stored user
+  const user = propUser || storedUser;
+  console.log('📦 Final user value:', user);
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [answers, setAnswers] = useState({
     companySize: '',
@@ -280,6 +309,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
         setProcessingStage('🎉 Welcome to StratSchool! Redirecting to your dashboard...');
         setTimeout(() => {
           onComplete({
+            user,
             answers,
             uploadedFile: uploadedFile?.name,
             processingResults: {
@@ -360,13 +390,15 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
         
         // Wait a moment to show completion
         setTimeout(() => {
+          console.log('🚀 Calling onComplete with plData...');
           onComplete({
+            user,
             ...answers,
             plData: plResult,
             bookkeepingData: bookkeepingResult,
             hasProcessedBankStatement: true
           });
-          onClose();
+          console.log('🚀 onComplete called successfully!');
         }, 1500);
       } else {
         console.warn('Some operations may have had issues:', { plSuccess, bookkeepingSuccess });
@@ -375,12 +407,12 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete }) => {
         
         setTimeout(() => {
           onComplete({
+            user,
             ...answers,
             plData: plResult,
             bookkeepingData: bookkeepingResult,
             hasProcessedBankStatement: true
           });
-          onClose();
         }, 1500);
       }
 
@@ -398,10 +430,10 @@ You can continue to see your results in the dashboard.`;
       if (continueAnyway) {
         // Continue with basic data
         onComplete({
+          user,
           ...answers,
           hasProcessedBankStatement: true
         });
-        onClose();
       } else {
         setIsProcessing(false);
         setProcessingStage('');
@@ -412,10 +444,10 @@ You can continue to see your results in the dashboard.`;
   const skipUpload = () => {
     // Complete onboarding without bank statement processing
     onComplete({
+      user,
       ...answers,
       hasProcessedBankStatement: false
     });
-    onClose();
   };
 
   if (!isOpen) return null;

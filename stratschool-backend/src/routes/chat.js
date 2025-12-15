@@ -122,4 +122,57 @@ router.get('/health', (req, res) => {
   });
 });
 
+// POST /api/chat/message - Alternative endpoint for chatbot widget
+router.post('/message', async (req, res) => {
+  try {
+    console.log('💬 Chatbot widget message received');
+    
+    const { message, conversationHistory } = req.body;
+
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required'
+      });
+    }
+
+    // Get latest P&L data for context
+    let plContext = null;
+    try {
+      const latestPL = await PLStatement.findOne().sort({ createdAt: -1 });
+      if (latestPL) {
+        plContext = {
+          totalRevenue: latestPL.analysis?.totalRevenue || 0,
+          totalExpenses: latestPL.analysis?.totalExpenses || 0,
+          netIncome: latestPL.analysis?.netIncome || 0,
+          transactionCount: latestPL.analysis?.transactionCount || 0,
+          profitMargin: latestPL.analysis?.totalRevenue > 0 ? 
+            ((latestPL.analysis.netIncome / latestPL.analysis.totalRevenue) * 100).toFixed(2) : 0
+        };
+      }
+    } catch (dbErr) {
+      console.log('⚠️ Could not fetch P&L context:', dbErr.message);
+    }
+
+    const aiResponse = await groqAI.generateChatResponse(
+      message.trim(),
+      conversationHistory || [],
+      plContext
+    );
+
+    return res.status(200).json({
+      success: true,
+      response: aiResponse,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Chatbot error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to process message'
+    });
+  }
+});
+
 module.exports = router;

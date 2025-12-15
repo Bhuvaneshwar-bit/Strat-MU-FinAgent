@@ -79,9 +79,12 @@ Use this detailed financial data to provide specific, actionable insights. Refer
       // Add conversation history (keep last 8 messages for context)
       if (conversationHistory && conversationHistory.length > 0) {
         conversationHistory.slice(-8).forEach(msg => {
+          // Handle both formats: {type, text} or {role, content}
+          const role = msg.role || (msg.type === 'user' ? 'user' : 'assistant');
+          const content = msg.content || msg.text;
           messages.push({
-            role: msg.type === 'user' ? 'user' : 'assistant',
-            content: msg.text
+            role: role,
+            content: content
           });
         });
       }
