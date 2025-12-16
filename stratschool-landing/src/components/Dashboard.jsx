@@ -211,18 +211,28 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       'recurring', 'auto-debit', 'standing instruction', 'si ', 'nach', 'autopay'
     ];
 
+    // Count vendor occurrences for recurring detection
+    const vendorCount = new Map();
+    metrics.debitTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      vendorCount.set(vendorKey, (vendorCount.get(vendorKey) || 0) + 1);
+    });
+
     const recurring = [];
     const nonRecurring = [];
 
     metrics.debitTransactions.forEach(txn => {
       const description = (txn.description || txn.particulars || '').toLowerCase();
       const category = (txn.category?.category || '').toLowerCase();
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
       
-      const isRecurring = recurringKeywords.some(keyword => 
+      const hasRecurringKeyword = recurringKeywords.some(keyword => 
         description.includes(keyword) || category.includes(keyword)
       );
+      const isRepeatedVendor = (vendorCount.get(vendorKey) || 0) >= 2;
 
-      if (isRecurring) {
+      if (hasRecurringKeyword || isRepeatedVendor) {
         recurring.push(txn);
       } else {
         nonRecurring.push(txn);
@@ -282,6 +292,14 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       'amazon prime', 'swiggy', 'zomato', 'uber', 'ola', 'gym', 'membership', 'premium'
     ];
 
+    // Count vendor occurrences for recurring detection
+    const vendorCount = new Map();
+    metrics.debitTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      vendorCount.set(vendorKey, (vendorCount.get(vendorKey) || 0) + 1);
+    });
+
     metrics.debitTransactions.forEach(txn => {
       const date = parseDate(txn.date);
       if (!date || isNaN(date.getTime())) return;
@@ -301,14 +319,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       // Overall
       overallMap.set(key, (overallMap.get(key) || 0) + amount);
 
-      // Check if recurring
+      // Check if recurring by keywords OR repeated vendor
       const description = (txn.description || txn.particulars || '').toLowerCase();
       const category = (txn.category?.category || '').toLowerCase();
-      const isRecurring = recurringKeywords.some(keyword => 
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      
+      const hasRecurringKeyword = recurringKeywords.some(keyword => 
         description.includes(keyword) || category.includes(keyword)
       );
+      const isRepeatedVendor = (vendorCount.get(vendorKey) || 0) >= 2;
 
-      if (isRecurring) {
+      if (hasRecurringKeyword || isRepeatedVendor) {
         recurringMap.set(key, (recurringMap.get(key) || 0) + amount);
       } else {
         nonRecurringMap.set(key, (nonRecurringMap.get(key) || 0) + amount);
@@ -364,18 +385,30 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       'installment', 'lease', 'royalty', 'commission', 'auto-credit', 'standing instruction'
     ];
 
+    // First pass: count how many times each vendor/source appears
+    const vendorCount = new Map();
+    metrics.creditTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      // Extract key part of description (first 30 chars or before common separators)
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      vendorCount.set(vendorKey, (vendorCount.get(vendorKey) || 0) + 1);
+    });
+
     const recurring = [];
     const nonRecurring = [];
 
     metrics.creditTransactions.forEach(txn => {
       const description = (txn.description || txn.particulars || '').toLowerCase();
       const category = (txn.category?.category || '').toLowerCase();
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
       
-      const isRecurring = recurringKeywords.some(keyword => 
+      // Check if recurring by keywords OR if same vendor appears 2+ times
+      const hasRecurringKeyword = recurringKeywords.some(keyword => 
         description.includes(keyword) || category.includes(keyword)
       );
+      const isRepeatedVendor = (vendorCount.get(vendorKey) || 0) >= 2;
 
-      if (isRecurring) {
+      if (hasRecurringKeyword || isRepeatedVendor) {
         recurring.push(txn);
       } else {
         nonRecurring.push(txn);
@@ -430,6 +463,14 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       'dividend', 'pension', 'retainer', 'recurring', 'regular', 'fixed'
     ];
 
+    // Count vendor occurrences for recurring detection
+    const vendorCount = new Map();
+    metrics.creditTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      vendorCount.set(vendorKey, (vendorCount.get(vendorKey) || 0) + 1);
+    });
+
     metrics.creditTransactions.forEach(txn => {
       const date = parseDate(txn.date);
       if (!date || isNaN(date.getTime())) return;
@@ -449,11 +490,14 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
       const description = (txn.description || txn.particulars || '').toLowerCase();
       const category = (txn.category?.category || '').toLowerCase();
-      const isRecurring = recurringKeywords.some(keyword => 
+      const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+      
+      const hasRecurringKeyword = recurringKeywords.some(keyword => 
         description.includes(keyword) || category.includes(keyword)
       );
+      const isRepeatedVendor = (vendorCount.get(vendorKey) || 0) >= 2;
 
-      if (isRecurring) {
+      if (hasRecurringKeyword || isRepeatedVendor) {
         recurringMap.set(key, (recurringMap.get(key) || 0) + amount);
       } else {
         nonRecurringMap.set(key, (nonRecurringMap.get(key) || 0) + amount);
