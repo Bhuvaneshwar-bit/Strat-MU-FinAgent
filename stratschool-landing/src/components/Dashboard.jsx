@@ -177,22 +177,26 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
   const metrics = getPlMetrics();
 
-  // Professional color palettes for pie charts
-  const REVENUE_COLORS = [
-    '#10B981', '#34D399', '#6EE7B7', '#A7F3D0',
-    '#059669', '#047857', '#065F46', '#064E3B',
-    '#22C55E', '#4ADE80', '#86EFAC', '#BBF7D0'
-  ];
-  
-  const EXPENSE_COLORS = [
-    '#EF4444', '#F87171', '#FCA5A5', '#FECACA',
-    '#DC2626', '#B91C1C', '#991B1B', '#7F1D1D',
-    '#F97316', '#FB923C', '#FDBA74', '#FED7AA'
+  // Professional color palettes - distinct vibrant colors for each category
+  const CHART_COLORS = [
+    '#6366F1', // Indigo
+    '#22C55E', // Green
+    '#F59E0B', // Amber
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#06B6D4', // Cyan
+    '#EC4899', // Pink
+    '#14B8A6', // Teal
+    '#F97316', // Orange
+    '#3B82F6', // Blue
+    '#84CC16', // Lime
+    '#A855F7', // Violet
+    '#0EA5E9', // Sky
+    '#10B981', // Emerald
+    '#FACC15', // Yellow
   ];
 
-  // State for active pie chart segment (for animation)
-  const [activeRevenueIndex, setActiveRevenueIndex] = useState(null);
-  const [activeExpenseIndex, setActiveExpenseIndex] = useState(null);
+  // No active segment state needed - using simpler hover effect
 
   // Dynamic pie chart data computed from transactions - updates when categories change
   const revenuePieData = useMemo(() => {
@@ -237,48 +241,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       .sort((a, b) => b.value - a.value);
   }, [metrics.debitTransactions]);
 
-  // Custom active shape for pie chart (professional hover effect)
-  const renderActiveShape = (props, colors) => {
-    const RADIAN = Math.PI / 180;
-    const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
-      fill, payload, percent, value } = props;
-    const sin = Math.sin(-RADIAN * midAngle);
-    const cos = Math.cos(-RADIAN * midAngle);
-    const sx = cx + (outerRadius + 10) * cos;
-    const sy = cy + (outerRadius + 10) * sin;
-    const mx = cx + (outerRadius + 30) * cos;
-    const my = cy + (outerRadius + 30) * sin;
-    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
-    const ey = my;
-    const textAnchor = cos >= 0 ? 'start' : 'end';
 
-    return (
-      <g>
-        <text x={cx} y={cy} dy={8} textAnchor="middle" fill="#333" className="pie-center-text">
-          {payload.name}
-        </text>
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 6}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-          style={{ filter: 'drop-shadow(0px 4px 8px rgba(0,0,0,0.2))' }}
-        />
-        <Sector
-          cx={cx}
-          cy={cy}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          innerRadius={outerRadius + 8}
-          outerRadius={outerRadius + 12}
-          fill={fill}
-        />
-      </g>
-    );
-  };
 
   // Custom tooltip for pie chart
   const CustomPieTooltip = ({ active, payload, totalAmount }) => {
@@ -297,25 +260,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       );
     }
     return null;
-  };
-
-  // Custom legend renderer
-  const renderCustomLegend = (props, colors, totalAmount) => {
-    const { payload } = props;
-    return (
-      <div className="pie-legend">
-        {payload.map((entry, index) => {
-          const percentage = ((entry.payload.value / totalAmount) * 100).toFixed(1);
-          return (
-            <div key={`legend-${index}`} className="pie-legend-item">
-              <span className="pie-legend-color" style={{ backgroundColor: colors[index % colors.length] }}></span>
-              <span className="pie-legend-label">{entry.value}</span>
-              <span className="pie-legend-value">{percentage}%</span>
-            </div>
-          );
-        })}
-      </div>
-    );
   };
 
   // Format currency
@@ -904,73 +848,52 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Revenue Pie Chart - Dynamic visualization */}
+                  {/* Revenue Pie Chart - Compact & Professional */}
                   {revenuePieData.length > 0 && (
-                    <div className="pie-chart-section">
+                    <div className="pie-chart-section compact">
                       <div className="pie-chart-header">
-                        <h3><PieChartIcon className="chart-icon" /> Revenue Distribution by Category</h3>
-                        <p className="chart-subtitle">Click on a segment to view details • Categories update in real-time when you reclassify transactions</p>
+                        <h3><PieChartIcon className="chart-icon" /> Revenue by Category</h3>
                       </div>
                       <div className="pie-chart-container">
                         <div className="pie-chart-wrapper">
-                          <ResponsiveContainer width="100%" height={400}>
+                          <ResponsiveContainer width="100%" height={220}>
                             <PieChart>
                               <Pie
-                                activeIndex={activeRevenueIndex}
-                                activeShape={(props) => renderActiveShape(props, REVENUE_COLORS)}
                                 data={revenuePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={80}
-                                outerRadius={140}
-                                paddingAngle={3}
+                                innerRadius={50}
+                                outerRadius={85}
+                                paddingAngle={2}
                                 dataKey="value"
-                                onMouseEnter={(_, index) => setActiveRevenueIndex(index)}
-                                onMouseLeave={() => setActiveRevenueIndex(null)}
-                                animationBegin={0}
-                                animationDuration={800}
-                                animationEasing="ease-out"
+                                animationDuration={600}
                               >
                                 {revenuePieData.map((entry, index) => (
                                   <Cell 
                                     key={`cell-${index}`} 
-                                    fill={REVENUE_COLORS[index % REVENUE_COLORS.length]}
+                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
                                     stroke="#fff"
                                     strokeWidth={2}
-                                    style={{ cursor: 'pointer' }}
                                   />
                                 ))}
                               </Pie>
                               <Tooltip 
                                 content={<CustomPieTooltip totalAmount={revenuePieData.reduce((sum, item) => sum + item.value, 0)} />}
                               />
-                              <Legend 
-                                content={(props) => renderCustomLegend(props, REVENUE_COLORS, revenuePieData.reduce((sum, item) => sum + item.value, 0))}
-                                layout="vertical"
-                                align="right"
-                                verticalAlign="middle"
-                              />
                             </PieChart>
                           </ResponsiveContainer>
                         </div>
-                        <div className="pie-chart-stats">
-                          <div className="stat-card">
-                            <span className="stat-label">Categories</span>
-                            <span className="stat-value">{revenuePieData.length}</span>
-                          </div>
-                          <div className="stat-card">
-                            <span className="stat-label">Top Category</span>
-                            <span className="stat-value">{revenuePieData[0]?.name || '-'}</span>
-                          </div>
-                          <div className="stat-card">
-                            <span className="stat-label">Top Category Share</span>
-                            <span className="stat-value">
-                              {revenuePieData[0] ? 
-                                ((revenuePieData[0].value / revenuePieData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1) + '%'
-                                : '-'
-                              }
-                            </span>
-                          </div>
+                        <div className="pie-legend-compact">
+                          {revenuePieData.slice(0, 6).map((item, index) => (
+                            <div key={index} className="legend-item">
+                              <span className="legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                              <span className="legend-name">{item.name}</span>
+                              <span className="legend-percent">{((item.value / revenuePieData.reduce((s, i) => s + i.value, 0)) * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
+                          {revenuePieData.length > 6 && (
+                            <div className="legend-item more">+{revenuePieData.length - 6} more</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1122,73 +1045,52 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Expense Pie Chart - Dynamic visualization */}
+                  {/* Expense Pie Chart - Compact & Professional */}
                   {expensePieData.length > 0 && (
-                    <div className="pie-chart-section expense-chart">
+                    <div className="pie-chart-section compact expense">
                       <div className="pie-chart-header">
-                        <h3><PieChartIcon className="chart-icon" /> Expense Distribution by Category</h3>
-                        <p className="chart-subtitle">Click on a segment to view details • Categories update in real-time when you reclassify transactions</p>
+                        <h3><PieChartIcon className="chart-icon" /> Expenses by Category</h3>
                       </div>
                       <div className="pie-chart-container">
                         <div className="pie-chart-wrapper">
-                          <ResponsiveContainer width="100%" height={400}>
+                          <ResponsiveContainer width="100%" height={220}>
                             <PieChart>
                               <Pie
-                                activeIndex={activeExpenseIndex}
-                                activeShape={(props) => renderActiveShape(props, EXPENSE_COLORS)}
                                 data={expensePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={80}
-                                outerRadius={140}
-                                paddingAngle={3}
+                                innerRadius={50}
+                                outerRadius={85}
+                                paddingAngle={2}
                                 dataKey="value"
-                                onMouseEnter={(_, index) => setActiveExpenseIndex(index)}
-                                onMouseLeave={() => setActiveExpenseIndex(null)}
-                                animationBegin={0}
-                                animationDuration={800}
-                                animationEasing="ease-out"
+                                animationDuration={600}
                               >
                                 {expensePieData.map((entry, index) => (
                                   <Cell 
                                     key={`cell-${index}`} 
-                                    fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]}
+                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
                                     stroke="#fff"
                                     strokeWidth={2}
-                                    style={{ cursor: 'pointer' }}
                                   />
                                 ))}
                               </Pie>
                               <Tooltip 
                                 content={<CustomPieTooltip totalAmount={expensePieData.reduce((sum, item) => sum + item.value, 0)} />}
                               />
-                              <Legend 
-                                content={(props) => renderCustomLegend(props, EXPENSE_COLORS, expensePieData.reduce((sum, item) => sum + item.value, 0))}
-                                layout="vertical"
-                                align="right"
-                                verticalAlign="middle"
-                              />
                             </PieChart>
                           </ResponsiveContainer>
                         </div>
-                        <div className="pie-chart-stats">
-                          <div className="stat-card expense">
-                            <span className="stat-label">Categories</span>
-                            <span className="stat-value">{expensePieData.length}</span>
-                          </div>
-                          <div className="stat-card expense">
-                            <span className="stat-label">Top Category</span>
-                            <span className="stat-value">{expensePieData[0]?.name || '-'}</span>
-                          </div>
-                          <div className="stat-card expense">
-                            <span className="stat-label">Top Category Share</span>
-                            <span className="stat-value">
-                              {expensePieData[0] ? 
-                                ((expensePieData[0].value / expensePieData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1) + '%'
-                                : '-'
-                              }
-                            </span>
-                          </div>
+                        <div className="pie-legend-compact">
+                          {expensePieData.slice(0, 6).map((item, index) => (
+                            <div key={index} className="legend-item">
+                              <span className="legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                              <span className="legend-name">{item.name}</span>
+                              <span className="legend-percent">{((item.value / expensePieData.reduce((s, i) => s + i.value, 0)) * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
+                          {expensePieData.length > 6 && (
+                            <div className="legend-item more">+{expensePieData.length - 6} more</div>
+                          )}
                         </div>
                       </div>
                     </div>

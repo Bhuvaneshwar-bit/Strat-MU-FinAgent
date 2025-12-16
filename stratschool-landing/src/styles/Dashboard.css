@@ -1172,166 +1172,96 @@
 }
 
 /* ========================================
-   PIE CHART SECTION - Professional Styling
+   PIE CHART SECTION - Compact & Professional
    ======================================== */
 
-.pie-chart-section {
+.pie-chart-section.compact {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
-  margin: 24px 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
-  animation: fadeSlideUp 0.6s ease-out;
 }
 
-.pie-chart-section.expense-chart {
-  border-left: 4px solid #ef4444;
+.pie-chart-section.compact.expense {
+  border-left: 3px solid #ef4444;
 }
 
-.pie-chart-section:not(.expense-chart) {
-  border-left: 4px solid #10b981;
-}
-
-@keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.pie-chart-section.compact:not(.expense) {
+  border-left: 3px solid #22c55e;
 }
 
 .pie-chart-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 12px;
 }
 
 .pie-chart-header h3 {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 18px;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: #1e293b;
-  margin: 0 0 8px 0;
+  margin: 0;
 }
 
 .pie-chart-header .chart-icon {
-  width: 24px;
-  height: 24px;
-  color: #667eea;
-}
-
-.expense-chart .pie-chart-header .chart-icon {
-  color: #ef4444;
-}
-
-.chart-subtitle {
-  font-size: 14px;
+  width: 16px;
+  height: 16px;
   color: #64748b;
-  margin: 0;
 }
 
 .pie-chart-container {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 24px;
 }
 
 .pie-chart-wrapper {
-  width: 100%;
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 0 0 200px;
+  min-height: 220px;
 }
 
-/* Pie Chart Stats Cards */
-.pie-chart-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.pie-chart-stats .stat-card {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 12px;
-  padding: 16px 20px;
-  text-align: center;
-  border: 1px solid #e2e8f0;
-  transition: all 0.3s ease;
-}
-
-.pie-chart-stats .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.pie-chart-section:not(.expense-chart) .stat-card:hover {
-  border-color: #10b981;
-}
-
-.pie-chart-section.expense-chart .stat-card:hover {
-  border-color: #ef4444;
-}
-
-.pie-chart-stats .stat-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
-.pie-chart-stats .stat-value {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-/* Custom Pie Legend */
-.pie-legend {
+/* Compact Legend */
+.pie-legend-compact {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  max-height: 350px;
-  overflow-y: auto;
+  gap: 6px;
 }
 
-.pie-legend-item {
+.pie-legend-compact .legend-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   background: #f8fafc;
   transition: all 0.2s ease;
 }
 
-.pie-legend-item:hover {
+.pie-legend-compact .legend-item:hover {
   background: #f1f5f9;
-  transform: translateX(4px);
 }
 
-.pie-legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 4px;
+.pie-legend-compact .legend-item.more {
+  color: #64748b;
+  font-size: 12px;
+  font-style: italic;
+  background: transparent;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
-.pie-legend-label {
+.legend-name {
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #334155;
   white-space: nowrap;
@@ -1339,12 +1269,12 @@
   text-overflow: ellipsis;
 }
 
-.pie-legend-value {
-  font-size: 13px;
+.legend-percent {
+  font-size: 12px;
   font-weight: 600;
   color: #1e293b;
   background: white;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid #e2e8f0;
 }
@@ -1352,100 +1282,61 @@
 /* Custom Pie Tooltip */
 .pie-tooltip {
   background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   border: 1px solid #e2e8f0;
-  min-width: 180px;
+  min-width: 150px;
 }
 
 .pie-tooltip-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .pie-tooltip-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
 .pie-tooltip-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1e293b;
 }
 
 .pie-tooltip-value {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .pie-tooltip-percent {
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
-  font-weight: 500;
 }
 
-/* Pie Chart Center Text */
-.pie-center-text {
-  font-size: 14px;
-  font-weight: 600;
-  fill: #1e293b;
-}
-
-/* Responsive adjustments for pie charts */
-@media (max-width: 768px) {
-  .pie-chart-section {
-    padding: 16px;
-    margin: 16px 0;
+/* Responsive */
+@media (max-width: 640px) {
+  .pie-chart-container {
+    flex-direction: column;
+    gap: 16px;
   }
 
   .pie-chart-wrapper {
-    min-height: 300px;
+    flex: none;
+    width: 100%;
+    min-height: 180px;
   }
 
-  .pie-chart-stats {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .pie-legend {
-    max-height: none;
-    padding: 12px;
-  }
-  
-  .pie-legend-item {
-    padding: 6px 10px;
-  }
-
-  .pie-chart-header h3 {
-    font-size: 16px;
-  }
-
-  .chart-subtitle {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .pie-chart-wrapper {
-    min-height: 250px;
-  }
-  
-  .pie-tooltip {
-    min-width: 150px;
-    padding: 12px;
-  }
-  
-  .pie-tooltip-value {
-    font-size: 18px;
+  .pie-legend-compact {
+    width: 100%;
   }
 }
