@@ -83,6 +83,12 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [expenseViewMode, setExpenseViewMode] = useState('monthly'); // 'weekly' | 'monthly'
   const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
 
+  // Revenue tab states
+  const [showRevenuePieLegend, setShowRevenuePieLegend] = useState(false);
+  const [revenuePieLegendLocked, setRevenuePieLegendLocked] = useState(false);
+  const [revenueViewMode, setRevenueViewMode] = useState('monthly'); // 'weekly' | 'monthly'
+  const [hoveredRevenuePieIndex, setHoveredRevenuePieIndex] = useState(null);
+
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
     // First check onboardingData.user (passed from questionnaire during signup)
@@ -344,6 +350,126 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
   }, [metrics.debitTransactions]);
+
+  // Classify revenue as recurring vs non-recurring
+  const classifyRevenue = useMemo(() => {
+    if (!metrics.creditTransactions || metrics.creditTransactions.length === 0) {
+      return { recurring: [], nonRecurring: [], recurringTotal: 0, nonRecurringTotal: 0 };
+    }
+
+    // Keywords that indicate recurring revenue
+    const recurringKeywords = [
+      'salary', 'wages', 'monthly', 'subscription', 'rental', 'rent', 'interest',
+      'dividend', 'pension', 'retainer', 'recurring', 'regular', 'fixed', 'emi',
+      'installment', 'lease', 'royalty', 'commission', 'auto-credit', 'standing instruction'
+    ];
+
+    const recurring = [];
+    const nonRecurring = [];
+
+    metrics.creditTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const category = (txn.category?.category || '').toLowerCase();
+      
+      const isRecurring = recurringKeywords.some(keyword => 
+        description.includes(keyword) || category.includes(keyword)
+      );
+
+      if (isRecurring) {
+        recurring.push(txn);
+      } else {
+        nonRecurring.push(txn);
+      }
+    });
+
+    return {
+      recurring,
+      nonRecurring,
+      recurringTotal: recurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0),
+      nonRecurringTotal: nonRecurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+    };
+  }, [metrics.creditTransactions]);
+
+  // Generate bar chart data for revenue over time
+  const revenueBarData = useMemo(() => {
+    if (!metrics.creditTransactions || metrics.creditTransactions.length === 0) return { overall: [], recurring: [], nonRecurring: [] };
+
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      const parts = dateStr.split(/[\/\-]/);
+      if (parts.length === 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
+        return new Date(fullYear, month, day);
+      }
+      return new Date(dateStr);
+    };
+
+    const getWeekKey = (date) => {
+      const year = date.getFullYear().toString().slice(-2);
+      const startOfYear = new Date(date.getFullYear(), 0, 1);
+      const weekNum = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+      return `W${weekNum}'${year}`;
+    };
+
+    const getMonthKey = (date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const year = date.getFullYear().toString().slice(-2);
+      return `${months[date.getMonth()]} '${year}`;
+    };
+
+    const overallMap = new Map();
+    const recurringMap = new Map();
+    const nonRecurringMap = new Map();
+    const dateTracker = new Map();
+
+    const recurringKeywords = [
+      'salary', 'wages', 'monthly', 'subscription', 'rental', 'rent', 'interest',
+      'dividend', 'pension', 'retainer', 'recurring', 'regular', 'fixed'
+    ];
+
+    metrics.creditTransactions.forEach(txn => {
+      const date = parseDate(txn.date);
+      if (!date || isNaN(date.getTime())) return;
+
+      const key = revenueViewMode === 'weekly' ? getWeekKey(date) : getMonthKey(date);
+      const amount = Math.abs(txn.amount || 0);
+
+      if (!dateTracker.has(key)) {
+        if (revenueViewMode === 'monthly') {
+          dateTracker.set(key, new Date(date.getFullYear(), date.getMonth(), 1).getTime());
+        } else {
+          dateTracker.set(key, date.getTime());
+        }
+      }
+
+      overallMap.set(key, (overallMap.get(key) || 0) + amount);
+
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const category = (txn.category?.category || '').toLowerCase();
+      const isRecurring = recurringKeywords.some(keyword => 
+        description.includes(keyword) || category.includes(keyword)
+      );
+
+      if (isRecurring) {
+        recurringMap.set(key, (recurringMap.get(key) || 0) + amount);
+      } else {
+        nonRecurringMap.set(key, (nonRecurringMap.get(key) || 0) + amount);
+      }
+    });
+
+    const sortedKeys = Array.from(overallMap.keys()).sort((a, b) => {
+      return (dateTracker.get(a) || 0) - (dateTracker.get(b) || 0);
+    });
+
+    return {
+      overall: sortedKeys.map(key => ({ name: key, amount: overallMap.get(key) || 0 })),
+      recurring: sortedKeys.map(key => ({ name: key, amount: recurringMap.get(key) || 0 })),
+      nonRecurring: sortedKeys.map(key => ({ name: key, amount: nonRecurringMap.get(key) || 0 }))
+    };
+  }, [metrics.creditTransactions, revenueViewMode]);
 
   // Professional color palettes - distinct vibrant colors for each category
   const CHART_COLORS = [
@@ -1048,9 +1174,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             <InvoiceGeneration user={user} />
           )}
 
-          {/* Revenue Tab */}
+          {/* Revenue Tab - Professional Dashboard Layout */}
           {activeTab === 'revenue' && (
-            <div className="revenue-tab-content">
+            <div className="revenue-tab-content" onClick={() => { if (!revenuePieLegendLocked) setShowRevenuePieLegend(false); }}>
               <div className="tab-header">
                 <h2><TrendingUp className="tab-header-icon" /> Revenue Analysis</h2>
                 <p>Detailed breakdown of all revenue streams and income sources</p>
@@ -1069,128 +1195,381 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 </div>
               ) : (
                 <>
-                  {/* Revenue Summary Card */}
-                  <div className="summary-card revenue-summary">
-                    <div className="summary-header">
-                      <div className="summary-icon revenue-bg">
-                        <TrendingUp />
+                  {/* Main Dashboard Grid - Professional 2x2 Layout */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '380px 1fr',
+                    gridTemplateRows: 'auto auto',
+                    gap: '24px',
+                    marginTop: '24px'
+                  }}>
+                    
+                    {/* TOP LEFT: Pie Chart with Hover Legend */}
+                    <div 
+                      style={{
+                        background: 'white',
+                        borderRadius: '20px',
+                        padding: '28px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        border: '1px solid #e2e8f0',
+                        position: 'relative',
+                        minHeight: '380px'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px' }}>
+                        Revenue by Category
+                      </h3>
+                      
+                      {/* Pie Chart */}
+                      <div 
+                        style={{ position: 'relative', width: '100%', height: '280px' }}
+                        onMouseEnter={() => !revenuePieLegendLocked && setShowRevenuePieLegend(true)}
+                        onMouseLeave={() => !revenuePieLegendLocked && setShowRevenuePieLegend(false)}
+                        onClick={() => setRevenuePieLegendLocked(!revenuePieLegendLocked)}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={revenuePieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={70}
+                              outerRadius={110}
+                              paddingAngle={3}
+                              dataKey="value"
+                              onMouseEnter={(_, index) => setHoveredRevenuePieIndex(index)}
+                              onMouseLeave={() => setHoveredRevenuePieIndex(null)}
+                            >
+                              {revenuePieData.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                  stroke={hoveredRevenuePieIndex === index ? '#1e293b' : '#fff'}
+                                  strokeWidth={hoveredRevenuePieIndex === index ? 3 : 2}
+                                  style={{ 
+                                    cursor: 'pointer',
+                                    filter: hoveredRevenuePieIndex === index ? 'brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        
+                        {/* Center Total */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          textAlign: 'center',
+                          pointerEvents: 'none'
+                        }}>
+                          <div style={{ fontSize: '22px', fontWeight: '800', color: '#22c55e' }}>
+                            {formatCurrency(metrics.totalRevenue)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Total Revenue</div>
+                        </div>
+
+                        {/* Legend Overlay on Hover/Click */}
+                        {showRevenuePieLegend && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(255,255,255,0.97)',
+                            backdropFilter: 'blur(8px)',
+                            borderRadius: '16px',
+                            padding: '16px',
+                            overflowY: 'auto',
+                            zIndex: 10,
+                            animation: 'fadeIn 0.2s ease',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                          }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {revenuePieLegendLocked ? '🔒 Click anywhere to close' : '💡 Click to lock legend'}
+                            </div>
+                            {revenuePieData.map((item, index) => {
+                              const total = revenuePieData.reduce((s, i) => s + i.value, 0);
+                              const percent = ((item.value / total) * 100).toFixed(1);
+                              return (
+                                <div key={index} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '10px 12px',
+                                  borderRadius: '10px',
+                                  marginBottom: '6px',
+                                  background: hoveredRevenuePieIndex === index ? '#f1f5f9' : 'transparent',
+                                  transition: 'background 0.2s ease'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: CHART_COLORS[index % CHART_COLORS.length], boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}></div>
+                                    <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{item.name}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e', background: '#f0fdf4', padding: '4px 8px', borderRadius: '6px' }}>{percent}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="summary-info">
-                        <h3>Total Revenue</h3>
-                        <div className="summary-amount revenue-amount">{formatCurrency(metrics.totalRevenue)}</div>
+
+                      {/* Hint */}
+                      <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '16px' }}>
+                        Hover to see breakdown • Click to lock
+                      </p>
+                    </div>
+
+                    {/* TOP RIGHT: Overall Revenue Bar Chart */}
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '380px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                          Overall Revenue
+                        </h3>
+                        <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '12px', padding: '6px' }}>
+                          <button 
+                            onClick={() => setRevenueViewMode('weekly')}
+                            style={{
+                              padding: '10px 20px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              background: revenueViewMode === 'weekly' ? 'white' : 'transparent',
+                              color: revenueViewMode === 'weekly' ? '#1e293b' : '#64748b',
+                              boxShadow: revenueViewMode === 'weekly' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >Weekly</button>
+                          <button 
+                            onClick={() => setRevenueViewMode('monthly')}
+                            style={{
+                              padding: '10px 20px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              background: revenueViewMode === 'monthly' ? 'white' : 'transparent',
+                              color: revenueViewMode === 'monthly' ? '#1e293b' : '#64748b',
+                              boxShadow: revenueViewMode === 'monthly' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >Monthly</button>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minHeight: '280px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={revenueBarData.overall} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 13, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 13, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={70}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Total Revenue']}
+                              contentStyle={{ 
+                                borderRadius: '12px', 
+                                border: 'none',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                padding: '12px 16px'
+                              }}
+                              labelStyle={{ fontWeight: '600', marginBottom: '4px' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#22c55e" 
+                              radius={[8, 8, 0, 0]}
+                              maxBarSize={60}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
-                    <div className="summary-meta">
-                      <span className="transaction-count">
-                        {metrics.creditTransactions.length} credit transactions
-                      </span>
+
+                    {/* BOTTOM LEFT: Non-Recurring Revenue */}
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '320px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                        }}>
+                          <Shuffle size={20} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                            Non-Recurring Revenue
+                          </h3>
+                          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>One-time income sources</p>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={revenueBarData.nonRecurring} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={60}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Non-Recurring']}
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#8b5cf6" 
+                              radius={[6, 6, 0, 0]}
+                              maxBarSize={50}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginTop: '16px', 
+                        padding: '16px 20px', 
+                        background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', 
+                        borderRadius: '12px',
+                        border: '1px solid #ddd6fe'
+                      }}>
+                        <span style={{ fontSize: '14px', color: '#5b21b6', fontWeight: '500' }}>Total Non-Recurring</span>
+                        <span style={{ fontSize: '20px', fontWeight: '700', color: '#7c3aed' }}>{formatCurrency(classifyRevenue.nonRecurringTotal)}</span>
+                      </div>
+                    </div>
+
+                    {/* BOTTOM RIGHT: Recurring Revenue */}
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '320px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                        }}>
+                          <Repeat size={20} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                            Recurring Revenue
+                          </h3>
+                          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Regular income streams</p>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={revenueBarData.recurring} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={60}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Recurring']}
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#22c55e" 
+                              radius={[6, 6, 0, 0]}
+                              maxBarSize={50}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginTop: '16px', 
+                        padding: '16px 20px', 
+                        background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', 
+                        borderRadius: '12px',
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        <span style={{ fontSize: '14px', color: '#166534', fontWeight: '500' }}>Total Recurring</span>
+                        <span style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>{formatCurrency(classifyRevenue.recurringTotal)}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Revenue Pie Chart - Professional Design */}
-                  {revenuePieData.length > 0 && (
-                    <div style={{
-                      background: 'white',
-                      borderRadius: '16px',
-                      padding: '24px',
-                      margin: '20px 0',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <h3 style={{
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: '#1e293b',
-                        marginBottom: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <PieChartIcon style={{ width: '20px', height: '20px', color: '#22c55e' }} />
-                        Revenue Breakdown
-                      </h3>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '40px'
-                      }}>
-                        {/* Donut Chart */}
-                        <div style={{ position: 'relative', width: '200px', height: '200px', flexShrink: 0 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={revenuePieData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={90}
-                                paddingAngle={2}
-                                dataKey="value"
-                                animationDuration={600}
-                              >
-                                {revenuePieData.map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="#fff"
-                                    strokeWidth={2}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip content={<CustomPieTooltip totalAmount={revenuePieData.reduce((sum, item) => sum + item.value, 0)} />} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          {/* Center Total */}
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            textAlign: 'center'
-                          }}>
-                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#22c55e' }}>
-                              {formatCurrency(metrics.totalRevenue)}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Total</div>
-                          </div>
-                        </div>
-
-                        {/* Legend */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {revenuePieData.map((item, index) => {
-                            const total = revenuePieData.reduce((s, i) => s + i.value, 0);
-                            const percent = ((item.value / total) * 100).toFixed(1);
-                            return (
-                              <div key={index} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 12px',
-                                background: '#f8fafc',
-                                borderRadius: '8px',
-                                borderLeft: `4px solid ${CHART_COLORS[index % CHART_COLORS.length]}`
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                  <div>
-                                    <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{item.name}</div>
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{item.count} transaction{item.count > 1 ? 's' : ''}</div>
-                                  </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</div>
-                                  <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>{percent}%</div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Credit Transactions Table */}
-                  <div className="transactions-table-section">
-                    <h3>Credit Transactions</h3>
+                  <div className="transactions-table-section" style={{ marginTop: '24px' }}>
+                    <h3>All Credit Transactions</h3>
                     <div className="transactions-table-wrapper">
                       <table className="transactions-table">
                         <thead>
@@ -1257,37 +1636,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           )}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-
-                  {/* Revenue Categories */}
-                  <div className="categories-section">
-                    <h3>Revenue by Category</h3>
-                    <div className="categories-grid">
-                      {metrics.revenueBreakdown.length > 0 ? (
-                        metrics.revenueBreakdown.map((item, index) => (
-                          <div key={index} className="category-card revenue-category">
-                            <div className="category-header">
-                              <span className="category-name">{item.name || item.category}</span>
-                              <span className="category-percentage">
-                                {((item.amount / metrics.totalRevenue) * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="category-amount revenue-amount">{formatCurrency(item.amount)}</div>
-                            <div className="category-meta">
-                              <span className="transaction-count">{item.transactionCount} transactions</span>
-                            </div>
-                            <div className="category-bar">
-                              <div 
-                                className="category-bar-fill revenue-fill" 
-                                style={{width: `${(item.amount / metrics.totalRevenue) * 100}%`}}
-                              ></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="no-categories">No revenue categories available</div>
-                      )}
                     </div>
                   </div>
                 </>
