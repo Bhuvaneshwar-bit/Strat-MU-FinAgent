@@ -28,7 +28,7 @@ import {
   Repeat,
   Shuffle
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
 import BookkeepingDashboard from './BookkeepingDashboard';
@@ -76,6 +76,12 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   // Expense breakdown dropdown states
   const [expenseDropdownOpen, setExpenseDropdownOpen] = useState(false);
   const [expenseModalType, setExpenseModalType] = useState(null); // 'recurring' | 'non-recurring'
+  
+  // Expense tab states
+  const [showPieLegend, setShowPieLegend] = useState(false);
+  const [pieLegendLocked, setPieLegendLocked] = useState(false);
+  const [expenseViewMode, setExpenseViewMode] = useState('monthly'); // 'weekly' | 'monthly'
+  const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -223,6 +229,101 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       recurringTotal: recurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0),
       nonRecurringTotal: nonRecurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
     };
+  }, [metrics.debitTransactions]);
+
+  // Generate bar chart data for expenses over time
+  const expenseBarData = useMemo(() => {
+    if (!metrics.debitTransactions || metrics.debitTransactions.length === 0) return { overall: [], recurring: [], nonRecurring: [] };
+
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      // Try different date formats
+      const parts = dateStr.split(/[\/\-]/);
+      if (parts.length === 3) {
+        // DD/MM/YYYY or DD-MM-YYYY
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+      }
+      return new Date(dateStr);
+    };
+
+    const getWeekKey = (date) => {
+      const startOfYear = new Date(date.getFullYear(), 0, 1);
+      const weekNum = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+      return `W${weekNum}`;
+    };
+
+    const getMonthKey = (date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return months[date.getMonth()];
+    };
+
+    // Group transactions
+    const overallMap = new Map();
+    const recurringMap = new Map();
+    const nonRecurringMap = new Map();
+
+    const recurringKeywords = [
+      'subscription', 'monthly', 'rent', 'salary', 'wages', 'insurance', 'emi', 'loan',
+      'internet', 'phone', 'utility', 'electric', 'water', 'gas', 'netflix', 'spotify',
+      'amazon prime', 'swiggy', 'zomato', 'uber', 'ola', 'gym', 'membership', 'premium'
+    ];
+
+    metrics.debitTransactions.forEach(txn => {
+      const date = parseDate(txn.date);
+      if (!date || isNaN(date.getTime())) return;
+
+      const key = expenseViewMode === 'weekly' ? getWeekKey(date) : getMonthKey(date);
+      const amount = Math.abs(txn.amount || 0);
+
+      // Overall
+      overallMap.set(key, (overallMap.get(key) || 0) + amount);
+
+      // Check if recurring
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const category = (txn.category?.category || '').toLowerCase();
+      const isRecurring = recurringKeywords.some(keyword => 
+        description.includes(keyword) || category.includes(keyword)
+      );
+
+      if (isRecurring) {
+        recurringMap.set(key, (recurringMap.get(key) || 0) + amount);
+      } else {
+        nonRecurringMap.set(key, (nonRecurringMap.get(key) || 0) + amount);
+      }
+    });
+
+    const sortedKeys = Array.from(overallMap.keys()).sort();
+    const lastKeys = sortedKeys.slice(-6); // Last 6 periods
+
+    return {
+      overall: lastKeys.map(key => ({ name: key, amount: overallMap.get(key) || 0 })),
+      recurring: lastKeys.map(key => ({ name: key, amount: recurringMap.get(key) || 0 })),
+      nonRecurring: lastKeys.map(key => ({ name: key, amount: nonRecurringMap.get(key) || 0 }))
+    };
+  }, [metrics.debitTransactions, expenseViewMode]);
+
+  // Get top vendors/payees
+  const topVendors = useMemo(() => {
+    if (!metrics.debitTransactions || metrics.debitTransactions.length === 0) return [];
+
+    const vendorMap = new Map();
+
+    metrics.debitTransactions.forEach(txn => {
+      const vendor = txn.description || txn.particulars || 'Unknown';
+      const amount = Math.abs(txn.amount || 0);
+      
+      if (vendorMap.has(vendor)) {
+        const existing = vendorMap.get(vendor);
+        vendorMap.set(vendor, { amount: existing.amount + amount, count: existing.count + 1 });
+      } else {
+        vendorMap.set(vendor, { amount, count: 1 });
+      }
+    });
+
+    return Array.from(vendorMap.entries())
+      .map(([name, data]) => ({ name: name.substring(0, 25), fullName: name, ...data }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
   }, [metrics.debitTransactions]);
 
   // Professional color palettes - distinct vibrant colors for each category
@@ -1175,9 +1276,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             </div>
           )}
 
-          {/* Expense Tab */}
+          {/* Expense Tab - Professional Dashboard Layout */}
           {activeTab === 'expense' && (
-            <div className="expense-tab-content">
+            <div className="expense-tab-content" onClick={() => { if (!pieLegendLocked) setShowPieLegend(false); }}>
               <div className="tab-header">
                 <h2><ArrowDownRight className="tab-header-icon" /> Expense Analysis</h2>
                 <p>Detailed breakdown of all expenses and spending categories</p>
@@ -1196,128 +1297,304 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 </div>
               ) : (
                 <>
-                  {/* Expense Summary Card */}
-                  <div className="summary-card expense-summary">
-                    <div className="summary-header">
-                      <div className="summary-icon expense-bg">
-                        <ArrowDownRight />
-                      </div>
-                      <div className="summary-info">
-                        <h3>Total Expenses</h3>
-                        <div className="summary-amount expense-amount">{formatCurrency(metrics.totalExpenses)}</div>
-                      </div>
-                    </div>
-                    <div className="summary-meta">
-                      <span className="transaction-count">
-                        {metrics.debitTransactions.length} debit transactions
-                      </span>
-                    </div>
-                  </div>
+                  {/* Main Dashboard Grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '300px 1fr 280px',
+                    gridTemplateRows: 'auto auto',
+                    gap: '20px',
+                    marginTop: '20px'
+                  }}>
+                    
+                    {/* LEFT: Pie Chart with Hover Legend */}
+                    <div 
+                      style={{
+                        gridRow: '1 / 3',
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        border: '1px solid #e2e8f0',
+                        position: 'relative'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
+                        Expenses by Category
+                      </h3>
+                      
+                      {/* Pie Chart */}
+                      <div 
+                        style={{ position: 'relative', width: '100%', height: '220px' }}
+                        onMouseEnter={() => !pieLegendLocked && setShowPieLegend(true)}
+                        onMouseLeave={() => !pieLegendLocked && setShowPieLegend(false)}
+                        onClick={() => setPieLegendLocked(!pieLegendLocked)}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={expensePieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={55}
+                              outerRadius={85}
+                              paddingAngle={2}
+                              dataKey="value"
+                              onMouseEnter={(_, index) => setHoveredPieIndex(index)}
+                              onMouseLeave={() => setHoveredPieIndex(null)}
+                            >
+                              {expensePieData.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                  stroke={hoveredPieIndex === index ? '#1e293b' : '#fff'}
+                                  strokeWidth={hoveredPieIndex === index ? 3 : 2}
+                                  style={{ 
+                                    cursor: 'pointer',
+                                    filter: hoveredPieIndex === index ? 'brightness(1.1)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        
+                        {/* Center Total */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          textAlign: 'center',
+                          pointerEvents: 'none'
+                        }}>
+                          <div style={{ fontSize: '16px', fontWeight: '700', color: '#ef4444' }}>
+                            {formatCurrency(metrics.totalExpenses)}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>Total</div>
+                        </div>
 
-                  {/* Expense Pie Chart - Professional Design */}
-                  {expensePieData.length > 0 && (
+                        {/* Legend Overlay on Hover/Click */}
+                        {showPieLegend && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(255,255,255,0.95)',
+                            backdropFilter: 'blur(4px)',
+                            borderRadius: '12px',
+                            padding: '12px',
+                            overflowY: 'auto',
+                            zIndex: 10,
+                            animation: 'fadeIn 0.2s ease'
+                          }}>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
+                              {pieLegendLocked ? '🔒 Click anywhere to close' : 'Click to lock'}
+                            </div>
+                            {expensePieData.map((item, index) => {
+                              const total = expensePieData.reduce((s, i) => s + i.value, 0);
+                              const percent = ((item.value / total) * 100).toFixed(1);
+                              return (
+                                <div key={index} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '6px 8px',
+                                  borderRadius: '6px',
+                                  marginBottom: '4px',
+                                  background: hoveredPieIndex === index ? '#f1f5f9' : 'transparent'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: CHART_COLORS[index % CHART_COLORS.length] }}></div>
+                                    <span style={{ fontSize: '12px', color: '#1e293b' }}>{item.name}</span>
+                                  </div>
+                                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#ef4444' }}>{percent}%</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Hint */}
+                      <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '12px' }}>
+                        Hover to see breakdown • Click to lock
+                      </p>
+                    </div>
+
+                    {/* MIDDLE TOP: Overall Expenses Bar Chart */}
                     <div style={{
                       background: 'white',
                       borderRadius: '16px',
-                      padding: '24px',
-                      margin: '20px 0',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      padding: '20px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       border: '1px solid #e2e8f0'
                     }}>
-                      <h3 style={{
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: '#1e293b',
-                        marginBottom: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <PieChartIcon style={{ width: '20px', height: '20px', color: '#ef4444' }} />
-                        Expense Breakdown
-                      </h3>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '40px'
-                      }}>
-                        {/* Donut Chart */}
-                        <div style={{ position: 'relative', width: '200px', height: '200px', flexShrink: 0 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={expensePieData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={90}
-                                paddingAngle={2}
-                                dataKey="value"
-                                animationDuration={600}
-                              >
-                                {expensePieData.map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="#fff"
-                                    strokeWidth={2}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip content={<CustomPieTooltip totalAmount={expensePieData.reduce((sum, item) => sum + item.value, 0)} />} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          {/* Center Total */}
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            textAlign: 'center'
-                          }}>
-                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#ef4444' }}>
-                              {formatCurrency(metrics.totalExpenses)}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Total</div>
-                          </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                          Overall Expenses
+                        </h3>
+                        <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '8px', padding: '4px' }}>
+                          <button 
+                            onClick={() => setExpenseViewMode('weekly')}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              background: expenseViewMode === 'weekly' ? 'white' : 'transparent',
+                              color: expenseViewMode === 'weekly' ? '#1e293b' : '#64748b',
+                              boxShadow: expenseViewMode === 'weekly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                            }}
+                          >Weekly</button>
+                          <button 
+                            onClick={() => setExpenseViewMode('monthly')}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              background: expenseViewMode === 'monthly' ? 'white' : 'transparent',
+                              color: expenseViewMode === 'monthly' ? '#1e293b' : '#64748b',
+                              boxShadow: expenseViewMode === 'monthly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                            }}
+                          >Monthly</button>
                         </div>
+                      </div>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <BarChart data={expenseBarData.overall}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                          <Tooltip 
+                            formatter={(value) => [formatCurrency(value), 'Amount']}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                          />
+                          <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
 
-                        {/* Legend */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {expensePieData.map((item, index) => {
-                            const total = expensePieData.reduce((s, i) => s + i.value, 0);
-                            const percent = ((item.value / total) * 100).toFixed(1);
-                            return (
-                              <div key={index} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 12px',
-                                background: '#f8fafc',
-                                borderRadius: '8px',
-                                borderLeft: `4px solid ${CHART_COLORS[index % CHART_COLORS.length]}`
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                  <div>
-                                    <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{item.name}</div>
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{item.count} transaction{item.count > 1 ? 's' : ''}</div>
-                                  </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</div>
-                                  <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>{percent}%</div>
-                                </div>
+                    {/* RIGHT: Top Vendors */}
+                    <div style={{
+                      gridRow: '1 / 3',
+                      background: 'white',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
+                        Top Vendors by Expense
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {topVendors.map((vendor, index) => {
+                          const maxAmount = topVendors[0]?.amount || 1;
+                          const percent = (vendor.amount / maxAmount) * 100;
+                          return (
+                            <div key={index}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: '500' }} title={vendor.fullName}>
+                                  {vendor.name}...
+                                </span>
+                                <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: '600' }}>
+                                  {formatCurrency(vendor.amount)}
+                                </span>
                               </div>
-                            );
-                          })}
+                              <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                  width: `${percent}%`, 
+                                  height: '100%', 
+                                  background: `linear-gradient(90deg, ${CHART_COLORS[index]}, ${CHART_COLORS[index]}aa)`,
+                                  borderRadius: '3px',
+                                  transition: 'width 0.5s ease'
+                                }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '16px' }}>
+                        Showing top 5 vendors
+                      </p>
+                    </div>
+
+                    {/* MIDDLE BOTTOM: Recurring & Non-Recurring Side by Side */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '16px'
+                    }}>
+                      {/* Recurring Expenses */}
+                      <div style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                          <Repeat size={16} style={{ color: '#dc2626' }} />
+                          <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                            Recurring Expenses
+                          </h3>
+                        </div>
+                        <ResponsiveContainer width="100%" height={120}>
+                          <BarChart data={expenseBarData.recurring}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
+                            <Bar dataKey="amount" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '10px', background: '#fef2f2', borderRadius: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Total</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#dc2626' }}>{formatCurrency(classifyExpenses.recurringTotal)}</span>
+                        </div>
+                      </div>
+
+                      {/* Non-Recurring Expenses */}
+                      <div style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                          <Shuffle size={16} style={{ color: '#f97316' }} />
+                          <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                            Non-Recurring Expenses
+                          </h3>
+                        </div>
+                        <ResponsiveContainer width="100%" height={120}>
+                          <BarChart data={expenseBarData.nonRecurring}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
+                            <Bar dataKey="amount" fill="#f97316" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '10px', background: '#fff7ed', borderRadius: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Total</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#f97316' }}>{formatCurrency(classifyExpenses.nonRecurringTotal)}</span>
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* Debit Transactions Table */}
-                  <div className="transactions-table-section">
-                    <h3>Debit Transactions</h3>
+                  <div className="transactions-table-section" style={{ marginTop: '24px' }}>
+                    <h3>All Debit Transactions</h3>
                     <div className="transactions-table-wrapper">
                       <table className="transactions-table">
                         <thead>
@@ -1384,37 +1661,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           )}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-
-                  {/* Expense Categories */}
-                  <div className="categories-section">
-                    <h3>Expenses by Category</h3>
-                    <div className="categories-grid">
-                      {metrics.expenseBreakdown.length > 0 ? (
-                        metrics.expenseBreakdown.map((item, index) => (
-                          <div key={index} className="category-card expense-category">
-                            <div className="category-header">
-                              <span className="category-name">{item.name || item.category}</span>
-                              <span className="category-percentage">
-                                {((item.amount / metrics.totalExpenses) * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="category-amount expense-amount">{formatCurrency(item.amount)}</div>
-                            <div className="category-meta">
-                              <span className="transaction-count">{item.transactionCount} transactions</span>
-                            </div>
-                            <div className="category-bar">
-                              <div 
-                                className="category-bar-fill expense-fill" 
-                                style={{width: `${(item.amount / metrics.totalExpenses) * 100}%`}}
-                              ></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="no-categories">No expense categories available</div>
-                      )}
                     </div>
                   </div>
                 </>
