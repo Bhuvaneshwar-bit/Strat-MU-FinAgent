@@ -1297,35 +1297,35 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 </div>
               ) : (
                 <>
-                  {/* Main Dashboard Grid */}
+                  {/* Main Dashboard Grid - Professional 2x2 Layout */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '300px 1fr 280px',
+                    gridTemplateColumns: '380px 1fr',
                     gridTemplateRows: 'auto auto',
-                    gap: '20px',
-                    marginTop: '20px'
+                    gap: '24px',
+                    marginTop: '24px'
                   }}>
                     
-                    {/* LEFT: Pie Chart with Hover Legend */}
+                    {/* TOP LEFT: Pie Chart with Hover Legend */}
                     <div 
                       style={{
-                        gridRow: '1 / 3',
                         background: 'white',
-                        borderRadius: '16px',
-                        padding: '20px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        borderRadius: '20px',
+                        padding: '28px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         border: '1px solid #e2e8f0',
-                        position: 'relative'
+                        position: 'relative',
+                        minHeight: '380px'
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px' }}>
                         Expenses by Category
                       </h3>
                       
                       {/* Pie Chart */}
                       <div 
-                        style={{ position: 'relative', width: '100%', height: '220px' }}
+                        style={{ position: 'relative', width: '100%', height: '280px' }}
                         onMouseEnter={() => !pieLegendLocked && setShowPieLegend(true)}
                         onMouseLeave={() => !pieLegendLocked && setShowPieLegend(false)}
                         onClick={() => setPieLegendLocked(!pieLegendLocked)}
@@ -1336,9 +1336,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               data={expensePieData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={55}
-                              outerRadius={85}
-                              paddingAngle={2}
+                              innerRadius={70}
+                              outerRadius={110}
+                              paddingAngle={3}
                               dataKey="value"
                               onMouseEnter={(_, index) => setHoveredPieIndex(index)}
                               onMouseLeave={() => setHoveredPieIndex(null)}
@@ -1351,8 +1351,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   strokeWidth={hoveredPieIndex === index ? 3 : 2}
                                   style={{ 
                                     cursor: 'pointer',
-                                    filter: hoveredPieIndex === index ? 'brightness(1.1)' : 'none',
-                                    transition: 'all 0.2s ease'
+                                    filter: hoveredPieIndex === index ? 'brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                                    transition: 'all 0.3s ease'
                                   }}
                                 />
                               ))}
@@ -1369,10 +1369,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           textAlign: 'center',
                           pointerEvents: 'none'
                         }}>
-                          <div style={{ fontSize: '16px', fontWeight: '700', color: '#ef4444' }}>
+                          <div style={{ fontSize: '22px', fontWeight: '800', color: '#ef4444' }}>
                             {formatCurrency(metrics.totalExpenses)}
                           </div>
-                          <div style={{ fontSize: '10px', color: '#64748b' }}>Total</div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Total Expenses</div>
                         </div>
 
                         {/* Legend Overlay on Hover/Click */}
@@ -1383,16 +1383,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: 'rgba(255,255,255,0.95)',
-                            backdropFilter: 'blur(4px)',
-                            borderRadius: '12px',
-                            padding: '12px',
+                            background: 'rgba(255,255,255,0.97)',
+                            backdropFilter: 'blur(8px)',
+                            borderRadius: '16px',
+                            padding: '16px',
                             overflowY: 'auto',
                             zIndex: 10,
-                            animation: 'fadeIn 0.2s ease'
+                            animation: 'fadeIn 0.2s ease',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                           }}>
-                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
-                              {pieLegendLocked ? '🔒 Click anywhere to close' : 'Click to lock'}
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {pieLegendLocked ? '🔒 Click anywhere to close' : '💡 Click to lock legend'}
                             </div>
                             {expensePieData.map((item, index) => {
                               const total = expensePieData.reduce((s, i) => s + i.value, 0);
@@ -1402,16 +1403,20 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'space-between',
-                                  padding: '6px 8px',
-                                  borderRadius: '6px',
-                                  marginBottom: '4px',
-                                  background: hoveredPieIndex === index ? '#f1f5f9' : 'transparent'
+                                  padding: '10px 12px',
+                                  borderRadius: '10px',
+                                  marginBottom: '6px',
+                                  background: hoveredPieIndex === index ? '#f1f5f9' : 'transparent',
+                                  transition: 'background 0.2s ease'
                                 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: CHART_COLORS[index % CHART_COLORS.length] }}></div>
-                                    <span style={{ fontSize: '12px', color: '#1e293b' }}>{item.name}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: CHART_COLORS[index % CHART_COLORS.length], boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}></div>
+                                    <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{item.name}</span>
                                   </div>
-                                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#ef4444' }}>{percent}%</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#ef4444', background: '#fef2f2', padding: '4px 8px', borderRadius: '6px' }}>{percent}%</span>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1420,174 +1425,246 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                       </div>
 
                       {/* Hint */}
-                      <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '12px' }}>
+                      <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '16px' }}>
                         Hover to see breakdown • Click to lock
                       </p>
                     </div>
 
-                    {/* MIDDLE TOP: Overall Expenses Bar Chart */}
+                    {/* TOP RIGHT: Overall Expenses Bar Chart */}
                     <div style={{
                       background: 'white',
-                      borderRadius: '16px',
-                      padding: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: '1px solid #e2e8f0'
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '380px',
+                      display: 'flex',
+                      flexDirection: 'column'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
                           Overall Expenses
                         </h3>
-                        <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '8px', padding: '4px' }}>
+                        <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '12px', padding: '6px' }}>
                           <button 
                             onClick={() => setExpenseViewMode('weekly')}
                             style={{
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              fontWeight: '500',
+                              padding: '10px 20px',
+                              fontSize: '14px',
+                              fontWeight: '600',
                               border: 'none',
-                              borderRadius: '6px',
+                              borderRadius: '8px',
                               cursor: 'pointer',
                               background: expenseViewMode === 'weekly' ? 'white' : 'transparent',
                               color: expenseViewMode === 'weekly' ? '#1e293b' : '#64748b',
-                              boxShadow: expenseViewMode === 'weekly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                              boxShadow: expenseViewMode === 'weekly' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s ease'
                             }}
                           >Weekly</button>
                           <button 
                             onClick={() => setExpenseViewMode('monthly')}
                             style={{
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              fontWeight: '500',
+                              padding: '10px 20px',
+                              fontSize: '14px',
+                              fontWeight: '600',
                               border: 'none',
-                              borderRadius: '6px',
+                              borderRadius: '8px',
                               cursor: 'pointer',
                               background: expenseViewMode === 'monthly' ? 'white' : 'transparent',
                               color: expenseViewMode === 'monthly' ? '#1e293b' : '#64748b',
-                              boxShadow: expenseViewMode === 'monthly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                              boxShadow: expenseViewMode === 'monthly' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s ease'
                             }}
                           >Monthly</button>
                         </div>
                       </div>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <BarChart data={expenseBarData.overall}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
-                          <Tooltip 
-                            formatter={(value) => [formatCurrency(value), 'Amount']}
-                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                          />
-                          <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    {/* RIGHT: Top Vendors */}
-                    <div style={{
-                      gridRow: '1 / 3',
-                      background: 'white',
-                      borderRadius: '16px',
-                      padding: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
-                        Top Vendors by Expense
-                      </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {topVendors.map((vendor, index) => {
-                          const maxAmount = topVendors[0]?.amount || 1;
-                          const percent = (vendor.amount / maxAmount) * 100;
-                          return (
-                            <div key={index}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: '500' }} title={vendor.fullName}>
-                                  {vendor.name}...
-                                </span>
-                                <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: '600' }}>
-                                  {formatCurrency(vendor.amount)}
-                                </span>
-                              </div>
-                              <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ 
-                                  width: `${percent}%`, 
-                                  height: '100%', 
-                                  background: `linear-gradient(90deg, ${CHART_COLORS[index]}, ${CHART_COLORS[index]}aa)`,
-                                  borderRadius: '3px',
-                                  transition: 'width 0.5s ease'
-                                }}></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '16px' }}>
-                        Showing top 5 vendors
-                      </p>
-                    </div>
-
-                    {/* MIDDLE BOTTOM: Recurring & Non-Recurring Side by Side */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '16px'
-                    }}>
-                      {/* Recurring Expenses */}
-                      <div style={{
-                        background: 'white',
-                        borderRadius: '16px',
-                        padding: '20px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                          <Repeat size={16} style={{ color: '#dc2626' }} />
-                          <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-                            Recurring Expenses
-                          </h3>
-                        </div>
-                        <ResponsiveContainer width="100%" height={120}>
-                          <BarChart data={expenseBarData.recurring}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
-                            <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
-                            <Bar dataKey="amount" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                      <div style={{ flex: 1, minHeight: '280px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={expenseBarData.overall} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 13, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 13, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={70}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Total Expenses']}
+                              contentStyle={{ 
+                                borderRadius: '12px', 
+                                border: 'none',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                padding: '12px 16px'
+                              }}
+                              labelStyle={{ fontWeight: '600', marginBottom: '4px' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#6366f1" 
+                              radius={[8, 8, 0, 0]}
+                              maxBarSize={60}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '10px', background: '#fef2f2', borderRadius: '8px' }}>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>Total</span>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#dc2626' }}>{formatCurrency(classifyExpenses.recurringTotal)}</span>
-                        </div>
                       </div>
+                    </div>
 
-                      {/* Non-Recurring Expenses */}
-                      <div style={{
-                        background: 'white',
-                        borderRadius: '16px',
-                        padding: '20px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                          <Shuffle size={16} style={{ color: '#f97316' }} />
-                          <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                    {/* BOTTOM LEFT: Non-Recurring Expenses */}
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '320px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
+                        }}>
+                          <Shuffle size={20} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
                             Non-Recurring Expenses
                           </h3>
+                          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>One-time and variable costs</p>
                         </div>
-                        <ResponsiveContainer width="100%" height={120}>
-                          <BarChart data={expenseBarData.nonRecurring}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
-                            <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
-                            <Bar dataKey="amount" fill="#f97316" radius={[4, 4, 0, 0]} />
+                      </div>
+                      <div style={{ flex: 1, minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={expenseBarData.nonRecurring} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={60}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Non-Recurring']}
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#f97316" 
+                              radius={[6, 6, 0, 0]}
+                              maxBarSize={50}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '10px', background: '#fff7ed', borderRadius: '8px' }}>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>Total</span>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#f97316' }}>{formatCurrency(classifyExpenses.nonRecurringTotal)}</span>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginTop: '16px', 
+                        padding: '16px 20px', 
+                        background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', 
+                        borderRadius: '12px',
+                        border: '1px solid #fed7aa'
+                      }}>
+                        <span style={{ fontSize: '14px', color: '#9a3412', fontWeight: '500' }}>Total Non-Recurring</span>
+                        <span style={{ fontSize: '20px', fontWeight: '700', color: '#ea580c' }}>{formatCurrency(classifyExpenses.nonRecurringTotal)}</span>
+                      </div>
+                    </div>
+
+                    {/* BOTTOM RIGHT: Recurring Expenses */}
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0',
+                      minHeight: '320px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                        }}>
+                          <Repeat size={20} style={{ color: 'white' }} />
                         </div>
+                        <div>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                            Recurring Expenses
+                          </h3>
+                          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Fixed monthly costs</p>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={expenseBarData.recurring} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={{ stroke: '#e2e8f0' }} 
+                              tickLine={false} 
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#64748b', fontWeight: '500' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                              width={60}
+                            />
+                            <Tooltip 
+                              formatter={(value) => [formatCurrency(value), 'Recurring']}
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                            />
+                            <Bar 
+                              dataKey="amount" 
+                              fill="#dc2626" 
+                              radius={[6, 6, 0, 0]}
+                              maxBarSize={50}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginTop: '16px', 
+                        padding: '16px 20px', 
+                        background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', 
+                        borderRadius: '12px',
+                        border: '1px solid #fecaca'
+                      }}>
+                        <span style={{ fontSize: '14px', color: '#991b1b', fontWeight: '500' }}>Total Recurring</span>
+                        <span style={{ fontSize: '20px', fontWeight: '700', color: '#dc2626' }}>{formatCurrency(classifyExpenses.recurringTotal)}</span>
                       </div>
                     </div>
                   </div>
