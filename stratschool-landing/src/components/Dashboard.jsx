@@ -781,7 +781,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'revenue', label: 'Revenue', icon: TrendingUp },
     { id: 'expense', label: 'Expense', icon: ArrowDownRight },
-    { id: 'bookkeeping', label: 'Automated Bookkeeping', icon: BookOpen },
     { id: 'invoice', label: 'Invoice Generation', icon: Receipt },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
