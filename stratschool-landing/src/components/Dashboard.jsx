@@ -241,26 +241,34 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       const parts = dateStr.split(/[\/\-]/);
       if (parts.length === 3) {
         // DD/MM/YYYY or DD-MM-YYYY
-        return new Date(parts[2], parts[1] - 1, parts[0]);
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        // Handle 2-digit vs 4-digit year
+        const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
+        return new Date(fullYear, month, day);
       }
       return new Date(dateStr);
     };
 
     const getWeekKey = (date) => {
+      const year = date.getFullYear().toString().slice(-2);
       const startOfYear = new Date(date.getFullYear(), 0, 1);
       const weekNum = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-      return `W${weekNum}`;
+      return `W${weekNum}'${year}`;
     };
 
     const getMonthKey = (date) => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return months[date.getMonth()];
+      const year = date.getFullYear().toString().slice(-2);
+      return `${months[date.getMonth()]} '${year}`;
     };
 
-    // Group transactions
+    // Group transactions with date tracking for proper sorting
     const overallMap = new Map();
     const recurringMap = new Map();
     const nonRecurringMap = new Map();
+    const dateTracker = new Map(); // To store actual dates for sorting
 
     const recurringKeywords = [
       'subscription', 'monthly', 'rent', 'salary', 'wages', 'insurance', 'emi', 'loan',
@@ -274,6 +282,15 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
       const key = expenseViewMode === 'weekly' ? getWeekKey(date) : getMonthKey(date);
       const amount = Math.abs(txn.amount || 0);
+
+      // Track the date for proper sorting (use first of month for monthly view)
+      if (!dateTracker.has(key)) {
+        if (expenseViewMode === 'monthly') {
+          dateTracker.set(key, new Date(date.getFullYear(), date.getMonth(), 1).getTime());
+        } else {
+          dateTracker.set(key, date.getTime());
+        }
+      }
 
       // Overall
       overallMap.set(key, (overallMap.get(key) || 0) + amount);
@@ -292,13 +309,15 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       }
     });
 
-    const sortedKeys = Array.from(overallMap.keys()).sort();
-    const lastKeys = sortedKeys.slice(-6); // Last 6 periods
+    // Sort keys chronologically using actual dates
+    const sortedKeys = Array.from(overallMap.keys()).sort((a, b) => {
+      return (dateTracker.get(a) || 0) - (dateTracker.get(b) || 0);
+    });
 
     return {
-      overall: lastKeys.map(key => ({ name: key, amount: overallMap.get(key) || 0 })),
-      recurring: lastKeys.map(key => ({ name: key, amount: recurringMap.get(key) || 0 })),
-      nonRecurring: lastKeys.map(key => ({ name: key, amount: nonRecurringMap.get(key) || 0 }))
+      overall: sortedKeys.map(key => ({ name: key, amount: overallMap.get(key) || 0 })),
+      recurring: sortedKeys.map(key => ({ name: key, amount: recurringMap.get(key) || 0 })),
+      nonRecurring: sortedKeys.map(key => ({ name: key, amount: nonRecurringMap.get(key) || 0 }))
     };
   }, [metrics.debitTransactions, expenseViewMode]);
 
