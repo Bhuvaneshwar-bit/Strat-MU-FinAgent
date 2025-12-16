@@ -209,14 +209,15 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       const amount = Math.abs(txn.amount || 0);
       
       if (categoryMap.has(category)) {
-        categoryMap.set(category, categoryMap.get(category) + amount);
+        const existing = categoryMap.get(category);
+        categoryMap.set(category, { value: existing.value + amount, count: existing.count + 1 });
       } else {
-        categoryMap.set(category, amount);
+        categoryMap.set(category, { value: amount, count: 1 });
       }
     });
     
     return Array.from(categoryMap.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, data]) => ({ name, value: data.value, count: data.count }))
       .sort((a, b) => b.value - a.value);
   }, [metrics.creditTransactions]);
 
@@ -230,14 +231,15 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       const amount = Math.abs(txn.amount || 0);
       
       if (categoryMap.has(category)) {
-        categoryMap.set(category, categoryMap.get(category) + amount);
+        const existing = categoryMap.get(category);
+        categoryMap.set(category, { value: existing.value + amount, count: existing.count + 1 });
       } else {
-        categoryMap.set(category, amount);
+        categoryMap.set(category, { value: amount, count: 1 });
       }
     });
     
     return Array.from(categoryMap.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, data]) => ({ name, value: data.value, count: data.count }))
       .sort((a, b) => b.value - a.value);
   }, [metrics.debitTransactions]);
 
@@ -848,22 +850,19 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Revenue Pie Chart - Compact & Professional */}
+                  {/* Revenue Pie Chart - CRED-Style Professional */}
                   {revenuePieData.length > 0 && (
-                    <div className="pie-chart-section compact">
-                      <div className="pie-chart-header">
-                        <h3><PieChartIcon className="chart-icon" /> Revenue by Category</h3>
-                      </div>
-                      <div className="pie-chart-container">
-                        <div className="pie-chart-wrapper">
-                          <ResponsiveContainer width="100%" height={220}>
+                    <div className="cred-chart-section">
+                      <div className="cred-chart-layout">
+                        <div className="cred-donut-container">
+                          <ResponsiveContainer width="100%" height={180}>
                             <PieChart>
                               <Pie
                                 data={revenuePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={50}
-                                outerRadius={85}
+                                innerRadius={55}
+                                outerRadius={80}
                                 paddingAngle={2}
                                 dataKey="value"
                                 animationDuration={600}
@@ -872,8 +871,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   <Cell 
                                     key={`cell-${index}`} 
                                     fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="#fff"
-                                    strokeWidth={2}
+                                    stroke="transparent"
                                   />
                                 ))}
                               </Pie>
@@ -882,18 +880,31 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               />
                             </PieChart>
                           </ResponsiveContainer>
+                          <div className="cred-donut-center">
+                            <span className="cred-total-amount">{formatCurrency(metrics.totalRevenue)}</span>
+                            <span className="cred-total-label">Total Revenue</span>
+                          </div>
                         </div>
-                        <div className="pie-legend-compact">
-                          {revenuePieData.slice(0, 6).map((item, index) => (
-                            <div key={index} className="legend-item">
-                              <span className="legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                              <span className="legend-name">{item.name}</span>
-                              <span className="legend-percent">{((item.value / revenuePieData.reduce((s, i) => s + i.value, 0)) * 100).toFixed(1)}%</span>
-                            </div>
-                          ))}
-                          {revenuePieData.length > 6 && (
-                            <div className="legend-item more">+{revenuePieData.length - 6} more</div>
-                          )}
+                        <div className="cred-legend">
+                          {revenuePieData.map((item, index) => {
+                            const total = revenuePieData.reduce((s, i) => s + i.value, 0);
+                            const percent = ((item.value / total) * 100).toFixed(1);
+                            return (
+                              <div key={index} className="cred-legend-item">
+                                <div className="cred-legend-left">
+                                  <span className="cred-legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                  <div className="cred-legend-info">
+                                    <span className="cred-legend-name">{item.name}</span>
+                                    <span className="cred-legend-count">{item.count} transaction{item.count > 1 ? 's' : ''}</span>
+                                  </div>
+                                </div>
+                                <div className="cred-legend-right">
+                                  <span className="cred-legend-amount">{formatCurrency(item.value)}</span>
+                                  <span className="cred-legend-percent">{percent}%</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1045,22 +1056,19 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Expense Pie Chart - Compact & Professional */}
+                  {/* Expense Pie Chart - CRED-Style Professional */}
                   {expensePieData.length > 0 && (
-                    <div className="pie-chart-section compact expense">
-                      <div className="pie-chart-header">
-                        <h3><PieChartIcon className="chart-icon" /> Expenses by Category</h3>
-                      </div>
-                      <div className="pie-chart-container">
-                        <div className="pie-chart-wrapper">
-                          <ResponsiveContainer width="100%" height={220}>
+                    <div className="cred-chart-section expense">
+                      <div className="cred-chart-layout">
+                        <div className="cred-donut-container">
+                          <ResponsiveContainer width="100%" height={180}>
                             <PieChart>
                               <Pie
                                 data={expensePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={50}
-                                outerRadius={85}
+                                innerRadius={55}
+                                outerRadius={80}
                                 paddingAngle={2}
                                 dataKey="value"
                                 animationDuration={600}
@@ -1069,8 +1077,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   <Cell 
                                     key={`cell-${index}`} 
                                     fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="#fff"
-                                    strokeWidth={2}
+                                    stroke="transparent"
                                   />
                                 ))}
                               </Pie>
@@ -1079,18 +1086,31 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               />
                             </PieChart>
                           </ResponsiveContainer>
+                          <div className="cred-donut-center">
+                            <span className="cred-total-amount">{formatCurrency(metrics.totalExpenses)}</span>
+                            <span className="cred-total-label">Total Expenses</span>
+                          </div>
                         </div>
-                        <div className="pie-legend-compact">
-                          {expensePieData.slice(0, 6).map((item, index) => (
-                            <div key={index} className="legend-item">
-                              <span className="legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                              <span className="legend-name">{item.name}</span>
-                              <span className="legend-percent">{((item.value / expensePieData.reduce((s, i) => s + i.value, 0)) * 100).toFixed(1)}%</span>
-                            </div>
-                          ))}
-                          {expensePieData.length > 6 && (
-                            <div className="legend-item more">+{expensePieData.length - 6} more</div>
-                          )}
+                        <div className="cred-legend">
+                          {expensePieData.map((item, index) => {
+                            const total = expensePieData.reduce((s, i) => s + i.value, 0);
+                            const percent = ((item.value / total) * 100).toFixed(1);
+                            return (
+                              <div key={index} className="cred-legend-item">
+                                <div className="cred-legend-left">
+                                  <span className="cred-legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                  <div className="cred-legend-info">
+                                    <span className="cred-legend-name">{item.name}</span>
+                                    <span className="cred-legend-count">{item.count} transaction{item.count > 1 ? 's' : ''}</span>
+                                  </div>
+                                </div>
+                                <div className="cred-legend-right">
+                                  <span className="cred-legend-amount">{formatCurrency(item.value)}</span>
+                                  <span className="cred-legend-percent">{percent}%</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
