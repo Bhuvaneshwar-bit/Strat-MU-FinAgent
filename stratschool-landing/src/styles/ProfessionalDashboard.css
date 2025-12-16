@@ -575,12 +575,12 @@
   gap: var(--space-6);
 }
 
-/* Financial Health Grid - 3 cards in a row */
+/* Financial Health Grid - 4 cards in a row */
 .financial-health-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .financial-health-grid {
     grid-template-columns: repeat(2, 1fr);
   }

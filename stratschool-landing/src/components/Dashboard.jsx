@@ -29,7 +29,8 @@ import {
   Shuffle,
   Wallet,
   Clock,
-  Flame
+  Flame,
+  Activity
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -302,11 +303,97 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     // Runway = Cash Available / Monthly Burn Rate (in months)
     const runway = monthlyBurnRate > 0 ? cashAvailable / monthlyBurnRate : 0;
     
+    // ===== HEALTH SCORE CALCULATION =====
+    // Score is 0-100 based on 5 weighted factors
+    
+    // 1. Profitability Score (25 points max)
+    // Positive margin = full points, negative = proportional reduction
+    const profitMargin = totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0;
+    let profitabilityScore = 0;
+    if (profitMargin >= 20) profitabilityScore = 25;
+    else if (profitMargin >= 10) profitabilityScore = 20;
+    else if (profitMargin >= 5) profitabilityScore = 15;
+    else if (profitMargin >= 0) profitabilityScore = 10;
+    else if (profitMargin >= -10) profitabilityScore = 5;
+    else profitabilityScore = 0;
+    
+    // 2. Runway Score (25 points max)
+    // 12+ months = full points, <3 months = critical
+    let runwayScore = 0;
+    if (runway >= 12) runwayScore = 25;
+    else if (runway >= 9) runwayScore = 20;
+    else if (runway >= 6) runwayScore = 15;
+    else if (runway >= 3) runwayScore = 10;
+    else if (runway >= 1) runwayScore = 5;
+    else runwayScore = 0;
+    
+    // 3. Revenue Coverage Ratio (20 points max)
+    // Revenue / Expenses ratio - how well revenue covers expenses
+    const coverageRatio = totalExpenses > 0 ? totalRevenue / totalExpenses : 1;
+    let coverageScore = 0;
+    if (coverageRatio >= 1.5) coverageScore = 20;
+    else if (coverageRatio >= 1.2) coverageScore = 16;
+    else if (coverageRatio >= 1.0) coverageScore = 12;
+    else if (coverageRatio >= 0.8) coverageScore = 8;
+    else if (coverageRatio >= 0.5) coverageScore = 4;
+    else coverageScore = 0;
+    
+    // 4. Burn Rate Efficiency (15 points max)
+    // Lower burn rate relative to revenue = better
+    const burnRateRatio = totalRevenue > 0 ? (monthlyBurnRate / (totalRevenue / monthsOfData)) : 1;
+    let burnEfficiencyScore = 0;
+    if (burnRateRatio <= 0.5) burnEfficiencyScore = 15;
+    else if (burnRateRatio <= 0.7) burnEfficiencyScore = 12;
+    else if (burnRateRatio <= 0.9) burnEfficiencyScore = 9;
+    else if (burnRateRatio <= 1.0) burnEfficiencyScore = 6;
+    else if (burnRateRatio <= 1.2) burnEfficiencyScore = 3;
+    else burnEfficiencyScore = 0;
+    
+    // 5. Cash Position Score (15 points max)
+    // Based on absolute cash available relative to monthly burn
+    const cashMonths = monthlyBurnRate > 0 ? cashAvailable / monthlyBurnRate : 0;
+    let cashPositionScore = 0;
+    if (cashMonths >= 6) cashPositionScore = 15;
+    else if (cashMonths >= 4) cashPositionScore = 12;
+    else if (cashMonths >= 2) cashPositionScore = 9;
+    else if (cashMonths >= 1) cashPositionScore = 6;
+    else if (cashMonths > 0) cashPositionScore = 3;
+    else cashPositionScore = 0;
+    
+    // Total Health Score
+    const healthScore = Math.round(profitabilityScore + runwayScore + coverageScore + burnEfficiencyScore + cashPositionScore);
+    
+    // Health Score Grade
+    let healthGrade = 'F';
+    let healthStatus = 'Critical';
+    if (healthScore >= 90) { healthGrade = 'A+'; healthStatus = 'Excellent'; }
+    else if (healthScore >= 80) { healthGrade = 'A'; healthStatus = 'Very Good'; }
+    else if (healthScore >= 70) { healthGrade = 'B+'; healthStatus = 'Good'; }
+    else if (healthScore >= 60) { healthGrade = 'B'; healthStatus = 'Fair'; }
+    else if (healthScore >= 50) { healthGrade = 'C'; healthStatus = 'Average'; }
+    else if (healthScore >= 40) { healthGrade = 'D'; healthStatus = 'Below Average'; }
+    else if (healthScore >= 25) { healthGrade = 'E'; healthStatus = 'Poor'; }
+    else { healthGrade = 'F'; healthStatus = 'Critical'; }
+    
     return {
       cashAvailable,
       monthlyBurnRate,
       runway: Math.max(0, runway),
-      monthsOfData
+      monthsOfData,
+      healthScore,
+      healthGrade,
+      healthStatus,
+      // Breakdown for tooltip
+      scoreBreakdown: {
+        profitabilityScore,
+        runwayScore,
+        coverageScore,
+        burnEfficiencyScore,
+        cashPositionScore,
+        profitMargin: profitMargin.toFixed(1),
+        coverageRatio: coverageRatio.toFixed(2),
+        burnRateRatio: burnRateRatio.toFixed(2)
+      }
     };
   }, [metrics.totalRevenue, metrics.totalExpenses, metrics.netProfit, metrics.transactions]);
 
@@ -1314,6 +1401,128 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           </h4>
                           <div className="metric-value" style={{ color: '#9333ea' }}>
                             {financialHealth.runway.toFixed(1)}<span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}> months</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Health Score Card */}
+                      <div 
+                        className={`metric-card healthscore ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: '800ms',
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <div className="metric-header">
+                          <div className="metric-icon" style={{ 
+                            background: financialHealth.healthScore >= 70 
+                              ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' 
+                              : financialHealth.healthScore >= 50 
+                                ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+                                : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'
+                          }}>
+                            <Activity style={{ 
+                              color: financialHealth.healthScore >= 70 ? '#16a34a' : financialHealth.healthScore >= 50 ? '#d97706' : '#dc2626' 
+                            }} />
+                          </div>
+                          <div className="metric-trend">
+                            <span className="trend-indicator" style={{ 
+                              background: financialHealth.healthScore >= 70 ? '#dcfce7' : financialHealth.healthScore >= 50 ? '#fef3c7' : '#fee2e2', 
+                              color: financialHealth.healthScore >= 70 ? '#16a34a' : financialHealth.healthScore >= 50 ? '#d97706' : '#dc2626' 
+                            }}>
+                              <Activity className="trend-arrow" size={14} />
+                              {financialHealth.healthGrade}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="metric-content">
+                          <h4 className="metric-title">
+                            Health Score
+                            <button 
+                              className="info-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'healthscore' ? null : 'healthscore');
+                              }}
+                            >
+                              <Info size={14} />
+                            </button>
+                            {activeTooltip === 'healthscore' && (
+                              <div className="info-tooltip health-score-tooltip" style={{ 
+                                width: '320px', 
+                                left: 'auto', 
+                                right: '0',
+                                padding: '16px',
+                                fontSize: '12px',
+                                lineHeight: '1.5'
+                              }}>
+                                <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
+                                  <X size={12} />
+                                </button>
+                                <div style={{ fontWeight: '600', marginBottom: '12px', fontSize: '13px', color: '#1e293b' }}>
+                                  Health Score Calculation
+                                </div>
+                                <div style={{ marginBottom: '8px', color: '#64748b' }}>
+                                  <strong>Formula:</strong> Score = P + R + C + B + CP
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
+                                    <span><strong>P</strong> - Profitability (25pts)</span>
+                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.profitabilityScore}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
+                                    <span><strong>R</strong> - Runway (25pts)</span>
+                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.runwayScore}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
+                                    <span><strong>C</strong> - Coverage Ratio (20pts)</span>
+                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.coverageScore}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
+                                    <span><strong>B</strong> - Burn Efficiency (15pts)</span>
+                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.burnEfficiencyScore}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
+                                    <span><strong>CP</strong> - Cash Position (15pts)</span>
+                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.cashPositionScore}</span>
+                                  </div>
+                                </div>
+                                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <span>Profit Margin:</span>
+                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.profitMargin}%</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <span>Revenue/Expense Ratio:</span>
+                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.coverageRatio}x</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Burn Rate Ratio:</span>
+                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.burnRateRatio}x</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </h4>
+                          <div className="metric-value" style={{ 
+                            color: financialHealth.healthScore >= 70 ? '#16a34a' : financialHealth.healthScore >= 50 ? '#d97706' : '#dc2626',
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            gap: '8px'
+                          }}>
+                            {financialHealth.healthScore}<span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}>/100</span>
+                            <span style={{ 
+                              fontSize: '12px', 
+                              fontWeight: '500', 
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: financialHealth.healthScore >= 70 ? '#dcfce7' : financialHealth.healthScore >= 50 ? '#fef3c7' : '#fee2e2',
+                              color: financialHealth.healthScore >= 70 ? '#16a34a' : financialHealth.healthScore >= 50 ? '#d97706' : '#dc2626'
+                            }}>
+                              {financialHealth.healthStatus}
+                            </span>
                           </div>
                         </div>
                       </div>
