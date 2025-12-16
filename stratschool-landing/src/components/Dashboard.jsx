@@ -1451,57 +1451,53 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             </button>
                             {activeTooltip === 'healthscore' && (
                               <div className="info-tooltip health-score-tooltip" style={{ 
-                                width: '320px', 
+                                width: '340px', 
                                 left: 'auto', 
                                 right: '0',
                                 padding: '16px',
-                                fontSize: '12px',
-                                lineHeight: '1.5'
+                                fontSize: '13px',
+                                lineHeight: '1.6',
+                                background: '#ffffff',
+                                color: '#334155'
                               }}>
                                 <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
                                   <X size={12} />
                                 </button>
-                                <div style={{ fontWeight: '600', marginBottom: '12px', fontSize: '13px', color: '#1e293b' }}>
-                                  Health Score Calculation
+                                <div style={{ fontWeight: '600', marginBottom: '12px', fontSize: '14px', color: '#1e293b' }}>
+                                  How is Health Score calculated?
                                 </div>
-                                <div style={{ marginBottom: '8px', color: '#64748b' }}>
-                                  <strong>Formula:</strong> Score = P + R + C + B + CP
+                                <p style={{ marginBottom: '12px', color: '#475569' }}>
+                                  Your Health Score is a comprehensive measure of your business's financial wellness, scored out of 100 points. It considers five key factors:
+                                </p>
+                                <div style={{ marginBottom: '12px', color: '#475569' }}>
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong style={{ color: '#1e293b' }}>1. Profitability ({financialHealth.scoreBreakdown.profitabilityScore}/25 pts)</strong> — How much profit you're making relative to revenue. Your margin is {financialHealth.scoreBreakdown.profitMargin}%.
+                                  </p>
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong style={{ color: '#1e293b' }}>2. Runway ({financialHealth.scoreBreakdown.runwayScore}/25 pts)</strong> — How many months you can operate with current cash. More runway = better score.
+                                  </p>
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong style={{ color: '#1e293b' }}>3. Revenue Coverage ({financialHealth.scoreBreakdown.coverageScore}/20 pts)</strong> — Whether your revenue covers expenses. Your ratio is {financialHealth.scoreBreakdown.coverageRatio}x.
+                                  </p>
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong style={{ color: '#1e293b' }}>4. Burn Efficiency ({financialHealth.scoreBreakdown.burnEfficiencyScore}/15 pts)</strong> — How efficiently you're spending relative to income.
+                                  </p>
+                                  <p style={{ marginBottom: '0' }}>
+                                    <strong style={{ color: '#1e293b' }}>5. Cash Reserves ({financialHealth.scoreBreakdown.cashPositionScore}/15 pts)</strong> — Your cash cushion for emergencies and opportunities.
+                                  </p>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
-                                    <span><strong>P</strong> - Profitability (25pts)</span>
-                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.profitabilityScore}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
-                                    <span><strong>R</strong> - Runway (25pts)</span>
-                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.runwayScore}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
-                                    <span><strong>C</strong> - Coverage Ratio (20pts)</span>
-                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.coverageScore}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
-                                    <span><strong>B</strong> - Burn Efficiency (15pts)</span>
-                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.burnEfficiencyScore}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: '#f8fafc', borderRadius: '4px' }}>
-                                    <span><strong>CP</strong> - Cash Position (15pts)</span>
-                                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{financialHealth.scoreBreakdown.cashPositionScore}</span>
-                                  </div>
-                                </div>
-                                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                    <span>Profit Margin:</span>
-                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.profitMargin}%</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                    <span>Revenue/Expense Ratio:</span>
-                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.coverageRatio}x</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>Burn Rate Ratio:</span>
-                                    <span style={{ fontWeight: '500' }}>{financialHealth.scoreBreakdown.burnRateRatio}x</span>
-                                  </div>
+                                <div style={{ 
+                                  background: financialHealth.healthScore >= 70 ? '#f0fdf4' : financialHealth.healthScore >= 50 ? '#fffbeb' : '#fef2f2', 
+                                  padding: '10px 12px', 
+                                  borderRadius: '8px',
+                                  borderLeft: `3px solid ${financialHealth.healthScore >= 70 ? '#16a34a' : financialHealth.healthScore >= 50 ? '#d97706' : '#dc2626'}`
+                                }}>
+                                  <strong>Your Score: {financialHealth.healthScore}/100</strong> — {
+                                    financialHealth.healthScore >= 80 ? "Excellent! Your business is in great financial shape." :
+                                    financialHealth.healthScore >= 60 ? "Good. There's room for improvement but fundamentals are solid." :
+                                    financialHealth.healthScore >= 40 ? "Fair. Consider reducing expenses or increasing revenue." :
+                                    "Needs attention. Review your cash flow and spending urgently."
+                                  }
                                 </div>
                               </div>
                             )}
