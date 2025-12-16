@@ -14,6 +14,8 @@ import {
   Download,
   RefreshCw,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Receipt,
   BookOpen,
   PieChart as PieChartIcon,
@@ -22,7 +24,9 @@ import {
   TrendingUp,
   Zap,
   Info,
-  X
+  X,
+  Repeat,
+  Shuffle
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -68,6 +72,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customCategories, setCustomCategories] = useState({ revenue: [], expenses: [] });
+  
+  // Expense breakdown dropdown states
+  const [expenseDropdownOpen, setExpenseDropdownOpen] = useState(false);
+  const [expenseModalType, setExpenseModalType] = useState(null); // 'recurring' | 'non-recurring'
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -176,6 +184,46 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   };
 
   const metrics = getPlMetrics();
+
+  // Classify expenses as recurring or non-recurring based on patterns
+  const classifyExpenses = useMemo(() => {
+    if (!metrics.debitTransactions || metrics.debitTransactions.length === 0) {
+      return { recurring: [], nonRecurring: [], recurringTotal: 0, nonRecurringTotal: 0 };
+    }
+
+    // Keywords that indicate recurring expenses
+    const recurringKeywords = [
+      'subscription', 'monthly', 'rent', 'salary', 'wages', 'insurance', 'emi', 'loan',
+      'internet', 'phone', 'utility', 'electric', 'water', 'gas', 'netflix', 'spotify',
+      'amazon prime', 'swiggy', 'zomato', 'uber', 'ola', 'gym', 'membership', 'premium',
+      'recurring', 'auto-debit', 'standing instruction', 'si ', 'nach', 'autopay'
+    ];
+
+    const recurring = [];
+    const nonRecurring = [];
+
+    metrics.debitTransactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      const category = (txn.category?.category || '').toLowerCase();
+      
+      const isRecurring = recurringKeywords.some(keyword => 
+        description.includes(keyword) || category.includes(keyword)
+      );
+
+      if (isRecurring) {
+        recurring.push(txn);
+      } else {
+        nonRecurring.push(txn);
+      }
+    });
+
+    return {
+      recurring,
+      nonRecurring,
+      recurringTotal: recurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0),
+      nonRecurringTotal: nonRecurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+    };
+  }, [metrics.debitTransactions]);
 
   // Professional color palettes - distinct vibrant colors for each category
   const CHART_COLORS = [
@@ -541,14 +589,16 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         </div>
                       </div>
 
-                      {/* Total Expenses Card */}
+                      {/* Total Expenses Card with Dropdown */}
                       <div 
                         className={`metric-card expense ${isAnimating ? 'slide-up' : ''}`}
                         style={{
                           animationDelay: '150ms',
                           opacity: isAnimating ? 1 : 0,
                           transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
-                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                          position: 'relative',
+                          overflow: 'visible'
                         }}
                       >
                         <div className="metric-header">
@@ -585,10 +635,77 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           </h4>
                           <div 
                             className="metric-value expense-value clickable-metric" 
-                            onClick={() => setActiveTab('expense')}
-                            title="Click to view expense details"
+                            onClick={() => setExpenseDropdownOpen(!expenseDropdownOpen)}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            title="Click to see recurring vs non-recurring breakdown"
                           >
                             {formatCurrency(metrics.totalExpenses)}
+                            {expenseDropdownOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                          </div>
+                        </div>
+
+                        {/* Expense Breakdown Dropdown */}
+                        <div style={{
+                          maxHeight: expenseDropdownOpen ? '200px' : '0',
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease-in-out',
+                          marginTop: expenseDropdownOpen ? '16px' : '0',
+                          borderTop: expenseDropdownOpen ? '1px solid #fee2e2' : 'none',
+                          paddingTop: expenseDropdownOpen ? '16px' : '0'
+                        }}>
+                          <div 
+                            onClick={() => setExpenseModalType('recurring')}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '12px',
+                              background: '#fef2f2',
+                              borderRadius: '8px',
+                              marginBottom: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#fef2f2'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <Repeat size={16} style={{ color: '#dc2626' }} />
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Recurring Expenses</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#dc2626' }}>
+                                {formatCurrency(classifyExpenses.recurringTotal)}
+                              </span>
+                              <ChevronRight size={16} style={{ color: '#94a3b8' }} />
+                            </div>
+                          </div>
+                          
+                          <div 
+                            onClick={() => setExpenseModalType('non-recurring')}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '12px',
+                              background: '#fef2f2',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#fef2f2'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <Shuffle size={16} style={{ color: '#f97316' }} />
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Non-Recurring Expenses</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#f97316' }}>
+                                {formatCurrency(classifyExpenses.nonRecurringTotal)}
+                              </span>
+                              <ChevronRight size={16} style={{ color: '#94a3b8' }} />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1318,6 +1435,175 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
           )}
         </main>
       </div>
+
+      {/* Expense Type Modal */}
+      {expenseModalType && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            animation: 'fadeIn 0.2s ease'
+          }}
+          onClick={() => setExpenseModalType(null)}
+        >
+          <div 
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              width: '90%',
+              maxWidth: '800px',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              animation: 'slideUp 0.3s ease'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '20px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              background: expenseModalType === 'recurring' ? '#fef2f2' : '#fff7ed'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {expenseModalType === 'recurring' ? (
+                  <Repeat size={24} style={{ color: '#dc2626' }} />
+                ) : (
+                  <Shuffle size={24} style={{ color: '#f97316' }} />
+                )}
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                    {expenseModalType === 'recurring' ? 'Recurring Expenses' : 'Non-Recurring Expenses'}
+                  </h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+                    {expenseModalType === 'recurring' 
+                      ? `${classifyExpenses.recurring.length} transactions • ${formatCurrency(classifyExpenses.recurringTotal)}`
+                      : `${classifyExpenses.nonRecurring.length} transactions • ${formatCurrency(classifyExpenses.nonRecurringTotal)}`
+                    }
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setExpenseModalType(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={20} style={{ color: '#64748b' }} />
+              </button>
+            </div>
+
+            {/* Modal Body - Table */}
+            <div style={{ padding: '0', maxHeight: '60vh', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Description</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(expenseModalType === 'recurring' ? classifyExpenses.recurring : classifyExpenses.nonRecurring).map((txn, index) => (
+                    <tr 
+                      key={index} 
+                      style={{ 
+                        borderBottom: '1px solid #f1f5f9',
+                        transition: 'background 0.2s ease'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '14px 16px', fontSize: '14px', color: '#64748b' }}>{txn.date || '-'}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{txn.description || txn.particulars || '-'}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          background: '#f1f5f9',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          color: '#475569'
+                        }}>
+                          {txn.category?.category || 'General'}
+                        </span>
+                      </td>
+                      <td style={{ 
+                        padding: '14px 16px', 
+                        fontSize: '14px', 
+                        fontWeight: '600', 
+                        color: '#ef4444',
+                        textAlign: 'right'
+                      }}>
+                        {formatCurrency(Math.abs(txn.amount))}
+                      </td>
+                    </tr>
+                  ))}
+                  {(expenseModalType === 'recurring' ? classifyExpenses.recurring : classifyExpenses.nonRecurring).length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                        No {expenseModalType} expenses found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc'
+            }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>
+                {expenseModalType === 'recurring' 
+                  ? 'Recurring expenses include subscriptions, EMIs, rent, utilities, etc.'
+                  : 'Non-recurring expenses are one-time or irregular payments'
+                }
+              </span>
+              <button
+                onClick={() => setExpenseModalType(null)}
+                style={{
+                  background: '#1e293b',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Chatbot - Available on all tabs */}
       <AIChatbot user={user} />
