@@ -850,19 +850,43 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Revenue Pie Chart - CRED-Style Professional */}
+                  {/* Revenue Pie Chart - Professional Design */}
                   {revenuePieData.length > 0 && (
-                    <div className="cred-chart-section">
-                      <div className="cred-chart-layout">
-                        <div className="cred-donut-container">
-                          <ResponsiveContainer width="100%" height={180}>
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      margin: '20px 0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                        marginBottom: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <PieChartIcon style={{ width: '20px', height: '20px', color: '#22c55e' }} />
+                        Revenue Breakdown
+                      </h3>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '40px'
+                      }}>
+                        {/* Donut Chart */}
+                        <div style={{ position: 'relative', width: '200px', height: '200px', flexShrink: 0 }}>
+                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
                                 data={revenuePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={55}
-                                outerRadius={80}
+                                innerRadius={60}
+                                outerRadius={90}
                                 paddingAngle={2}
                                 dataKey="value"
                                 animationDuration={600}
@@ -871,36 +895,53 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   <Cell 
                                     key={`cell-${index}`} 
                                     fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="transparent"
+                                    stroke="#fff"
+                                    strokeWidth={2}
                                   />
                                 ))}
                               </Pie>
-                              <Tooltip 
-                                content={<CustomPieTooltip totalAmount={revenuePieData.reduce((sum, item) => sum + item.value, 0)} />}
-                              />
+                              <Tooltip content={<CustomPieTooltip totalAmount={revenuePieData.reduce((sum, item) => sum + item.value, 0)} />} />
                             </PieChart>
                           </ResponsiveContainer>
-                          <div className="cred-donut-center">
-                            <span className="cred-total-amount">{formatCurrency(metrics.totalRevenue)}</span>
-                            <span className="cred-total-label">Total Revenue</span>
+                          {/* Center Total */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#22c55e' }}>
+                              {formatCurrency(metrics.totalRevenue)}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Total</div>
                           </div>
                         </div>
-                        <div className="cred-legend">
+
+                        {/* Legend */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {revenuePieData.map((item, index) => {
                             const total = revenuePieData.reduce((s, i) => s + i.value, 0);
                             const percent = ((item.value / total) * 100).toFixed(1);
                             return (
-                              <div key={index} className="cred-legend-item">
-                                <div className="cred-legend-left">
-                                  <span className="cred-legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                                  <div className="cred-legend-info">
-                                    <span className="cred-legend-name">{item.name}</span>
-                                    <span className="cred-legend-count">{item.count} transaction{item.count > 1 ? 's' : ''}</span>
+                              <div key={index} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 12px',
+                                background: '#f8fafc',
+                                borderRadius: '8px',
+                                borderLeft: `4px solid ${CHART_COLORS[index % CHART_COLORS.length]}`
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <div>
+                                    <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{item.name}</div>
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{item.count} transaction{item.count > 1 ? 's' : ''}</div>
                                   </div>
                                 </div>
-                                <div className="cred-legend-right">
-                                  <span className="cred-legend-amount">{formatCurrency(item.value)}</span>
-                                  <span className="cred-legend-percent">{percent}%</span>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</div>
+                                  <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>{percent}%</div>
                                 </div>
                               </div>
                             );
@@ -1056,19 +1097,43 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Expense Pie Chart - CRED-Style Professional */}
+                  {/* Expense Pie Chart - Professional Design */}
                   {expensePieData.length > 0 && (
-                    <div className="cred-chart-section expense">
-                      <div className="cred-chart-layout">
-                        <div className="cred-donut-container">
-                          <ResponsiveContainer width="100%" height={180}>
+                    <div style={{
+                      background: 'white',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      margin: '20px 0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                        marginBottom: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <PieChartIcon style={{ width: '20px', height: '20px', color: '#ef4444' }} />
+                        Expense Breakdown
+                      </h3>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '40px'
+                      }}>
+                        {/* Donut Chart */}
+                        <div style={{ position: 'relative', width: '200px', height: '200px', flexShrink: 0 }}>
+                          <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
                                 data={expensePieData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={55}
-                                outerRadius={80}
+                                innerRadius={60}
+                                outerRadius={90}
                                 paddingAngle={2}
                                 dataKey="value"
                                 animationDuration={600}
@@ -1077,36 +1142,53 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   <Cell 
                                     key={`cell-${index}`} 
                                     fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                    stroke="transparent"
+                                    stroke="#fff"
+                                    strokeWidth={2}
                                   />
                                 ))}
                               </Pie>
-                              <Tooltip 
-                                content={<CustomPieTooltip totalAmount={expensePieData.reduce((sum, item) => sum + item.value, 0)} />}
-                              />
+                              <Tooltip content={<CustomPieTooltip totalAmount={expensePieData.reduce((sum, item) => sum + item.value, 0)} />} />
                             </PieChart>
                           </ResponsiveContainer>
-                          <div className="cred-donut-center">
-                            <span className="cred-total-amount">{formatCurrency(metrics.totalExpenses)}</span>
-                            <span className="cred-total-label">Total Expenses</span>
+                          {/* Center Total */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#ef4444' }}>
+                              {formatCurrency(metrics.totalExpenses)}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Total</div>
                           </div>
                         </div>
-                        <div className="cred-legend">
+
+                        {/* Legend */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {expensePieData.map((item, index) => {
                             const total = expensePieData.reduce((s, i) => s + i.value, 0);
                             const percent = ((item.value / total) * 100).toFixed(1);
                             return (
-                              <div key={index} className="cred-legend-item">
-                                <div className="cred-legend-left">
-                                  <span className="cred-legend-dot" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                                  <div className="cred-legend-info">
-                                    <span className="cred-legend-name">{item.name}</span>
-                                    <span className="cred-legend-count">{item.count} transaction{item.count > 1 ? 's' : ''}</span>
+                              <div key={index} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 12px',
+                                background: '#f8fafc',
+                                borderRadius: '8px',
+                                borderLeft: `4px solid ${CHART_COLORS[index % CHART_COLORS.length]}`
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <div>
+                                    <div style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{item.name}</div>
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{item.count} transaction{item.count > 1 ? 's' : ''}</div>
                                   </div>
                                 </div>
-                                <div className="cred-legend-right">
-                                  <span className="cred-legend-amount">{formatCurrency(item.value)}</span>
-                                  <span className="cred-legend-percent">{percent}%</span>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</div>
+                                  <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>{percent}%</div>
                                 </div>
                               </div>
                             );
