@@ -26,7 +26,10 @@ import {
   Info,
   X,
   Repeat,
-  Shuffle
+  Shuffle,
+  Wallet,
+  Clock,
+  Flame
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -246,6 +249,66 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       nonRecurringTotal: nonRecurring.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
     };
   }, [metrics.debitTransactions]);
+
+  // Calculate financial health metrics (Cash Available, Burn Rate, Runway)
+  const financialHealth = useMemo(() => {
+    const totalRevenue = metrics.totalRevenue || 0;
+    const totalExpenses = metrics.totalExpenses || 0;
+    const netProfit = metrics.netProfit || (totalRevenue - totalExpenses);
+    
+    // Cash Available = Net of all transactions (revenue - expenses)
+    // For a more accurate picture, this would typically be the closing balance
+    const cashAvailable = Math.max(0, totalRevenue - totalExpenses);
+    
+    // Calculate the date range to determine monthly averages
+    const allTransactions = metrics.transactions || [];
+    let monthsOfData = 1;
+    
+    if (allTransactions.length > 0) {
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split(/[\/\-]/);
+        if (parts.length === 3) {
+          const p0 = parseInt(parts[0]);
+          const p1 = parseInt(parts[1]);
+          const p2 = parseInt(parts[2]);
+          if (p0 > 31 || parts[0].length === 4) {
+            return new Date(p0, p1 - 1, p2);
+          } else {
+            const fullYear = p2 < 100 ? (p2 > 50 ? 1900 + p2 : 2000 + p2) : p2;
+            return new Date(fullYear, p1 - 1, p0);
+          }
+        }
+        return new Date(dateStr);
+      };
+      
+      const dates = allTransactions
+        .map(t => parseDate(t.date))
+        .filter(d => d && !isNaN(d.getTime()))
+        .sort((a, b) => a - b);
+      
+      if (dates.length >= 2) {
+        const firstDate = dates[0];
+        const lastDate = dates[dates.length - 1];
+        const diffTime = Math.abs(lastDate - firstDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        monthsOfData = Math.max(1, diffDays / 30);
+      }
+    }
+    
+    // Monthly Burn Rate = Total Expenses / Number of Months
+    const monthlyBurnRate = totalExpenses / monthsOfData;
+    
+    // Runway = Cash Available / Monthly Burn Rate (in months)
+    const runway = monthlyBurnRate > 0 ? cashAvailable / monthlyBurnRate : 0;
+    
+    return {
+      cashAvailable,
+      monthlyBurnRate,
+      runway: Math.max(0, runway),
+      monthsOfData
+    };
+  }, [metrics.totalRevenue, metrics.totalExpenses, metrics.netProfit, metrics.transactions]);
 
   // Generate bar chart data for expenses over time
   const expenseBarData = useMemo(() => {
@@ -1102,6 +1165,156 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           </h4>
                           <div className={`metric-value ${metrics.profitMargin >= 0 ? 'profit-value' : 'loss-value'}`}>
                             {metrics.profitMargin.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Financial Health Metrics - Second Row */}
+                    <div className="metrics-grid financial-health-grid" style={{ marginTop: '24px' }}>
+                      {/* Total Cash Available Card */}
+                      <div 
+                        className={`metric-card cash ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: '500ms',
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <div className="metric-header">
+                          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' }}>
+                            <Wallet style={{ color: '#0284c7' }} />
+                          </div>
+                          <div className="metric-trend">
+                            <span className="trend-indicator" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                              <DollarSign className="trend-arrow" size={14} />
+                              Cash
+                            </span>
+                          </div>
+                        </div>
+                        <div className="metric-content">
+                          <h4 className="metric-title">
+                            Total Cash Available
+                            <button 
+                              className="info-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'cash' ? null : 'cash');
+                              }}
+                            >
+                              <Info size={14} />
+                            </button>
+                            {activeTooltip === 'cash' && (
+                              <div className="info-tooltip">
+                                <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
+                                  <X size={12} />
+                                </button>
+                                Net cash position (Revenue - Expenses)
+                              </div>
+                            )}
+                          </h4>
+                          <div className="metric-value" style={{ color: '#0284c7' }}>
+                            {formatCurrency(financialHealth.cashAvailable)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Burn Rate Card */}
+                      <div 
+                        className={`metric-card burn ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: '600ms',
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <div className="metric-header">
+                          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
+                            <Flame style={{ color: '#d97706' }} />
+                          </div>
+                          <div className="metric-trend">
+                            <span className="trend-indicator" style={{ background: '#fef3c7', color: '#d97706' }}>
+                              <TrendingUp className="trend-arrow" size={14} />
+                              Monthly
+                            </span>
+                          </div>
+                        </div>
+                        <div className="metric-content">
+                          <h4 className="metric-title">
+                            Burn Rate
+                            <button 
+                              className="info-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'burn' ? null : 'burn');
+                              }}
+                            >
+                              <Info size={14} />
+                            </button>
+                            {activeTooltip === 'burn' && (
+                              <div className="info-tooltip">
+                                <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
+                                  <X size={12} />
+                                </button>
+                                Average monthly spending rate
+                              </div>
+                            )}
+                          </h4>
+                          <div className="metric-value" style={{ color: '#d97706' }}>
+                            {formatCurrency(financialHealth.monthlyBurnRate)}<span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}>/mo</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Runway Card */}
+                      <div 
+                        className={`metric-card runway ${isAnimating ? 'slide-up' : ''}`}
+                        style={{
+                          animationDelay: '700ms',
+                          opacity: isAnimating ? 1 : 0,
+                          transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
+                          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <div className="metric-header">
+                          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)' }}>
+                            <Clock style={{ color: '#9333ea' }} />
+                          </div>
+                          <div className="metric-trend">
+                            <span className="trend-indicator" style={{ 
+                              background: financialHealth.runway > 6 ? '#dcfce7' : financialHealth.runway > 3 ? '#fef3c7' : '#fee2e2', 
+                              color: financialHealth.runway > 6 ? '#16a34a' : financialHealth.runway > 3 ? '#d97706' : '#dc2626' 
+                            }}>
+                              <Clock className="trend-arrow" size={14} />
+                              {financialHealth.runway > 6 ? 'Healthy' : financialHealth.runway > 3 ? 'Caution' : 'Critical'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="metric-content">
+                          <h4 className="metric-title">
+                            Runway
+                            <button 
+                              className="info-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'runway' ? null : 'runway');
+                              }}
+                            >
+                              <Info size={14} />
+                            </button>
+                            {activeTooltip === 'runway' && (
+                              <div className="info-tooltip">
+                                <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
+                                  <X size={12} />
+                                </button>
+                                Months until cash runs out at current burn rate
+                              </div>
+                            )}
+                          </h4>
+                          <div className="metric-value" style={{ color: '#9333ea' }}>
+                            {financialHealth.runway.toFixed(1)}<span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}> months</span>
                           </div>
                         </div>
                       </div>
