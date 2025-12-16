@@ -256,28 +256,32 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       // Try different date formats
       const parts = dateStr.split(/[\/\-]/);
       if (parts.length === 3) {
-        // DD/MM/YYYY or DD-MM-YYYY
-        const day = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1;
-        const year = parseInt(parts[2]);
-        // Handle 2-digit vs 4-digit year
-        const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
-        return new Date(fullYear, month, day);
+        const p0 = parseInt(parts[0]);
+        const p1 = parseInt(parts[1]);
+        const p2 = parseInt(parts[2]);
+        
+        // Detect YYYY-MM-DD format (first part is 4 digits or > 31)
+        if (p0 > 31 || parts[0].length === 4) {
+          // YYYY-MM-DD format
+          return new Date(p0, p1 - 1, p2);
+        } else {
+          // DD/MM/YYYY or DD-MM-YYYY format
+          const fullYear = p2 < 100 ? (p2 > 50 ? 1900 + p2 : 2000 + p2) : p2;
+          return new Date(fullYear, p1 - 1, p0);
+        }
       }
       return new Date(dateStr);
     };
 
     const getWeekKey = (date) => {
-      const year = date.getFullYear().toString().slice(-2);
       const startOfYear = new Date(date.getFullYear(), 0, 1);
       const weekNum = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-      return `W${weekNum}'${year}`;
+      return `W${weekNum}`;
     };
 
     const getMonthKey = (date) => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const year = date.getFullYear().toString().slice(-2);
-      return `${months[date.getMonth()]} '${year}`;
+      return months[date.getMonth()];
     };
 
     // Group transactions with date tracking for proper sorting
@@ -431,26 +435,32 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       if (!dateStr) return null;
       const parts = dateStr.split(/[\/\-]/);
       if (parts.length === 3) {
-        const day = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1;
-        const year = parseInt(parts[2]);
-        const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
-        return new Date(fullYear, month, day);
+        const p0 = parseInt(parts[0]);
+        const p1 = parseInt(parts[1]);
+        const p2 = parseInt(parts[2]);
+        
+        // Detect YYYY-MM-DD format (first part is 4 digits or > 31)
+        if (p0 > 31 || parts[0].length === 4) {
+          // YYYY-MM-DD format
+          return new Date(p0, p1 - 1, p2);
+        } else {
+          // DD/MM/YYYY or DD-MM-YYYY format
+          const fullYear = p2 < 100 ? (p2 > 50 ? 1900 + p2 : 2000 + p2) : p2;
+          return new Date(fullYear, p1 - 1, p0);
+        }
       }
       return new Date(dateStr);
     };
 
     const getWeekKey = (date) => {
-      const year = date.getFullYear().toString().slice(-2);
       const startOfYear = new Date(date.getFullYear(), 0, 1);
       const weekNum = Math.ceil((((date - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-      return `W${weekNum}'${year}`;
+      return `W${weekNum}`;
     };
 
     const getMonthKey = (date) => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const year = date.getFullYear().toString().slice(-2);
-      return `${months[date.getMonth()]} '${year}`;
+      return months[date.getMonth()];
     };
 
     const overallMap = new Map();
