@@ -893,90 +893,283 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     setSelectedExpenseCategory({ category, transactions });
     setLoadingVendorSuggestions(true);
     
-    // Generate AI-powered vendor suggestions based on category and transactions
-    const categoryTransactions = transactions.slice(0, 5); // Top 5 transactions
-    const totalSpent = transactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
-    const avgTransaction = totalSpent / transactions.length;
+    // Extract actual vendors from transactions
+    const vendorAnalysis = analyzeTransactionVendors(transactions);
     
-    // Simulated AI suggestions - In production, this would call the backend AI
-    const suggestions = generateVendorSuggestions(category, categoryTransactions, avgTransaction);
+    // Generate AI-powered vendor suggestions based on actual transaction vendors
+    const suggestions = generateSmartVendorAlternatives(vendorAnalysis, category);
     
     setTimeout(() => {
       setVendorSuggestions(suggestions);
       setLoadingVendorSuggestions(false);
-    }, 800);
+    }, 1000);
   };
 
-  // Generate vendor suggestions based on category
-  const generateVendorSuggestions = (category, transactions, avgAmount) => {
-    const vendorDatabase = {
-      'Office Supplies': [
-        { vendor: 'Amazon Business', savings: '15-20%', quality: 'Same quality', reason: 'Bulk discounts and business pricing' },
-        { vendor: 'Flipkart Wholesale', savings: '10-15%', quality: 'Same quality', reason: 'Competitive pricing with fast delivery' },
-        { vendor: 'IndiaMART', savings: '20-30%', quality: 'Direct from manufacturers', reason: 'B2B marketplace with wholesale prices' }
+  // Analyze transactions to extract vendor names
+  const analyzeTransactionVendors = (transactions) => {
+    const vendorMap = {};
+    
+    transactions.forEach(txn => {
+      const description = (txn.description || txn.particulars || '').toLowerCase();
+      
+      // Extract vendor name from description
+      const vendor = extractVendorName(description);
+      if (vendor) {
+        if (!vendorMap[vendor.name]) {
+          vendorMap[vendor.name] = {
+            name: vendor.name,
+            displayName: vendor.displayName,
+            type: vendor.type,
+            count: 0,
+            total: 0,
+            transactions: []
+          };
+        }
+        vendorMap[vendor.name].count++;
+        vendorMap[vendor.name].total += Math.abs(txn.amount || 0);
+        vendorMap[vendor.name].transactions.push(txn);
+      }
+    });
+    
+    // Sort by total spent
+    return Object.values(vendorMap).sort((a, b) => b.total - a.total);
+  };
+
+  // Extract vendor name from transaction description
+  const extractVendorName = (description) => {
+    const vendorPatterns = [
+      // Food Delivery
+      { pattern: /swiggy/i, name: 'swiggy', displayName: 'Swiggy', type: 'food_delivery' },
+      { pattern: /zomato/i, name: 'zomato', displayName: 'Zomato', type: 'food_delivery' },
+      { pattern: /uber\s*eats/i, name: 'ubereats', displayName: 'Uber Eats', type: 'food_delivery' },
+      { pattern: /dunzo/i, name: 'dunzo', displayName: 'Dunzo', type: 'food_delivery' },
+      { pattern: /eatsure/i, name: 'eatsure', displayName: 'EatSure', type: 'food_delivery' },
+      
+      // E-commerce
+      { pattern: /amazon/i, name: 'amazon', displayName: 'Amazon', type: 'ecommerce' },
+      { pattern: /flipkart/i, name: 'flipkart', displayName: 'Flipkart', type: 'ecommerce' },
+      { pattern: /myntra/i, name: 'myntra', displayName: 'Myntra', type: 'ecommerce' },
+      { pattern: /meesho/i, name: 'meesho', displayName: 'Meesho', type: 'ecommerce' },
+      { pattern: /ajio/i, name: 'ajio', displayName: 'AJIO', type: 'ecommerce' },
+      { pattern: /nykaa/i, name: 'nykaa', displayName: 'Nykaa', type: 'ecommerce' },
+      
+      // Cab/Transport
+      { pattern: /uber/i, name: 'uber', displayName: 'Uber', type: 'transport' },
+      { pattern: /ola/i, name: 'ola', displayName: 'Ola', type: 'transport' },
+      { pattern: /rapido/i, name: 'rapido', displayName: 'Rapido', type: 'transport' },
+      { pattern: /meru/i, name: 'meru', displayName: 'Meru Cabs', type: 'transport' },
+      
+      // Cloud/Software
+      { pattern: /aws|amazon\s*web/i, name: 'aws', displayName: 'AWS', type: 'cloud' },
+      { pattern: /google\s*cloud|gcp/i, name: 'gcp', displayName: 'Google Cloud', type: 'cloud' },
+      { pattern: /azure|microsoft\s*cloud/i, name: 'azure', displayName: 'Azure', type: 'cloud' },
+      { pattern: /digitalocean/i, name: 'digitalocean', displayName: 'DigitalOcean', type: 'cloud' },
+      
+      // Subscriptions
+      { pattern: /netflix/i, name: 'netflix', displayName: 'Netflix', type: 'streaming' },
+      { pattern: /spotify/i, name: 'spotify', displayName: 'Spotify', type: 'streaming' },
+      { pattern: /hotstar|disney/i, name: 'hotstar', displayName: 'Disney+ Hotstar', type: 'streaming' },
+      { pattern: /prime\s*video/i, name: 'primevideo', displayName: 'Prime Video', type: 'streaming' },
+      { pattern: /youtube\s*premium/i, name: 'youtube', displayName: 'YouTube Premium', type: 'streaming' },
+      
+      // Groceries
+      { pattern: /bigbasket/i, name: 'bigbasket', displayName: 'BigBasket', type: 'grocery' },
+      { pattern: /blinkit|grofers/i, name: 'blinkit', displayName: 'Blinkit', type: 'grocery' },
+      { pattern: /zepto/i, name: 'zepto', displayName: 'Zepto', type: 'grocery' },
+      { pattern: /instamart/i, name: 'instamart', displayName: 'Swiggy Instamart', type: 'grocery' },
+      { pattern: /dmart/i, name: 'dmart', displayName: 'DMart', type: 'grocery' },
+      
+      // Travel
+      { pattern: /makemytrip|mmt/i, name: 'makemytrip', displayName: 'MakeMyTrip', type: 'travel' },
+      { pattern: /goibibo/i, name: 'goibibo', displayName: 'Goibibo', type: 'travel' },
+      { pattern: /cleartrip/i, name: 'cleartrip', displayName: 'Cleartrip', type: 'travel' },
+      { pattern: /yatra/i, name: 'yatra', displayName: 'Yatra', type: 'travel' },
+      { pattern: /ixigo/i, name: 'ixigo', displayName: 'ixigo', type: 'travel' },
+      
+      // Payments/Recharges
+      { pattern: /paytm/i, name: 'paytm', displayName: 'Paytm', type: 'payments' },
+      { pattern: /phonepe/i, name: 'phonepe', displayName: 'PhonePe', type: 'payments' },
+      { pattern: /gpay|google\s*pay/i, name: 'gpay', displayName: 'Google Pay', type: 'payments' },
+      
+      // Food Chains
+      { pattern: /mcdonald|mcd/i, name: 'mcdonalds', displayName: "McDonald's", type: 'restaurant' },
+      { pattern: /domino/i, name: 'dominos', displayName: "Domino's", type: 'restaurant' },
+      { pattern: /pizza\s*hut/i, name: 'pizzahut', displayName: 'Pizza Hut', type: 'restaurant' },
+      { pattern: /kfc/i, name: 'kfc', displayName: 'KFC', type: 'restaurant' },
+      { pattern: /burger\s*king/i, name: 'burgerking', displayName: 'Burger King', type: 'restaurant' },
+      { pattern: /starbucks/i, name: 'starbucks', displayName: 'Starbucks', type: 'restaurant' },
+      { pattern: /cafe\s*coffee\s*day|ccd/i, name: 'ccd', displayName: 'Cafe Coffee Day', type: 'restaurant' },
+      
+      // Office/Stationery
+      { pattern: /staples/i, name: 'staples', displayName: 'Staples', type: 'office' },
+      { pattern: /officedepot/i, name: 'officedepot', displayName: 'Office Depot', type: 'office' },
+    ];
+    
+    for (const { pattern, name, displayName, type } of vendorPatterns) {
+      if (pattern.test(description)) {
+        return { name, displayName, type };
+      }
+    }
+    
+    return null;
+  };
+
+  // Generate smart vendor alternatives based on actual vendors found
+  const generateSmartVendorAlternatives = (vendorAnalysis, category) => {
+    // Database of vendor alternatives with specific reasons
+    const vendorAlternatives = {
+      // Food Delivery Alternatives
+      swiggy: [
+        { vendor: 'Zomato', savings: '10-15%', reason: 'Often has better coupons and Zomato Pro offers 40% off on select restaurants. Check for restaurant-specific deals.' },
+        { vendor: 'EatSure (by Rebel Foods)', savings: '15-20%', reason: 'Multi-brand cloud kitchen with consistent quality. Combo meals are 15-20% cheaper than individual orders.' },
+        { vendor: 'Direct Restaurant Apps', savings: '20-30%', reason: 'Order directly from restaurant apps (Dominos, McD) to avoid platform fees of ₹30-50 per order.' },
+        { vendor: 'ONDC Apps (Magicpin, Paytm)', savings: '15-25%', reason: 'Government-backed ONDC network has lower commission = lower prices. Same restaurants, better deals.' },
+        { vendor: 'Continue with Swiggy', savings: '5-10%', reason: 'If you have Swiggy One membership, stick with it. Use Swiggy Money wallet for extra 10% cashback.', isCurrent: true }
       ],
-      'Marketing & Advertising': [
-        { vendor: 'Meta Ads (Facebook/Instagram)', savings: '25-40%', quality: 'Better targeting', reason: 'Lower CPM with advanced targeting options' },
-        { vendor: 'Google Ads', savings: '20-35%', quality: 'High intent traffic', reason: 'Search intent leads to better conversion rates' },
-        { vendor: 'LinkedIn Ads', savings: '10-15%', quality: 'B2B focused', reason: 'Professional audience for B2B marketing' }
+      zomato: [
+        { vendor: 'Swiggy', savings: '10-15%', reason: 'Compare prices for the same restaurant. Swiggy often has different offers and lower delivery fees in some areas.' },
+        { vendor: 'EatSure (by Rebel Foods)', savings: '15-20%', reason: 'Behrouz Biryani, Faasos, Oven Story all in one app with better combo pricing than Zomato.' },
+        { vendor: 'Direct Restaurant Apps', savings: '20-30%', reason: 'Skip platform commission. Pizza chains and QSRs offer exclusive app-only discounts.' },
+        { vendor: 'ONDC Apps (Magicpin)', savings: '15-25%', reason: 'Same restaurants listed on ONDC at lower prices due to reduced platform fees.' },
+        { vendor: 'Continue with Zomato', savings: '5-10%', reason: 'Maximize Zomato Pro/Gold membership. Stack offers with bank cards for up to 25% savings.', isCurrent: true }
       ],
-      'Software & Subscriptions': [
-        { vendor: 'Annual Plans', savings: '15-25%', quality: 'Same features', reason: 'Switch from monthly to annual billing' },
-        { vendor: 'Open Source Alternatives', savings: '50-100%', quality: 'Similar functionality', reason: 'Free alternatives like LibreOffice, GIMP' },
-        { vendor: 'Bundle Deals', savings: '20-30%', quality: 'More features', reason: 'Microsoft 365 or Google Workspace bundles' }
+      
+      // E-commerce Alternatives
+      amazon: [
+        { vendor: 'Flipkart', savings: '5-15%', reason: 'Compare prices - Flipkart often beats Amazon during Big Billion Days. SuperCoins give extra 5% value.' },
+        { vendor: 'Meesho', savings: '20-40%', reason: 'Direct from manufacturers/resellers. Great for bulk office supplies and non-branded items.' },
+        { vendor: 'IndiaMart/Alibaba', savings: '30-50%', reason: 'For bulk B2B purchases, wholesale prices are 30-50% lower. Minimum order quantities apply.' },
+        { vendor: 'Local Wholesale Markets', savings: '25-35%', reason: 'For office supplies, electronics - local markets avoid shipping and platform fees.' },
+        { vendor: 'Continue with Amazon', savings: '5-10%', reason: 'Amazon Business offers GST invoicing and bulk discounts. Prime saves on shipping costs.', isCurrent: true }
       ],
-      'Travel & Transportation': [
-        { vendor: 'MakeMyTrip Business', savings: '10-20%', quality: 'Same routes', reason: 'Corporate travel discounts and rewards' },
-        { vendor: 'Cleartrip for Business', savings: '15-25%', quality: 'Flexible booking', reason: 'GST invoicing and expense management' },
-        { vendor: 'Uber for Business', savings: '10-15%', quality: 'Better tracking', reason: 'Consolidated billing and ride management' }
+      flipkart: [
+        { vendor: 'Amazon', savings: '5-15%', reason: 'Price match and compare. Amazon often has better deals on electronics and faster delivery.' },
+        { vendor: 'Meesho', savings: '20-40%', reason: 'Significantly cheaper for fashion, home items. Quality varies but returns are free.' },
+        { vendor: 'Croma/Reliance Digital', savings: '10-15%', reason: 'For electronics, physical stores offer price matching plus instant exchange and warranty.' },
+        { vendor: 'Brand Direct Websites', savings: '15-25%', reason: 'Buy directly from brand websites during sales - avoid marketplace commissions.' },
+        { vendor: 'Continue with Flipkart', savings: '5-10%', reason: 'Flipkart Plus membership and Axis Bank cards give additional 5-10% off.', isCurrent: true }
       ],
-      'Food & Entertainment': [
-        { vendor: 'Sodexo Meal Cards', savings: '20-30%', quality: 'Tax benefit', reason: 'Tax-free meal allowance up to ₹50/meal' },
-        { vendor: 'Zomato Corporate', savings: '15-20%', quality: 'Same restaurants', reason: 'Corporate accounts with discounts' },
-        { vendor: 'In-house Pantry', savings: '30-40%', quality: 'Fresh options', reason: 'Stock snacks and beverages in bulk' }
+      
+      // Transport Alternatives
+      uber: [
+        { vendor: 'Ola', savings: '10-20%', reason: 'Compare prices for the same route. Ola often has lower surge pricing and better offers in tier-2 cities.' },
+        { vendor: 'Rapido (Bike/Auto)', savings: '40-60%', reason: 'For solo travel, Rapido bike taxis cost 40-60% less. Auto option is still 20% cheaper than cabs.' },
+        { vendor: 'BluSmart (EV Cabs)', savings: '15-20%', reason: 'Fixed pricing, no surge. Electric cabs are 15-20% cheaper and eco-friendly. Available in Delhi/Bangalore.' },
+        { vendor: 'Metro + Last Mile', savings: '50-70%', reason: 'Metro + auto/Rapido for last mile saves 50-70% on daily commute. Consider monthly metro pass.' },
+        { vendor: 'Continue with Uber', savings: '5-10%', reason: 'Use Uber Pass for 15% off. Schedule rides in advance to avoid surge pricing.', isCurrent: true }
       ],
-      'Professional Services': [
-        { vendor: 'Freelance Platforms', savings: '20-40%', quality: 'Vetted talent', reason: 'Upwork, Fiverr for project-based work' },
-        { vendor: 'Retainer Agreements', savings: '15-25%', quality: 'Priority service', reason: 'Long-term contracts with discounted rates' },
-        { vendor: 'Local CA Firms', savings: '30-50%', quality: 'Personalized service', reason: 'Lower overheads than big 4 firms' }
+      ola: [
+        { vendor: 'Uber', savings: '10-20%', reason: 'Compare real-time prices. Uber often has better airport pricing and international consistency.' },
+        { vendor: 'Rapido', savings: '40-60%', reason: 'Bike taxis are significantly cheaper for short distances. Auto option available in most cities.' },
+        { vendor: 'BluSmart', savings: '15-20%', reason: 'No surge pricing ever. Clean EV cabs with transparent pricing. Expanding to more cities.' },
+        { vendor: 'Namma Yatri/Other Local', savings: '20-30%', reason: 'Driver-friendly apps charge zero commission = lower fares passed to you.' },
+        { vendor: 'Continue with Ola', savings: '5-10%', reason: 'Ola Select membership offers priority booking and discounts on every ride.', isCurrent: true }
       ],
-      'Rent & Utilities': [
-        { vendor: 'Co-working Spaces', savings: '20-40%', quality: 'Flexible terms', reason: 'WeWork, 91springboard for scalable space' },
-        { vendor: 'Energy Audit', savings: '15-25%', quality: 'Same usage', reason: 'Optimize power consumption patterns' },
-        { vendor: 'Negotiate Renewal', savings: '5-15%', quality: 'Same location', reason: 'Long-term lease discounts' }
+      
+      // Cloud Services Alternatives
+      aws: [
+        { vendor: 'Google Cloud (GCP)', savings: '20-30%', reason: 'GCP offers sustained use discounts automatically. BigQuery is cheaper for analytics workloads.' },
+        { vendor: 'DigitalOcean', savings: '40-60%', reason: 'For startups and small workloads, DO is 40-60% cheaper with simpler pricing. Great for MVPs.' },
+        { vendor: 'Linode/Vultr', savings: '30-50%', reason: 'Straightforward VPS pricing without complex billing. Good for predictable workloads.' },
+        { vendor: 'Reserved Instances', savings: '30-40%', reason: 'Commit to 1-3 year reserved instances on AWS itself for up to 72% savings vs on-demand.' },
+        { vendor: 'Continue with AWS', savings: '20-30%', reason: 'Use AWS Cost Explorer to rightsize instances. Spot instances can save 60-90% for flexible workloads.', isCurrent: true }
       ],
-      'Equipment & Maintenance': [
-        { vendor: 'Refurbished Products', savings: '30-50%', quality: 'Certified quality', reason: 'Dell, HP certified refurbished' },
-        { vendor: 'AMC Contracts', savings: '20-30%', quality: 'Priority support', reason: 'Annual maintenance reduces per-call costs' },
-        { vendor: 'Lease Instead of Buy', savings: '15-25%', quality: 'Latest models', reason: 'Equipment leasing for better cash flow' }
+      
+      // Streaming Alternatives
+      netflix: [
+        { vendor: 'Amazon Prime Video', savings: '30-40%', reason: 'Prime membership includes video + shopping benefits. ₹1499/year vs Netflix ₹649/month.' },
+        { vendor: 'Disney+ Hotstar', savings: '40-50%', reason: 'At ₹299/month, includes sports + Disney + Star content. Annual plan even cheaper.' },
+        { vendor: 'YouTube Premium', savings: '20-30%', reason: 'Includes ad-free YouTube + YouTube Music. Great if you watch a lot of YouTube content.' },
+        { vendor: 'JioCinema', savings: '60-80%', reason: 'Free with Jio, premium at ₹29/month. Has sports, HBO content, and originals.' },
+        { vendor: 'Continue with Netflix', savings: '10-15%', reason: 'Share with family (4 screens) to split cost. Mobile-only plan at ₹149 if you watch on phone.', isCurrent: true }
       ],
-      'Bank Charges': [
-        { vendor: 'Digital Banks', savings: '50-80%', quality: 'Same services', reason: 'Jupiter, Fi, RazorpayX have lower fees' },
-        { vendor: 'Negotiate with Bank', savings: '20-40%', quality: 'Same bank', reason: 'High-value customers get fee waivers' },
-        { vendor: 'Bundle Services', savings: '15-25%', quality: 'More features', reason: 'Current + savings + forex in one package' }
+      
+      // Grocery Alternatives
+      bigbasket: [
+        { vendor: 'Zepto/Blinkit', savings: '5-10%', reason: 'Quick commerce apps often have better deals on daily essentials. Compare prices for your regular items.' },
+        { vendor: 'DMart Ready', savings: '15-25%', reason: 'DMart prices are consistently 15-25% lower. Order online for pickup or delivery in select areas.' },
+        { vendor: 'JioMart', savings: '10-20%', reason: 'Reliance retail pricing with extra discounts for Jio users. Good for monthly grocery stock-up.' },
+        { vendor: 'Local Kirana + Dunzo', savings: '10-15%', reason: 'Local shops often match online prices minus delivery fees. Build a relationship for credit terms.' },
+        { vendor: 'Continue with BigBasket', savings: '5-10%', reason: 'BB Star membership gives free delivery + extra discounts. Smart Basket for recurring items.', isCurrent: true }
       ],
-      'General Expenses': [
-        { vendor: 'Bulk Purchasing', savings: '15-25%', quality: 'Same products', reason: 'Quarterly bulk orders reduce per-unit cost' },
-        { vendor: 'Vendor Consolidation', savings: '10-20%', quality: 'Simpler management', reason: 'Fewer vendors = better negotiating power' },
-        { vendor: 'Digital Alternatives', savings: '20-40%', quality: 'Modern workflow', reason: 'Go paperless, use digital tools' }
+      
+      // Travel Alternatives  
+      makemytrip: [
+        { vendor: 'Direct Airline/Hotel Booking', savings: '10-20%', reason: 'Book directly on airline websites for same price + better cancellation policies + loyalty points.' },
+        { vendor: 'ixigo/Confirmtkt', savings: '5-15%', reason: 'Train bookings show all options including Tatkal tips. Flight price predictions help time bookings.' },
+        { vendor: 'Google Flights', savings: '10-25%', reason: 'Price tracking alerts for cheapest days. Often finds OTA prices lower than direct booking.' },
+        { vendor: 'Corporate Travel Desk', savings: '15-30%', reason: 'If your company has a travel desk, use it for negotiated corporate rates and GST benefits.' },
+        { vendor: 'Continue with MakeMyTrip', savings: '5-10%', reason: 'MyBiz for business travel has GST invoicing. Stack ICICI card offers for up to 12% off.', isCurrent: true }
       ]
     };
-
-    // Find matching suggestions or use general ones
-    const matchedCategory = Object.keys(vendorDatabase).find(key => 
-      category.toLowerCase().includes(key.toLowerCase()) || 
-      key.toLowerCase().includes(category.toLowerCase())
-    );
-
-    const baseSuggestions = vendorDatabase[matchedCategory] || vendorDatabase['General Expenses'];
     
-    // Enhance suggestions with transaction-specific insights
-    return baseSuggestions.map((suggestion, index) => ({
-      ...suggestion,
+    // If we found specific vendors in transactions, get alternatives for the top vendor
+    if (vendorAnalysis.length > 0) {
+      const topVendor = vendorAnalysis[0];
+      const alternatives = vendorAlternatives[topVendor.name];
+      
+      if (alternatives) {
+        return alternatives.map((alt, index) => ({
+          ...alt,
+          id: index + 1,
+          currentVendor: topVendor.displayName,
+          currentSpend: formatCurrency(topVendor.total / topVendor.count),
+          totalSpent: formatCurrency(topVendor.total),
+          transactionCount: topVendor.count,
+          potentialSavings: formatCurrency((topVendor.total * parseInt(alt.savings) / 100))
+        }));
+      }
+    }
+    
+    // Fallback: Generic category-based suggestions
+    const genericSuggestions = getGenericCategorySuggestions(category);
+    const totalSpent = vendorAnalysis.reduce((sum, v) => sum + v.total, 0) || 10000;
+    
+    return genericSuggestions.map((sugg, index) => ({
+      ...sugg,
       id: index + 1,
-      potentialSavings: formatCurrency(avgAmount * (parseInt(suggestion.savings) / 100) * 0.5),
-      currentSpend: formatCurrency(avgAmount)
+      currentVendor: 'Multiple Vendors',
+      currentSpend: formatCurrency(totalSpent / Math.max(vendorAnalysis.length, 1)),
+      totalSpent: formatCurrency(totalSpent),
+      transactionCount: vendorAnalysis.reduce((sum, v) => sum + v.count, 0),
+      potentialSavings: formatCurrency(totalSpent * parseInt(sugg.savings) / 100)
     }));
+  };
+
+  // Generic category suggestions when no specific vendor is detected
+  const getGenericCategorySuggestions = (category) => {
+    const categoryMap = {
+      'Food & Entertainment': [
+        { vendor: 'Compare Swiggy vs Zomato', savings: '10-15%', reason: 'Always compare prices on both apps before ordering. Use browser extensions like CashKaro for extra cashback.' },
+        { vendor: 'Restaurant Direct Apps', savings: '20-30%', reason: 'Major chains like Dominos, McD, Pizza Hut offer exclusive app discounts not available on aggregators.' },
+        { vendor: 'Corporate Food Cards', savings: '20-30%', reason: 'Sodexo/Ticket Restaurant cards are tax-free up to ₹50/meal. Significant tax savings.' },
+        { vendor: 'ONDC-based Apps', savings: '15-25%', reason: 'Magicpin, Paytm Food use ONDC - lower commissions mean lower prices for same restaurants.' },
+        { vendor: 'Meal Subscriptions', savings: '25-35%', reason: 'Services like Box8 XL, Lunchbox offer weekly meal plans at 25-35% less than daily orders.' }
+      ],
+      'Travel & Transportation': [
+        { vendor: 'Compare All Platforms', savings: '10-20%', reason: 'Use Skyscanner, Google Flights to compare across MMT, Goibibo, Cleartrip before booking.' },
+        { vendor: 'Book in Advance', savings: '20-40%', reason: 'Flight prices are lowest 3-6 weeks before travel. Set price alerts to book at the right time.' },
+        { vendor: 'Corporate Travel Account', savings: '15-30%', reason: 'Set up a corporate account for negotiated rates, GST invoicing, and centralized expense tracking.' },
+        { vendor: 'Ride-sharing/Carpooling', savings: '30-50%', reason: 'QuickRide, sRide for daily commute. Share cabs with colleagues going the same way.' },
+        { vendor: 'Public Transport + Last Mile', savings: '50-70%', reason: 'Metro/bus pass + Rapido/auto for last mile is 50-70% cheaper than door-to-door cabs.' }
+      ],
+      'Office Supplies': [
+        { vendor: 'Amazon Business', savings: '15-25%', reason: 'GST invoicing, bulk discounts, and quantity-based pricing. Register for free business account.' },
+        { vendor: 'IndiaMART Wholesale', savings: '30-50%', reason: 'Buy directly from manufacturers for items like paper, stationery, cleaning supplies.' },
+        { vendor: 'Local Wholesale Markets', savings: '25-40%', reason: 'Chandni Chowk, Crawford Market equivalents in your city for bulk purchases without GST sometimes.' },
+        { vendor: 'Quarterly Bulk Orders', savings: '15-25%', reason: 'Instead of ordering as needed, do quarterly bulk orders to negotiate better prices and save shipping.' },
+        { vendor: 'Refurbished/Second-hand', savings: '40-60%', reason: 'For furniture, electronics - certified refurbished products from Cashify, certified retailers.' }
+      ],
+      'default': [
+        { vendor: 'Bulk Purchasing', savings: '15-25%', reason: 'Consolidate orders and buy in bulk to negotiate better rates with existing vendors.' },
+        { vendor: 'Vendor Comparison', savings: '10-20%', reason: 'Get quotes from 3-4 vendors before any significant purchase. Competition drives prices down.' },
+        { vendor: 'Annual Contracts', savings: '15-30%', reason: 'Convert recurring purchases to annual contracts for volume discounts and price locks.' },
+        { vendor: 'Digital Alternatives', savings: '20-40%', reason: 'Replace physical products with digital alternatives where possible - subscriptions, cloud storage, etc.' },
+        { vendor: 'Review & Negotiate', savings: '10-15%', reason: 'Regularly review vendor performance and renegotiate terms. Loyalty should earn you better rates.' }
+      ]
+    };
+    
+    return categoryMap[category] || categoryMap['default'];
   };
 
   const navigationItems = [
@@ -3327,7 +3520,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 </div>
               ) : (
                 <>
-                  {/* Summary Card */}
+                  {/* Summary Card - Shows current vendor */}
                   <div style={{
                     background: darkMode ? '#161b22' : '#f8fafc',
                     borderRadius: '16px',
@@ -3335,12 +3528,31 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     marginBottom: '24px',
                     border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'
                   }}>
+                    {vendorSuggestions[0]?.currentVendor && vendorSuggestions[0].currentVendor !== 'Multiple Vendors' && (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        marginBottom: '12px',
+                        padding: '8px 12px',
+                        background: darkMode ? '#0d1117' : '#fee2e2',
+                        borderRadius: '8px',
+                        width: 'fit-content'
+                      }}>
+                        <span style={{ fontSize: '13px', color: darkMode ? '#f87171' : '#dc2626' }}>
+                          Currently using:
+                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: darkMode ? '#fca5a5' : '#991b1b' }}>
+                          {vendorSuggestions[0].currentVendor}
+                        </span>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
                         Total Spent in {selectedExpenseCategory.category}
                       </span>
                       <span style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
-                        {selectedExpenseCategory.transactions?.length || 0} Transactions
+                        {vendorSuggestions[0]?.transactionCount || selectedExpenseCategory.transactions?.length || 0} Transactions
                       </span>
                     </div>
                     <div style={{ 
@@ -3349,7 +3561,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                       color: '#ef4444',
                       marginBottom: '8px'
                     }}>
-                      {formatCurrency(selectedExpenseCategory.transactions?.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) || 0)}
+                      {vendorSuggestions[0]?.totalSpent || formatCurrency(selectedExpenseCategory.transactions?.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) || 0)}
                     </div>
                     <p style={{ 
                       fontSize: '13px', 
@@ -3360,7 +3572,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                       gap: '6px'
                     }}>
                       <Brain size={14} style={{ color: '#ffcc29' }} />
-                      Here are some ways you could potentially save money:
+                      Here are 5 alternatives to help you save money:
                     </p>
                   </div>
 
@@ -3370,28 +3582,58 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                       <div 
                         key={suggestion.id}
                         style={{
-                          background: darkMode ? '#161b22' : '#ffffff',
+                          background: suggestion.isCurrent 
+                            ? (darkMode ? '#0f1419' : '#f0fdf4') 
+                            : (darkMode ? '#161b22' : '#ffffff'),
                           borderRadius: '16px',
                           padding: '20px',
-                          border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
-                          transition: 'all 0.3s ease'
+                          border: suggestion.isCurrent 
+                            ? '2px solid #22c55e' 
+                            : (darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'),
+                          transition: 'all 0.3s ease',
+                          position: 'relative'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#ffcc29';
-                          e.currentTarget.style.boxShadow = '0 4px 20px rgba(255, 204, 41, 0.15)';
+                          if (!suggestion.isCurrent) {
+                            e.currentTarget.style.borderColor = '#ffcc29';
+                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(255, 204, 41, 0.15)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = darkMode ? '#21262d' : '#e2e8f0';
-                          e.currentTarget.style.boxShadow = 'none';
+                          if (!suggestion.isCurrent) {
+                            e.currentTarget.style.borderColor = darkMode ? '#21262d' : '#e2e8f0';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }
                         }}
                       >
+                        {/* Best Choice / Current Option Badge */}
+                        {suggestion.isCurrent && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '20px',
+                            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            ✓ Stick with Current
+                          </div>
+                        )}
+                        
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{
                               width: '36px',
                               height: '36px',
                               borderRadius: '10px',
-                              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                              background: suggestion.isCurrent 
+                                ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                                : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -3399,7 +3641,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               fontWeight: '700',
                               color: 'white'
                             }}>
-                              {index + 1}
+                              {suggestion.isCurrent ? '✓' : index + 1}
                             </div>
                             <div>
                               <h4 style={{ 
@@ -3410,24 +3652,29 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}>
                                 {suggestion.vendor}
                               </h4>
-                              <p style={{ 
-                                margin: '4px 0 0', 
-                                fontSize: '13px', 
-                                color: darkMode ? '#8b949e' : '#64748b' 
-                              }}>
-                                {suggestion.quality}
-                              </p>
+                              {suggestion.isCurrent && vendorSuggestions[0]?.currentVendor && (
+                                <p style={{ 
+                                  margin: '2px 0 0', 
+                                  fontSize: '12px', 
+                                  color: '#22c55e',
+                                  fontWeight: '500'
+                                }}>
+                                  You're already using a good option!
+                                </p>
+                              )}
                             </div>
                           </div>
                           <div style={{
-                            background: 'linear-gradient(135deg, #22c55e20, #16a34a20)',
+                            background: suggestion.isCurrent 
+                              ? 'linear-gradient(135deg, #22c55e20, #16a34a20)'
+                              : 'linear-gradient(135deg, #3b82f620, #2563eb20)',
                             padding: '6px 12px',
                             borderRadius: '20px',
                             fontSize: '14px',
                             fontWeight: '600',
-                            color: '#22c55e'
+                            color: suggestion.isCurrent ? '#22c55e' : '#3b82f6'
                           }}>
-                            Save {suggestion.savings}
+                            {suggestion.isCurrent ? 'Optimize' : 'Save'} {suggestion.savings}
                           </div>
                         </div>
 
@@ -3443,38 +3690,40 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               margin: 0, 
                               fontSize: '14px', 
                               color: darkMode ? '#c9d1d9' : '#475569',
-                              lineHeight: '1.5'
+                              lineHeight: '1.6'
                             }}>
-                              <strong>Why this helps:</strong> {suggestion.reason}
+                              {suggestion.reason}
                             </p>
                           </div>
                         </div>
 
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          marginTop: '16px',
-                          padding: '12px 16px',
-                          background: darkMode ? '#0d1117' : '#f0fdf4',
-                          borderRadius: '10px',
-                          border: '1px solid #22c55e30'
-                        }}>
-                          <div>
-                            <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>Current Avg/Txn</span>
-                            <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#ef4444' }}>
-                              {suggestion.currentSpend}
-                            </p>
+                        {!suggestion.isCurrent && (
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            marginTop: '16px',
+                            padding: '12px 16px',
+                            background: darkMode ? '#0d1117' : '#eff6ff',
+                            borderRadius: '10px',
+                            border: '1px solid #3b82f630'
+                          }}>
+                            <div>
+                              <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>You Spent</span>
+                              <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#ef4444' }}>
+                                {suggestion.totalSpent}
+                              </p>
+                            </div>
+                            <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center' }}>
+                              <ArrowUpRight size={20} style={{ color: '#22c55e', transform: 'rotate(90deg)' }} />
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>Could Save</span>
+                              <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#22c55e' }}>
+                                {suggestion.potentialSavings}
+                              </p>
+                            </div>
                           </div>
-                          <div style={{ textAlign: 'center' }}>
-                            <ArrowUpRight size={20} style={{ color: '#22c55e', transform: 'rotate(90deg)' }} />
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>Potential Savings</span>
-                            <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#22c55e' }}>
-                              {suggestion.potentialSavings}
-                            </p>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
