@@ -1094,13 +1094,19 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         </div>
 
                         {/* Expense Breakdown Dropdown */}
+                        {expenseDropdownOpen && (
                         <div style={{
-                          maxHeight: expenseDropdownOpen ? '200px' : '0',
-                          overflow: 'hidden',
-                          transition: 'all 0.3s ease-in-out',
-                          marginTop: expenseDropdownOpen ? '16px' : '0',
-                          borderTop: expenseDropdownOpen ? '1px solid #fee2e2' : 'none',
-                          paddingTop: expenseDropdownOpen ? '16px' : '0'
+                          position: 'absolute',
+                          top: '100%',
+                          left: '0',
+                          right: '0',
+                          marginTop: '8px',
+                          background: 'white',
+                          borderRadius: '12px',
+                          boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                          border: '1px solid #e2e8f0',
+                          padding: '12px',
+                          zIndex: 100
                         }}>
                           <div 
                             onClick={() => setExpenseModalType('recurring')}
@@ -1157,6 +1163,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             </div>
                           </div>
                         </div>
+                        )}
                       </div>
 
                       {/* Net Profit Card */}
