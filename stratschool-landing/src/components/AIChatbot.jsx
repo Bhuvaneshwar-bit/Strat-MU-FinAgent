@@ -11,7 +11,7 @@ const AIChatbot = ({ user }) => {
     {
       id: 1,
       type: 'bot',
-      text: `Hi ${user?.firstName || 'there'}! 👋 I'm your AI CFO assistant. How can I help you with your finances today?`,
+      text: `Hi ${user?.firstName || 'there'}! 👋 I'm Daddy, your financial assistant. How can I help you with your finances today?`,
       timestamp: new Date()
     }
   ]);
@@ -129,7 +129,7 @@ const AIChatbot = ({ user }) => {
                 <Bot />
               </div>
               <div className="chat-title">
-                <h4>AI CFO Assistant</h4>
+                <h4>Daddy</h4>
                 <span className="online-status">
                   <span className="status-dot"></span>
                   Online

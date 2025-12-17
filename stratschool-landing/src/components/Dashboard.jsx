@@ -14,6 +14,7 @@ import {
   Download,
   RefreshCw,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   ChevronUp,
   Receipt,
@@ -32,7 +33,10 @@ import {
   Flame,
   Activity,
   Moon,
-  Sun
+  Sun,
+  Menu,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -120,6 +124,13 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   // Debit transactions pagination states
   const [debitCurrentPage, setDebitCurrentPage] = useState(1);
   const [debitRowsPerPage, setDebitRowsPerPage] = useState(5);
+
+  // Credit transactions pagination states
+  const [creditCurrentPage, setCreditCurrentPage] = useState(1);
+  const [creditRowsPerPage, setCreditRowsPerPage] = useState(5);
+
+  // Sidebar collapsed state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -1228,9 +1239,42 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       </header>
 
       <div className="dashboard-layout">
-        {/* Professional Sidebar */}
-        <aside className="dashboard-sidebar">
-          <nav className="sidebar-navigation">
+        {/* Professional Sidebar - Collapsible */}
+        <aside 
+          className="dashboard-sidebar"
+          style={{
+            width: sidebarCollapsed ? '70px' : '260px',
+            minWidth: sidebarCollapsed ? '70px' : '260px',
+            transition: 'width 0.3s ease, min-width 0.3s ease'
+          }}
+        >
+          {/* Collapse Toggle Button */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: sidebarCollapsed ? '50%' : '12px',
+              transform: sidebarCollapsed ? 'translateX(50%)' : 'none',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: 'none',
+              background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: darkMode ? '#a0a0a0' : '#64748b',
+              transition: 'all 0.2s ease',
+              zIndex: 10
+            }}
+            title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            {sidebarCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+
+          <nav className="sidebar-navigation" style={{ marginTop: sidebarCollapsed ? '50px' : '0' }}>
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -1238,28 +1282,35 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                   key={item.id}
                   className={`nav-button ${activeTab === item.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(item.id)}
+                  style={{
+                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                    padding: sidebarCollapsed ? '12px' : '12px 16px'
+                  }}
+                  title={sidebarCollapsed ? item.label : ''}
                 >
                   <Icon className="nav-icon" />
-                  <span className="nav-label">{item.label}</span>
-                  {activeTab === item.id && <div className="active-indicator" />}
+                  {!sidebarCollapsed && <span className="nav-label">{item.label}</span>}
+                  {activeTab === item.id && !sidebarCollapsed && <div className="active-indicator" />}
                 </button>
               );
             })}
           </nav>
 
-          <div className="sidebar-footer">
-            <div className="upgrade-prompt">
-              <div className="upgrade-icon">
-                <Zap />
+          {!sidebarCollapsed && (
+            <div className="sidebar-footer">
+              <div className="upgrade-prompt">
+                <div className="upgrade-icon">
+                  <Zap />
+                </div>
+                <h4>AI Premium</h4>
+                <p>Unlock advanced forecasting & automation</p>
+                <button className="upgrade-button">
+                  Upgrade Now
+                  <ChevronRight className="upgrade-arrow" />
+                </button>
               </div>
-              <h4>AI Premium</h4>
-              <p>Unlock advanced forecasting & automation</p>
-              <button className="upgrade-button">
-                Upgrade Now
-                <ChevronRight className="upgrade-arrow" />
-              </button>
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Main Content */}
@@ -2319,9 +2370,50 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Credit Transactions Table */}
+                  {/* Credit Transactions Table with Pagination */}
                   <div className="transactions-table-section" style={{ marginTop: '24px' }}>
-                    <h3>All Credit Transactions</h3>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginBottom: '16px',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <h3 style={{ margin: 0 }}>All Credit Transactions</h3>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        fontSize: '14px',
+                        color: darkMode ? '#8b949e' : '#64748b'
+                      }}>
+                        <span>Show</span>
+                        <select
+                          value={creditRowsPerPage}
+                          onChange={(e) => {
+                            setCreditRowsPerPage(Number(e.target.value));
+                            setCreditCurrentPage(1);
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                            background: darkMode ? '#161b22' : '#ffffff',
+                            color: darkMode ? '#ededed' : '#1e293b',
+                            fontSize: '14px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={15}>15</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                        <span>per page</span>
+                      </div>
+                    </div>
                     <div className="transactions-table-wrapper">
                       <table className="transactions-table">
                         <thead>
@@ -2334,12 +2426,16 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         </thead>
                         <tbody>
                           {metrics.creditTransactions.length > 0 ? (
-                            metrics.creditTransactions.map((txn, index) => (
-                              <tr key={index}>
+                            metrics.creditTransactions
+                              .slice((creditCurrentPage - 1) * creditRowsPerPage, creditCurrentPage * creditRowsPerPage)
+                              .map((txn, index) => {
+                                const actualIndex = (creditCurrentPage - 1) * creditRowsPerPage + index;
+                                return (
+                              <tr key={actualIndex}>
                                 <td className="date-col">{txn.date || '-'}</td>
                                 <td className="description-col">{txn.description || txn.particulars || '-'}</td>
                                 <td className="category-col">
-                                  {editingCategory?.index === index && editingCategory?.type === 'credit' ? (
+                                  {editingCategory?.index === actualIndex && editingCategory?.type === 'credit' ? (
                                     <div className="category-editor">
                                       {!showCustomInput ? (
                                         <select 
@@ -2371,7 +2467,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                   ) : (
                                     <span 
                                       className="editable-category"
-                                      onClick={() => handleCategoryClick(index, 'credit', txn.category?.category || 'Other Income')}
+                                      onClick={() => handleCategoryClick(actualIndex, 'credit', txn.category?.category || 'Other Income')}
                                       title="Click to change category"
                                     >
                                       {txn.category?.category || 'Other Income'}
@@ -2380,7 +2476,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                                 </td>
                                 <td className="amount-col revenue-amount">{formatCurrency(Math.abs(txn.amount))}</td>
                               </tr>
-                            ))
+                                );
+                              })
                           ) : (
                             <tr>
                               <td colSpan="4" className="no-data-row">No credit transactions found</td>
@@ -2389,6 +2486,130 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {metrics.creditTransactions.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '20px',
+                        padding: '16px 20px',
+                        background: darkMode ? '#161b22' : '#f8fafc',
+                        borderRadius: '12px',
+                        border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
+                          Showing {((creditCurrentPage - 1) * creditRowsPerPage) + 1} to {Math.min(creditCurrentPage * creditRowsPerPage, metrics.creditTransactions.length)} of {metrics.creditTransactions.length} transactions
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            onClick={() => setCreditCurrentPage(1)}
+                            disabled={creditCurrentPage === 1}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: creditCurrentPage === 1 ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: creditCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            First
+                          </button>
+                          <button
+                            onClick={() => setCreditCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={creditCurrentPage === 1}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: creditCurrentPage === 1 ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: creditCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            ← Prev
+                          </button>
+                          
+                          {/* Page Numbers */}
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {(() => {
+                              const totalPages = Math.ceil(metrics.creditTransactions.length / creditRowsPerPage);
+                              const pages = [];
+                              let startPage = Math.max(1, creditCurrentPage - 2);
+                              let endPage = Math.min(totalPages, startPage + 4);
+                              
+                              if (endPage - startPage < 4) {
+                                startPage = Math.max(1, endPage - 4);
+                              }
+                              
+                              for (let i = startPage; i <= endPage; i++) {
+                                pages.push(
+                                  <button
+                                    key={i}
+                                    onClick={() => setCreditCurrentPage(i)}
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: '8px',
+                                      border: i === creditCurrentPage ? '1px solid #22c55e' : (darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'),
+                                      background: i === creditCurrentPage ? 'linear-gradient(135deg, #22c55e, #16a34a)' : (darkMode ? '#0d1117' : '#ffffff'),
+                                      color: i === creditCurrentPage ? '#ffffff' : (darkMode ? '#ededed' : '#1e293b'),
+                                      cursor: 'pointer',
+                                      fontSize: '13px',
+                                      fontWeight: i === creditCurrentPage ? '600' : '500',
+                                      minWidth: '36px'
+                                    }}
+                                  >
+                                    {i}
+                                  </button>
+                                );
+                              }
+                              return pages;
+                            })()}
+                          </div>
+                          
+                          <button
+                            onClick={() => setCreditCurrentPage(prev => Math.min(prev + 1, Math.ceil(metrics.creditTransactions.length / creditRowsPerPage)))}
+                            disabled={creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage) ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage) ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Next →
+                          </button>
+                          <button
+                            onClick={() => setCreditCurrentPage(Math.ceil(metrics.creditTransactions.length / creditRowsPerPage))}
+                            disabled={creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage) ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: creditCurrentPage >= Math.ceil(metrics.creditTransactions.length / creditRowsPerPage) ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Last
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -3272,8 +3493,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '20px 24px',
-              borderBottom: '1px solid #e2e8f0',
-              background: expenseModalType === 'recurring' ? '#fef2f2' : '#fff7ed'
+              borderBottom: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+              background: expenseModalType === 'recurring' 
+                ? (darkMode ? 'rgba(220, 38, 38, 0.15)' : '#fef2f2') 
+                : (darkMode ? 'rgba(249, 115, 22, 0.15)' : '#fff7ed')
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {expenseModalType === 'recurring' ? (
@@ -3282,10 +3505,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                   <Shuffle size={24} style={{ color: '#f97316' }} />
                 )}
                 <div>
-                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                     {expenseModalType === 'recurring' ? 'Recurring Expenses' : 'Non-Recurring Expenses'}
                   </h2>
-                  <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+                  <p style={{ fontSize: '13px', color: darkMode ? '#8b949e' : '#64748b', margin: '4px 0 0 0' }}>
                     {expenseModalType === 'recurring' 
                       ? `${classifyExpenses.recurring.length} transactions • ${formatCurrency(classifyExpenses.recurringTotal)}`
                       : `${classifyExpenses.nonRecurring.length} transactions • ${formatCurrency(classifyExpenses.nonRecurringTotal)}`
@@ -3306,7 +3529,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                   justifyContent: 'center'
                 }}
               >
-                <X size={20} style={{ color: '#64748b' }} />
+                <X size={20} style={{ color: darkMode ? '#8b949e' : '#64748b' }} />
               </button>
             </div>
 
@@ -3314,11 +3537,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             <div style={{ padding: '0', maxHeight: '60vh', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Description</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
+                  <tr style={{ background: darkMode ? '#161b22' : '#f8fafc', position: 'sticky', top: 0 }}>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: darkMode ? '#8b949e' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: darkMode ? '#8b949e' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Description</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: darkMode ? '#8b949e' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: darkMode ? '#8b949e' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3326,23 +3549,23 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     <tr 
                       key={index} 
                       style={{ 
-                        borderBottom: '1px solid #f1f5f9',
+                        borderBottom: darkMode ? '1px solid #21262d' : '1px solid #f1f5f9',
                         transition: 'background 0.2s ease'
                       }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseOver={(e) => e.currentTarget.style.background = darkMode ? '#161b22' : '#f8fafc'}
                       onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '14px 16px', fontSize: '14px', color: '#64748b' }}>{txn.date || '-'}</td>
-                      <td style={{ padding: '14px 16px', fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{txn.description || txn.particulars || '-'}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>{txn.date || '-'}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '14px', color: darkMode ? '#ededed' : '#1e293b', fontWeight: '500' }}>{txn.description || txn.particulars || '-'}</td>
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{
                           display: 'inline-block',
                           padding: '4px 10px',
-                          background: '#f1f5f9',
+                          background: darkMode ? '#21262d' : '#f1f5f9',
                           borderRadius: '6px',
                           fontSize: '12px',
                           fontWeight: '500',
-                          color: '#475569'
+                          color: darkMode ? '#c9d1d9' : '#475569'
                         }}>
                           {txn.category?.category || 'General'}
                         </span>
@@ -3360,7 +3583,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                   ))}
                   {(expenseModalType === 'recurring' ? classifyExpenses.recurring : classifyExpenses.nonRecurring).length === 0 && (
                     <tr>
-                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: darkMode ? '#8b949e' : '#64748b' }}>
                         No {expenseModalType} expenses found
                       </td>
                     </tr>
@@ -3372,13 +3595,13 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             {/* Modal Footer */}
             <div style={{
               padding: '16px 24px',
-              borderTop: '1px solid #e2e8f0',
+              borderTop: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: '#f8fafc'
+              background: darkMode ? '#161b22' : '#f8fafc'
             }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>
+              <span style={{ fontSize: '13px', color: darkMode ? '#8b949e' : '#64748b' }}>
                 {expenseModalType === 'recurring' 
                   ? 'Recurring expenses include subscriptions, EMIs, rent, utilities, etc.'
                   : 'Non-recurring expenses are one-time or irregular payments'
@@ -3387,7 +3610,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
               <button
                 onClick={() => setExpenseModalType(null)}
                 style={{
-                  background: '#1e293b',
+                  background: darkMode ? '#21262d' : '#1e293b',
                   color: 'white',
                   border: 'none',
                   padding: '10px 20px',
