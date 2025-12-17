@@ -1047,7 +1047,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           transform: isAnimating ? 'translateY(0)' : 'translateY(20px)',
                           transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                           position: 'relative',
-                          overflow: 'visible'
+                          overflow: 'visible',
+                          zIndex: expenseDropdownOpen ? 999 : 1
                         }}
                       >
                         <div className="metric-header">
