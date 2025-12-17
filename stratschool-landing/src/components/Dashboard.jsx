@@ -30,13 +30,19 @@ import {
   Wallet,
   Clock,
   Flame,
-  Activity
+  Activity,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
 import BookkeepingDashboard from './BookkeepingDashboard';
 import AIChatbot from './AIChatbot';
+
+// Logo imports
+import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
+import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.jpg';
 
 // Default categories for revenue and expenses
 const DEFAULT_REVENUE_CATEGORIES = [
@@ -76,6 +82,19 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customCategories, setCustomCategories] = useState({ revenue: [], expenses: [] });
+  
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('nebulaa-dark-mode');
+    return saved ? JSON.parse(saved) : true; // Default to dark mode
+  });
+
+  // Apply dark mode class to body
+  useEffect(() => {
+    document.body.classList.toggle('dark-mode', darkMode);
+    document.body.classList.toggle('light-mode', !darkMode);
+    localStorage.setItem('nebulaa-dark-mode', JSON.stringify(darkMode));
+  }, [darkMode]);
   
   // Expense breakdown dropdown states
   const [expenseDropdownOpen, setExpenseDropdownOpen] = useState(false);
@@ -873,20 +892,33 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   ];
 
   return (
-    <div className="professional-dashboard">
+    <div className={`professional-dashboard ${darkMode ? 'dark-mode' : 'light-mode'}`}>
       {/* Professional Header */}
       <header className="dashboard-header">
         <div className="header-brand">
           <div className="brand-logo">
-            <Brain className="brand-icon" />
+            <img 
+              src={darkMode ? LogoDark : LogoLight} 
+              alt="Nebulaa Logo" 
+              className="brand-logo-img"
+            />
             <div className="brand-text">
-              <h1>StratSchool</h1>
-              <span>AI CFO Platform</span>
+              <h1>Nebulaa</h1>
+              <span>InFINity</span>
             </div>
           </div>
         </div>
 
         <div className="header-actions">
+          {/* Dark Mode Toggle */}
+          <button 
+            className="action-button theme-toggle"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {darkMode ? <Sun className="action-icon" /> : <Moon className="action-icon" />}
+          </button>
+          
           <button className="action-button">
             <Bell className="action-icon" />
             <span className="notification-badge">3</span>
@@ -2551,7 +2583,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                   <Settings />
                 </div>
                 <h3>System Settings</h3>
-                <p>Configure your AI CFO preferences, automation rules, notification settings, and integration parameters for optimal performance.</p>
+                <p>Configure your InFINity preferences, automation rules, notification settings, and integration parameters for optimal performance.</p>
               </div>
             </div>
           )}
