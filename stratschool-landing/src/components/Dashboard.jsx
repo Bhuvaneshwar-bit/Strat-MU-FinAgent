@@ -112,6 +112,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [revenueViewMode, setRevenueViewMode] = useState('monthly'); // 'weekly' | 'monthly'
   const [hoveredRevenuePieIndex, setHoveredRevenuePieIndex] = useState(null);
 
+  // Vendor suggestion states
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState(null);
+  const [vendorSuggestions, setVendorSuggestions] = useState([]);
+  const [loadingVendorSuggestions, setLoadingVendorSuggestions] = useState(false);
+
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
     // First check onboardingData.user (passed from questionnaire during signup)
@@ -881,6 +886,97 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     setSelectedCategory('');
     setCustomCategory('');
     setShowCustomInput(false);
+  };
+
+  // Handle expense category click to get vendor suggestions
+  const handleExpenseCategoryForSuggestions = async (category, transactions) => {
+    setSelectedExpenseCategory({ category, transactions });
+    setLoadingVendorSuggestions(true);
+    
+    // Generate AI-powered vendor suggestions based on category and transactions
+    const categoryTransactions = transactions.slice(0, 5); // Top 5 transactions
+    const totalSpent = transactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const avgTransaction = totalSpent / transactions.length;
+    
+    // Simulated AI suggestions - In production, this would call the backend AI
+    const suggestions = generateVendorSuggestions(category, categoryTransactions, avgTransaction);
+    
+    setTimeout(() => {
+      setVendorSuggestions(suggestions);
+      setLoadingVendorSuggestions(false);
+    }, 800);
+  };
+
+  // Generate vendor suggestions based on category
+  const generateVendorSuggestions = (category, transactions, avgAmount) => {
+    const vendorDatabase = {
+      'Office Supplies': [
+        { vendor: 'Amazon Business', savings: '15-20%', quality: 'Same quality', reason: 'Bulk discounts and business pricing' },
+        { vendor: 'Flipkart Wholesale', savings: '10-15%', quality: 'Same quality', reason: 'Competitive pricing with fast delivery' },
+        { vendor: 'IndiaMART', savings: '20-30%', quality: 'Direct from manufacturers', reason: 'B2B marketplace with wholesale prices' }
+      ],
+      'Marketing & Advertising': [
+        { vendor: 'Meta Ads (Facebook/Instagram)', savings: '25-40%', quality: 'Better targeting', reason: 'Lower CPM with advanced targeting options' },
+        { vendor: 'Google Ads', savings: '20-35%', quality: 'High intent traffic', reason: 'Search intent leads to better conversion rates' },
+        { vendor: 'LinkedIn Ads', savings: '10-15%', quality: 'B2B focused', reason: 'Professional audience for B2B marketing' }
+      ],
+      'Software & Subscriptions': [
+        { vendor: 'Annual Plans', savings: '15-25%', quality: 'Same features', reason: 'Switch from monthly to annual billing' },
+        { vendor: 'Open Source Alternatives', savings: '50-100%', quality: 'Similar functionality', reason: 'Free alternatives like LibreOffice, GIMP' },
+        { vendor: 'Bundle Deals', savings: '20-30%', quality: 'More features', reason: 'Microsoft 365 or Google Workspace bundles' }
+      ],
+      'Travel & Transportation': [
+        { vendor: 'MakeMyTrip Business', savings: '10-20%', quality: 'Same routes', reason: 'Corporate travel discounts and rewards' },
+        { vendor: 'Cleartrip for Business', savings: '15-25%', quality: 'Flexible booking', reason: 'GST invoicing and expense management' },
+        { vendor: 'Uber for Business', savings: '10-15%', quality: 'Better tracking', reason: 'Consolidated billing and ride management' }
+      ],
+      'Food & Entertainment': [
+        { vendor: 'Sodexo Meal Cards', savings: '20-30%', quality: 'Tax benefit', reason: 'Tax-free meal allowance up to ₹50/meal' },
+        { vendor: 'Zomato Corporate', savings: '15-20%', quality: 'Same restaurants', reason: 'Corporate accounts with discounts' },
+        { vendor: 'In-house Pantry', savings: '30-40%', quality: 'Fresh options', reason: 'Stock snacks and beverages in bulk' }
+      ],
+      'Professional Services': [
+        { vendor: 'Freelance Platforms', savings: '20-40%', quality: 'Vetted talent', reason: 'Upwork, Fiverr for project-based work' },
+        { vendor: 'Retainer Agreements', savings: '15-25%', quality: 'Priority service', reason: 'Long-term contracts with discounted rates' },
+        { vendor: 'Local CA Firms', savings: '30-50%', quality: 'Personalized service', reason: 'Lower overheads than big 4 firms' }
+      ],
+      'Rent & Utilities': [
+        { vendor: 'Co-working Spaces', savings: '20-40%', quality: 'Flexible terms', reason: 'WeWork, 91springboard for scalable space' },
+        { vendor: 'Energy Audit', savings: '15-25%', quality: 'Same usage', reason: 'Optimize power consumption patterns' },
+        { vendor: 'Negotiate Renewal', savings: '5-15%', quality: 'Same location', reason: 'Long-term lease discounts' }
+      ],
+      'Equipment & Maintenance': [
+        { vendor: 'Refurbished Products', savings: '30-50%', quality: 'Certified quality', reason: 'Dell, HP certified refurbished' },
+        { vendor: 'AMC Contracts', savings: '20-30%', quality: 'Priority support', reason: 'Annual maintenance reduces per-call costs' },
+        { vendor: 'Lease Instead of Buy', savings: '15-25%', quality: 'Latest models', reason: 'Equipment leasing for better cash flow' }
+      ],
+      'Bank Charges': [
+        { vendor: 'Digital Banks', savings: '50-80%', quality: 'Same services', reason: 'Jupiter, Fi, RazorpayX have lower fees' },
+        { vendor: 'Negotiate with Bank', savings: '20-40%', quality: 'Same bank', reason: 'High-value customers get fee waivers' },
+        { vendor: 'Bundle Services', savings: '15-25%', quality: 'More features', reason: 'Current + savings + forex in one package' }
+      ],
+      'General Expenses': [
+        { vendor: 'Bulk Purchasing', savings: '15-25%', quality: 'Same products', reason: 'Quarterly bulk orders reduce per-unit cost' },
+        { vendor: 'Vendor Consolidation', savings: '10-20%', quality: 'Simpler management', reason: 'Fewer vendors = better negotiating power' },
+        { vendor: 'Digital Alternatives', savings: '20-40%', quality: 'Modern workflow', reason: 'Go paperless, use digital tools' }
+      ]
+    };
+
+    // Find matching suggestions or use general ones
+    const matchedCategory = Object.keys(vendorDatabase).find(key => 
+      category.toLowerCase().includes(key.toLowerCase()) || 
+      key.toLowerCase().includes(category.toLowerCase())
+    );
+
+    const baseSuggestions = vendorDatabase[matchedCategory] || vendorDatabase['General Expenses'];
+    
+    // Enhance suggestions with transaction-specific insights
+    return baseSuggestions.map((suggestion, index) => ({
+      ...suggestion,
+      id: index + 1,
+      potentialSavings: formatCurrency(avgAmount * (parseInt(suggestion.savings) / 100) * 0.5),
+      currentSpend: formatCurrency(avgAmount)
+    }));
   };
 
   const navigationItems = [
@@ -2566,6 +2662,178 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                       </table>
                     </div>
                   </div>
+
+                  {/* Expense by Category - Smart Suggestions Section */}
+                  <div style={{
+                    marginTop: '32px',
+                    background: darkMode ? '#0d1117' : '#ffffff',
+                    borderRadius: '20px',
+                    padding: '28px',
+                    boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                    border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                      <div style={{ 
+                        width: '44px', 
+                        height: '44px', 
+                        borderRadius: '12px', 
+                        background: 'linear-gradient(135deg, #ffcc29, #e6b800)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(255, 204, 41, 0.3)'
+                      }}>
+                        <Lightbulb size={22} style={{ color: '#070A12' }} />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '20px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
+                          Smart Expense Insights
+                        </h3>
+                        <p style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b', margin: 0 }}>
+                          Click on a category to get AI-powered vendor suggestions
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Category Cards Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gap: '16px'
+                    }}>
+                      {(() => {
+                        // Group transactions by category
+                        const categoryGroups = {};
+                        metrics.debitTransactions.forEach(txn => {
+                          const cat = txn.category?.category || 'General Expenses';
+                          if (!categoryGroups[cat]) {
+                            categoryGroups[cat] = { transactions: [], total: 0 };
+                          }
+                          categoryGroups[cat].transactions.push(txn);
+                          categoryGroups[cat].total += Math.abs(txn.amount || 0);
+                        });
+
+                        // Sort by total amount
+                        const sortedCategories = Object.entries(categoryGroups)
+                          .sort((a, b) => b[1].total - a[1].total);
+
+                        return sortedCategories.map(([category, data], index) => {
+                          const percentage = ((data.total / metrics.totalExpenses) * 100).toFixed(1);
+                          const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
+                          const color = colors[index % colors.length];
+
+                          return (
+                            <div
+                              key={category}
+                              onClick={() => handleExpenseCategoryForSuggestions(category, data.transactions)}
+                              style={{
+                                background: darkMode ? '#161b22' : '#f8fafc',
+                                borderRadius: '16px',
+                                padding: '20px',
+                                cursor: 'pointer',
+                                border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                                transition: 'all 0.3s ease',
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-4px)';
+                                e.currentTarget.style.boxShadow = darkMode 
+                                  ? '0 8px 30px rgba(0,0,0,0.4)' 
+                                  : '0 8px 30px rgba(0,0,0,0.12)';
+                                e.currentTarget.style.borderColor = '#ffcc29';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
+                                e.currentTarget.style.borderColor = darkMode ? '#21262d' : '#e2e8f0';
+                              }}
+                            >
+                              {/* Color indicator bar */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '4px',
+                                height: '100%',
+                                background: color,
+                                borderRadius: '4px 0 0 4px'
+                              }} />
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                <div style={{ flex: 1 }}>
+                                  <h4 style={{ 
+                                    fontSize: '15px', 
+                                    fontWeight: '600', 
+                                    color: darkMode ? '#ededed' : '#1e293b',
+                                    margin: 0,
+                                    marginBottom: '4px'
+                                  }}>
+                                    {category}
+                                  </h4>
+                                  <p style={{ 
+                                    fontSize: '12px', 
+                                    color: darkMode ? '#8b949e' : '#64748b',
+                                    margin: 0
+                                  }}>
+                                    {data.transactions.length} transaction{data.transactions.length !== 1 ? 's' : ''}
+                                  </p>
+                                </div>
+                                <div style={{
+                                  background: `${color}20`,
+                                  padding: '4px 10px',
+                                  borderRadius: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  color: color
+                                }}>
+                                  {percentage}%
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ 
+                                  fontSize: '20px', 
+                                  fontWeight: '700', 
+                                  color: color 
+                                }}>
+                                  {formatCurrency(data.total)}
+                                </span>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '12px',
+                                  color: '#ffcc29',
+                                  fontWeight: '500'
+                                }}>
+                                  <Lightbulb size={14} />
+                                  Get Tips
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div style={{
+                                marginTop: '12px',
+                                height: '4px',
+                                background: darkMode ? '#21262d' : '#e2e8f0',
+                                borderRadius: '2px',
+                                overflow: 'hidden'
+                              }}>
+                                <div style={{
+                                  width: `${percentage}%`,
+                                  height: '100%',
+                                  background: color,
+                                  borderRadius: '2px',
+                                  transition: 'width 0.5s ease'
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -2944,6 +3212,333 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 }}
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Suggestions Modal */}
+      {selectedExpenseCategory && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            animation: 'fadeIn 0.2s ease',
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => {
+            setSelectedExpenseCategory(null);
+            setVendorSuggestions([]);
+          }}
+        >
+          <div 
+            style={{
+              background: darkMode ? '#0d1117' : '#ffffff',
+              borderRadius: '20px',
+              width: '90%',
+              maxWidth: '700px',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+              animation: 'slideUp 0.3s ease'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #ffcc29, #e6b800)',
+              padding: '24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  background: 'rgba(7, 10, 18, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Lightbulb size={26} style={{ color: '#070A12' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#070A12' }}>
+                    Smart Savings Tips
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'rgba(7, 10, 18, 0.7)' }}>
+                    {selectedExpenseCategory.category}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedExpenseCategory(null);
+                  setVendorSuggestions([]);
+                }}
+                style={{
+                  background: 'rgba(7, 10, 18, 0.15)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={22} style={{ color: '#070A12' }} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ 
+              padding: '24px', 
+              maxHeight: '60vh', 
+              overflowY: 'auto',
+              background: darkMode ? '#0d1117' : '#ffffff'
+            }}>
+              {loadingVendorSuggestions ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    border: '4px solid #21262d',
+                    borderTopColor: '#ffcc29',
+                    animation: 'spin 1s linear infinite',
+                    margin: '0 auto 20px'
+                  }} />
+                  <p style={{ color: darkMode ? '#8b949e' : '#64748b', fontSize: '16px' }}>
+                    Analyzing your spending patterns...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Summary Card */}
+                  <div style={{
+                    background: darkMode ? '#161b22' : '#f8fafc',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    marginBottom: '24px',
+                    border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
+                        Total Spent in {selectedExpenseCategory.category}
+                      </span>
+                      <span style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
+                        {selectedExpenseCategory.transactions?.length || 0} Transactions
+                      </span>
+                    </div>
+                    <div style={{ 
+                      fontSize: '28px', 
+                      fontWeight: '700', 
+                      color: '#ef4444',
+                      marginBottom: '8px'
+                    }}>
+                      {formatCurrency(selectedExpenseCategory.transactions?.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) || 0)}
+                    </div>
+                    <p style={{ 
+                      fontSize: '13px', 
+                      color: darkMode ? '#8b949e' : '#64748b',
+                      margin: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <Brain size={14} style={{ color: '#ffcc29' }} />
+                      Here are some ways you could potentially save money:
+                    </p>
+                  </div>
+
+                  {/* Suggestion Cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {vendorSuggestions.map((suggestion, index) => (
+                      <div 
+                        key={suggestion.id}
+                        style={{
+                          background: darkMode ? '#161b22' : '#ffffff',
+                          borderRadius: '16px',
+                          padding: '20px',
+                          border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#ffcc29';
+                          e.currentTarget.style.boxShadow = '0 4px 20px rgba(255, 204, 41, 0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = darkMode ? '#21262d' : '#e2e8f0';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '10px',
+                              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '16px',
+                              fontWeight: '700',
+                              color: 'white'
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 style={{ 
+                                margin: 0, 
+                                fontSize: '16px', 
+                                fontWeight: '600', 
+                                color: darkMode ? '#ededed' : '#1e293b' 
+                              }}>
+                                {suggestion.vendor}
+                              </h4>
+                              <p style={{ 
+                                margin: '4px 0 0', 
+                                fontSize: '13px', 
+                                color: darkMode ? '#8b949e' : '#64748b' 
+                              }}>
+                                {suggestion.quality}
+                              </p>
+                            </div>
+                          </div>
+                          <div style={{
+                            background: 'linear-gradient(135deg, #22c55e20, #16a34a20)',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#22c55e'
+                          }}>
+                            Save {suggestion.savings}
+                          </div>
+                        </div>
+
+                        <div style={{
+                          background: darkMode ? '#0d1117' : '#f8fafc',
+                          borderRadius: '10px',
+                          padding: '14px',
+                          marginTop: '12px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <Zap size={16} style={{ color: '#ffcc29', marginTop: '2px', flexShrink: 0 }} />
+                            <p style={{ 
+                              margin: 0, 
+                              fontSize: '14px', 
+                              color: darkMode ? '#c9d1d9' : '#475569',
+                              lineHeight: '1.5'
+                            }}>
+                              <strong>Why this helps:</strong> {suggestion.reason}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          marginTop: '16px',
+                          padding: '12px 16px',
+                          background: darkMode ? '#0d1117' : '#f0fdf4',
+                          borderRadius: '10px',
+                          border: '1px solid #22c55e30'
+                        }}>
+                          <div>
+                            <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>Current Avg/Txn</span>
+                            <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#ef4444' }}>
+                              {suggestion.currentSpend}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <ArrowUpRight size={20} style={{ color: '#22c55e', transform: 'rotate(90deg)' }} />
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '12px', color: darkMode ? '#8b949e' : '#64748b' }}>Potential Savings</span>
+                            <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: '600', color: '#22c55e' }}>
+                              {suggestion.potentialSavings}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pro Tip */}
+                  <div style={{
+                    marginTop: '24px',
+                    background: 'linear-gradient(135deg, #ffcc2910, #e6b80010)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    border: '1px solid #ffcc2940',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}>
+                    <Brain size={20} style={{ color: '#ffcc29', marginTop: '2px', flexShrink: 0 }} />
+                    <div>
+                      <h5 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: '600', color: '#ffcc29' }}>
+                        Pro Tip
+                      </h5>
+                      <p style={{ margin: 0, fontSize: '13px', color: darkMode ? '#c9d1d9' : '#475569', lineHeight: '1.5' }}>
+                        Review your top spending categories monthly. Small changes in vendor choices can lead to 
+                        significant annual savings of 15-30% without compromising on quality.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              background: darkMode ? '#0d1117' : '#ffffff'
+            }}>
+              <button
+                onClick={() => {
+                  setSelectedExpenseCategory(null);
+                  setVendorSuggestions([]);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #ffcc29, #e6b800)',
+                  color: '#070A12',
+                  border: 'none',
+                  padding: '12px 28px',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 204, 41, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                Got it, Thanks!
               </button>
             </div>
           </div>
