@@ -1092,6 +1092,83 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             {expenseDropdownOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                           </div>
                         </div>
+
+                        {/* Expense Dropdown */}
+                        <div 
+                          className="expense-dropdown"
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: '0',
+                            right: '0',
+                            marginTop: '8px',
+                            background: 'white',
+                            borderRadius: '12px',
+                            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+                            border: '1px solid #e2e8f0',
+                            padding: '8px',
+                            zIndex: 999,
+                            opacity: expenseDropdownOpen ? 1 : 0,
+                            transform: expenseDropdownOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.95)',
+                            pointerEvents: expenseDropdownOpen ? 'auto' : 'none',
+                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                          }}
+                        >
+                          <div 
+                            onClick={() => { setExpenseModalType('recurring'); setExpenseDropdownOpen(false); }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '12px 14px',
+                              background: '#fef2f2',
+                              borderRadius: '8px',
+                              marginBottom: '6px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#fef2f2'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <Repeat size={16} style={{ color: '#dc2626' }} />
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Recurring</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#dc2626' }}>
+                                {formatCurrency(classifyExpenses.recurringTotal)}
+                              </span>
+                              <ChevronRight size={14} style={{ color: '#94a3b8' }} />
+                            </div>
+                          </div>
+                          
+                          <div 
+                            onClick={() => { setExpenseModalType('non-recurring'); setExpenseDropdownOpen(false); }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '12px 14px',
+                              background: '#fff7ed',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#ffedd5'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#fff7ed'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <Shuffle size={16} style={{ color: '#ea580c' }} />
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Non-Recurring</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#ea580c' }}>
+                                {formatCurrency(classifyExpenses.nonRecurringTotal)}
+                              </span>
+                              <ChevronRight size={14} style={{ color: '#94a3b8' }} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Net Profit Card */}
@@ -2480,7 +2557,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
         </main>
       </div>
 
-      {/* Expense Dropdown Modal */}
+      {/* Click-outside handler for expense dropdown */}
       {expenseDropdownOpen && (
         <div 
           style={{
@@ -2489,182 +2566,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            animation: 'fadeIn 0.2s ease'
+            zIndex: 998
           }}
           onClick={() => setExpenseDropdownOpen(false)}
-        >
-          <div 
-            style={{
-              background: 'white',
-              borderRadius: '16px',
-              width: '90%',
-              maxWidth: '400px',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-              animation: 'slideUp 0.3s ease'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: '#fee2e2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <ArrowDownRight size={20} style={{ color: '#dc2626' }} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>Expense Breakdown</h3>
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>Total: {formatCurrency(metrics.totalExpenses)}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setExpenseDropdownOpen(false)}
-                style={{
-                  background: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '8px',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: '16px 24px' }}>
-              <div 
-                onClick={() => { setExpenseModalType('recurring'); setExpenseDropdownOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  background: '#fef2f2',
-                  borderRadius: '12px',
-                  marginBottom: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid #fecaca'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: '#fee2e2',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Repeat size={18} style={{ color: '#dc2626' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', display: 'block' }}>Recurring Expenses</span>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>Subscriptions, EMIs, Rent, etc.</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#dc2626' }}>
-                    {formatCurrency(classifyExpenses.recurringTotal)}
-                  </span>
-                  <ChevronRight size={18} style={{ color: '#94a3b8' }} />
-                </div>
-              </div>
-              
-              <div 
-                onClick={() => { setExpenseModalType('non-recurring'); setExpenseDropdownOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  background: '#fff7ed',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid #fed7aa'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.background = '#ffedd5'; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = '#fff7ed'; e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: '#ffedd5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Shuffle size={18} style={{ color: '#ea580c' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', display: 'block' }}>Non-Recurring Expenses</span>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>One-time or irregular payments</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#ea580c' }}>
-                    {formatCurrency(classifyExpenses.nonRecurringTotal)}
-                  </span>
-                  <ChevronRight size={18} style={{ color: '#94a3b8' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{
-              padding: '16px 24px',
-              borderTop: '1px solid #e2e8f0',
-              background: '#f8fafc'
-            }}>
-              <button
-                onClick={() => setExpenseDropdownOpen(false)}
-                style={{
-                  width: '100%',
-                  background: '#1e293b',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {/* Expense Type Modal */}
