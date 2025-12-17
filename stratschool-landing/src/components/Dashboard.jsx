@@ -117,6 +117,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [vendorSuggestions, setVendorSuggestions] = useState([]);
   const [loadingVendorSuggestions, setLoadingVendorSuggestions] = useState(false);
 
+  // Debit transactions pagination states
+  const [debitCurrentPage, setDebitCurrentPage] = useState(1);
+  const [debitRowsPerPage, setDebitRowsPerPage] = useState(5);
+
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
     // First check onboardingData.user (passed from questionnaire during signup)
@@ -2784,79 +2788,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     </div>
                   </div>
 
-                  {/* Debit Transactions Table */}
-                  <div className="transactions-table-section" style={{ marginTop: '24px' }}>
-                    <h3>All Debit Transactions</h3>
-                    <div className="transactions-table-wrapper">
-                      <table className="transactions-table">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Category</th>
-                            <th className="amount-col">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {metrics.debitTransactions.length > 0 ? (
-                            metrics.debitTransactions.map((txn, index) => (
-                              <tr key={index}>
-                                <td className="date-col">{txn.date || '-'}</td>
-                                <td className="description-col">{txn.description || txn.particulars || '-'}</td>
-                                <td className="category-col">
-                                  {editingCategory?.index === index && editingCategory?.type === 'debit' ? (
-                                    <div className="category-editor">
-                                      {!showCustomInput ? (
-                                        <select 
-                                          value={selectedCategory}
-                                          onChange={(e) => handleCategoryChange(e.target.value)}
-                                          className="category-select"
-                                        >
-                                          <option value="">Select category...</option>
-                                          {getAvailableCategories('debit').map((cat, i) => (
-                                            <option key={i} value={cat}>{cat}</option>
-                                          ))}
-                                          <option value="__add_custom__">+ Add custom category</option>
-                                        </select>
-                                      ) : (
-                                        <input
-                                          type="text"
-                                          value={customCategory}
-                                          onChange={(e) => setCustomCategory(e.target.value)}
-                                          placeholder="Enter custom category..."
-                                          className="category-input"
-                                          autoFocus
-                                        />
-                                      )}
-                                      <div className="category-editor-actions">
-                                        <button className="btn-save" onClick={saveCategory}>OK</button>
-                                        <button className="btn-cancel" onClick={cancelCategoryEdit}>Cancel</button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span 
-                                      className="editable-category"
-                                      onClick={() => handleCategoryClick(index, 'debit', txn.category?.category || 'General Expenses')}
-                                      title="Click to change category"
-                                    >
-                                      {txn.category?.category || 'General Expenses'}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="amount-col expense-amount">{formatCurrency(Math.abs(txn.amount))}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="4" className="no-data-row">No debit transactions found</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Expense by Category - Smart Suggestions Section */}
+                  {/* Expense by Category - Smart Suggestions Section - MOVED ABOVE TABLE */}
                   <div style={{
                     marginTop: '32px',
                     background: darkMode ? '#0d1117' : '#ffffff',
@@ -3026,6 +2958,248 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         });
                       })()}
                     </div>
+                  </div>
+
+                  {/* Debit Transactions Table with Pagination */}
+                  <div className="transactions-table-section" style={{ marginTop: '24px' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginBottom: '16px',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <h3 style={{ margin: 0 }}>All Debit Transactions</h3>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        fontSize: '14px',
+                        color: darkMode ? '#8b949e' : '#64748b'
+                      }}>
+                        <span>Show</span>
+                        <select
+                          value={debitRowsPerPage}
+                          onChange={(e) => {
+                            setDebitRowsPerPage(Number(e.target.value));
+                            setDebitCurrentPage(1);
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                            background: darkMode ? '#161b22' : '#ffffff',
+                            color: darkMode ? '#ededed' : '#1e293b',
+                            fontSize: '14px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={15}>15</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                        <span>per page</span>
+                      </div>
+                    </div>
+                    <div className="transactions-table-wrapper">
+                      <table className="transactions-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th className="amount-col">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {metrics.debitTransactions.length > 0 ? (
+                            metrics.debitTransactions
+                              .slice((debitCurrentPage - 1) * debitRowsPerPage, debitCurrentPage * debitRowsPerPage)
+                              .map((txn, index) => {
+                                const actualIndex = (debitCurrentPage - 1) * debitRowsPerPage + index;
+                                return (
+                              <tr key={actualIndex}>
+                                <td className="date-col">{txn.date || '-'}</td>
+                                <td className="description-col">{txn.description || txn.particulars || '-'}</td>
+                                <td className="category-col">
+                                  {editingCategory?.index === actualIndex && editingCategory?.type === 'debit' ? (
+                                    <div className="category-editor">
+                                      {!showCustomInput ? (
+                                        <select 
+                                          value={selectedCategory}
+                                          onChange={(e) => handleCategoryChange(e.target.value)}
+                                          className="category-select"
+                                        >
+                                          <option value="">Select category...</option>
+                                          {getAvailableCategories('debit').map((cat, i) => (
+                                            <option key={i} value={cat}>{cat}</option>
+                                          ))}
+                                          <option value="__add_custom__">+ Add custom category</option>
+                                        </select>
+                                      ) : (
+                                        <input
+                                          type="text"
+                                          value={customCategory}
+                                          onChange={(e) => setCustomCategory(e.target.value)}
+                                          placeholder="Enter custom category..."
+                                          className="category-input"
+                                          autoFocus
+                                        />
+                                      )}
+                                      <div className="category-editor-actions">
+                                        <button className="btn-save" onClick={saveCategory}>OK</button>
+                                        <button className="btn-cancel" onClick={cancelCategoryEdit}>Cancel</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span 
+                                      className="editable-category"
+                                      onClick={() => handleCategoryClick(actualIndex, 'debit', txn.category?.category || 'General Expenses')}
+                                      title="Click to change category"
+                                    >
+                                      {txn.category?.category || 'General Expenses'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="amount-col expense-amount">{formatCurrency(Math.abs(txn.amount))}</td>
+                              </tr>
+                                );
+                              })
+                          ) : (
+                            <tr>
+                              <td colSpan="4" className="no-data-row">No debit transactions found</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {metrics.debitTransactions.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '20px',
+                        padding: '16px 20px',
+                        background: darkMode ? '#161b22' : '#f8fafc',
+                        borderRadius: '12px',
+                        border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ fontSize: '14px', color: darkMode ? '#8b949e' : '#64748b' }}>
+                          Showing {((debitCurrentPage - 1) * debitRowsPerPage) + 1} to {Math.min(debitCurrentPage * debitRowsPerPage, metrics.debitTransactions.length)} of {metrics.debitTransactions.length} transactions
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            onClick={() => setDebitCurrentPage(1)}
+                            disabled={debitCurrentPage === 1}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: debitCurrentPage === 1 ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: debitCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            First
+                          </button>
+                          <button
+                            onClick={() => setDebitCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={debitCurrentPage === 1}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: debitCurrentPage === 1 ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: debitCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            ← Prev
+                          </button>
+                          
+                          {/* Page Numbers */}
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {(() => {
+                              const totalPages = Math.ceil(metrics.debitTransactions.length / debitRowsPerPage);
+                              const pages = [];
+                              let startPage = Math.max(1, debitCurrentPage - 2);
+                              let endPage = Math.min(totalPages, startPage + 4);
+                              
+                              if (endPage - startPage < 4) {
+                                startPage = Math.max(1, endPage - 4);
+                              }
+                              
+                              for (let i = startPage; i <= endPage; i++) {
+                                pages.push(
+                                  <button
+                                    key={i}
+                                    onClick={() => setDebitCurrentPage(i)}
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: '8px',
+                                      border: i === debitCurrentPage ? '1px solid #ffcc29' : (darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'),
+                                      background: i === debitCurrentPage ? 'linear-gradient(135deg, #ffcc29, #e6b800)' : (darkMode ? '#0d1117' : '#ffffff'),
+                                      color: i === debitCurrentPage ? '#070A12' : (darkMode ? '#ededed' : '#1e293b'),
+                                      cursor: 'pointer',
+                                      fontSize: '13px',
+                                      fontWeight: i === debitCurrentPage ? '600' : '500',
+                                      minWidth: '36px'
+                                    }}
+                                  >
+                                    {i}
+                                  </button>
+                                );
+                              }
+                              return pages;
+                            })()}
+                          </div>
+                          
+                          <button
+                            onClick={() => setDebitCurrentPage(prev => Math.min(prev + 1, Math.ceil(metrics.debitTransactions.length / debitRowsPerPage)))}
+                            disabled={debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage) ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage) ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Next →
+                          </button>
+                          <button
+                            onClick={() => setDebitCurrentPage(Math.ceil(metrics.debitTransactions.length / debitRowsPerPage))}
+                            disabled={debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+                              background: darkMode ? '#0d1117' : '#ffffff',
+                              color: debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage) ? (darkMode ? '#484f58' : '#cbd5e1') : (darkMode ? '#ededed' : '#1e293b'),
+                              cursor: debitCurrentPage >= Math.ceil(metrics.debitTransactions.length / debitRowsPerPage) ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Last
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
