@@ -919,11 +919,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             {darkMode ? <Sun className="action-icon" /> : <Moon className="action-icon" />}
           </button>
           
-          <button className="action-button">
-            <Bell className="action-icon" />
-            <span className="notification-badge">3</span>
-          </button>
-          
           <div className="user-profile">
             <div className="user-avatar">
               <User className="avatar-icon" />
@@ -1135,10 +1130,10 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             left: '0',
                             right: '0',
                             marginTop: '8px',
-                            background: 'white',
+                            background: darkMode ? '#0d1117' : '#ffffff',
                             borderRadius: '12px',
-                            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-                            border: '1px solid #e2e8f0',
+                            boxShadow: darkMode ? '0 20px 40px rgba(0,0,0,0.4)' : '0 20px 40px rgba(0,0,0,0.15)',
+                            border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                             padding: '8px',
                             zIndex: 999,
                             opacity: expenseDropdownOpen ? 1 : 0,
@@ -1263,8 +1258,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                         }}
                       >
                         <div className="metric-header">
-                          <div className="metric-icon margin-icon">
-                            <PieChart />
+                          <div className="metric-icon">
+                            <PieChartIcon size={24} />
                           </div>
                           <div className="metric-trend">
                             <span className={`trend-indicator ${metrics.profitMargin >= 0 ? 'positive' : 'negative'}`}>
@@ -1671,17 +1666,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     {/* TOP LEFT: Pie Chart with Hover Legend */}
                     <div 
                       style={{
-                        background: 'white',
+                        background: darkMode ? '#0d1117' : '#ffffff',
                         borderRadius: '20px',
                         padding: '28px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        border: '1px solid #e2e8f0',
+                        boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                        border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                         position: 'relative',
                         minHeight: '380px'
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', marginBottom: '24px' }}>
                         Revenue by Category
                       </h3>
                       
@@ -1794,17 +1789,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* TOP RIGHT: Overall Revenue Bar Chart */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '380px',
                       display: 'flex',
                       flexDirection: 'column'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                           Overall Revenue
                         </h3>
                         <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '12px', padding: '6px' }}>
@@ -1880,11 +1875,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* BOTTOM LEFT: Non-Recurring Revenue */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '320px',
                       display: 'flex',
                       flexDirection: 'column'
@@ -1903,7 +1898,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           <Shuffle size={20} style={{ color: 'white' }} />
                         </div>
                         <div>
-                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                             Non-Recurring Revenue
                           </h3>
                           <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>One-time income sources</p>
@@ -1956,11 +1951,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* BOTTOM RIGHT: Recurring Revenue */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '320px',
                       display: 'flex',
                       flexDirection: 'column'
@@ -1979,7 +1974,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           <Repeat size={20} style={{ color: 'white' }} />
                         </div>
                         <div>
-                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                             Recurring Revenue
                           </h3>
                           <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Regular income streams</p>
@@ -2140,17 +2135,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                     {/* TOP LEFT: Pie Chart with Hover Legend */}
                     <div 
                       style={{
-                        background: 'white',
+                        background: darkMode ? '#0d1117' : '#ffffff',
                         borderRadius: '20px',
                         padding: '28px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        border: '1px solid #e2e8f0',
+                        boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                        border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                         position: 'relative',
                         minHeight: '380px'
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', marginBottom: '24px' }}>
                         Expenses by Category
                       </h3>
                       
@@ -2263,17 +2258,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* TOP RIGHT: Overall Expenses Bar Chart */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '380px',
                       display: 'flex',
                       flexDirection: 'column'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                           Overall Expenses
                         </h3>
                         <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '12px', padding: '6px' }}>
@@ -2349,11 +2344,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* BOTTOM LEFT: Non-Recurring Expenses */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '320px',
                       display: 'flex',
                       flexDirection: 'column'
@@ -2372,7 +2367,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           <Shuffle size={20} style={{ color: 'white' }} />
                         </div>
                         <div>
-                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                             Non-Recurring Expenses
                           </h3>
                           <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>One-time and variable costs</p>
@@ -2425,11 +2420,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
                     {/* BOTTOM RIGHT: Recurring Expenses */}
                     <div style={{
-                      background: 'white',
+                      background: darkMode ? '#0d1117' : '#ffffff',
                       borderRadius: '20px',
                       padding: '28px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      border: '1px solid #e2e8f0',
+                      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+                      border: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
                       minHeight: '320px',
                       display: 'flex',
                       flexDirection: 'column'
@@ -2448,7 +2443,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           <Repeat size={20} style={{ color: 'white' }} />
                         </div>
                         <div>
-                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                          <h3 style={{ fontSize: '18px', fontWeight: '700', color: darkMode ? '#ededed' : '#1e293b', margin: 0 }}>
                             Recurring Expenses
                           </h3>
                           <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Fixed monthly costs</p>
@@ -2625,7 +2620,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
         >
           <div 
             style={{
-              background: 'white',
+              background: darkMode ? '#0d1117' : '#ffffff',
               borderRadius: '16px',
               width: '90%',
               maxWidth: '800px',
@@ -2790,7 +2785,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
           padding: '20px'
         }} onClick={() => setActiveTooltip(null)}>
           <div style={{
-            background: 'white',
+            background: darkMode ? '#0d1117' : '#ffffff',
             borderRadius: '16px',
             maxWidth: '500px',
             width: '100%',
