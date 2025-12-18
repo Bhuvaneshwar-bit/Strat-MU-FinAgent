@@ -1274,7 +1274,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             {sidebarCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
           </button>
 
-          <nav className="sidebar-navigation" style={{ marginTop: sidebarCollapsed ? '50px' : '0' }}>
+          <nav className="sidebar-navigation" style={{ marginTop: '50px', padding: sidebarCollapsed ? '12px 8px' : '24px 16px' }}>
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -1295,22 +1295,6 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
               );
             })}
           </nav>
-
-          {!sidebarCollapsed && (
-            <div className="sidebar-footer">
-              <div className="upgrade-prompt">
-                <div className="upgrade-icon">
-                  <Zap />
-                </div>
-                <h4>AI Premium</h4>
-                <p>Unlock advanced forecasting & automation</p>
-                <button className="upgrade-button">
-                  Upgrade Now
-                  <ChevronRight className="upgrade-arrow" />
-                </button>
-              </div>
-            </div>
-          )}
         </aside>
 
         {/* Main Content */}

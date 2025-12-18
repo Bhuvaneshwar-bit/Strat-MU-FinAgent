@@ -397,13 +397,15 @@
 
 /* Sidebar Styles */
 .dashboard-sidebar {
+  position: relative;
   width: 16rem;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  overflow-x: hidden;
+  transition: all 0.3s ease;
 }
 
 .sidebar-navigation {
