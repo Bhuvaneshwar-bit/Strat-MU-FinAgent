@@ -137,6 +137,31 @@
   padding: 0;
   box-sizing: border-box;
   transition: background-color 0.3s ease, color 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--bg-primary);
+}
+
+/* Custom Scrollbar for Dark Mode */
+.professional-dashboard.dark-mode ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.professional-dashboard.dark-mode ::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.professional-dashboard.dark-mode ::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+.professional-dashboard.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+.professional-dashboard.dark-mode ::-webkit-scrollbar-corner {
+  background: #0d1117;
 }
 
 /* Header Styles */
@@ -2048,6 +2073,25 @@
 .breakdown-content {
   max-height: 300px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.breakdown-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.breakdown-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.breakdown-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.breakdown-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
 }
 
 .breakdown-list {
