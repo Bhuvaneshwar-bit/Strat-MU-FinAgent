@@ -1243,9 +1243,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            padding: sidebarCollapsed ? '16px 8px' : '16px 16px',
-            borderBottom: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
-            minHeight: '64px'
+            padding: sidebarCollapsed ? '12px 8px' : '12px 16px',
+            borderBottom: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'
           }}>
             {/* Logo and Brand */}
             <div style={{
