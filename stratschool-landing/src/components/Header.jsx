@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
 import '../styles/Header.css';
-import LogoDark from '../assets/dark-logo.png';
-import LogoLight from '../assets/light-logo.png';
+import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
+import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.jpg';
 
 const Header = ({ onBookDemo, onSignIn, onSignUp, darkMode, setDarkMode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
