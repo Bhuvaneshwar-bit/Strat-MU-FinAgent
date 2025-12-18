@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import '../styles/Pricing.css';
 
-const Pricing = ({ onBookDemo }) => {
+const Pricing = ({ onBookDemo, darkMode }) => {
   const [billingCycle, setBillingCycle] = useState('monthly');
 
   const plans = [
@@ -137,7 +137,7 @@ const Pricing = ({ onBookDemo }) => {
   };
 
   return (
-    <section id="pricing" className="pricing">
+    <section id="pricing" className={`pricing ${darkMode ? 'dark' : ''}`}>
       <div className="pricing-container">
         <div className="pricing-header">
           <div className="section-badge">

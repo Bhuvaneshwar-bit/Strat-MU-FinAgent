@@ -20,6 +20,15 @@ function App() {
   const [authModalType, setAuthModalType] = useState('signin'); // 'signin' or 'signup'
   const [user, setUser] = useState(null);
   const [onboardingData, setOnboardingData] = useState(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('landingDarkMode');
+    return saved ? JSON.parse(saved) : true; // Default to dark mode
+  });
+
+  // Save dark mode preference
+  useEffect(() => {
+    localStorage.setItem('landingDarkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   // Helper function to get user-specific localStorage key
   const getUserPlDataKey = (userId) => `plData_${userId}`;
@@ -237,21 +246,23 @@ function App() {
   }
 
   return (
-    <div className="App">
+    <div className={`App ${darkMode ? 'dark-mode' : 'light-mode'}`}>
       <Header 
         onBookDemo={handleBookDemo}
         onSignIn={handleSignIn}
         onSignUp={handleSignUp}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
       />
       
       <main>
-        <Hero onBookDemo={handleBookDemo} />
-        <Features />
-        <About />
-        <Pricing onBookDemo={handleBookDemo} />
+        <Hero onBookDemo={handleBookDemo} darkMode={darkMode} />
+        <Features darkMode={darkMode} />
+        <About darkMode={darkMode} />
+        <Pricing onBookDemo={handleBookDemo} darkMode={darkMode} />
       </main>
       
-      <Footer onBookDemo={handleBookDemo} />
+      <Footer onBookDemo={handleBookDemo} darkMode={darkMode} />
 
       {/* Modals */}
       <BookDemoModal 

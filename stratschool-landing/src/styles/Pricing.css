@@ -1,6 +1,11 @@
 .pricing {
   padding: 6rem 0;
   background: white;
+  transition: all 0.3s ease;
+}
+
+.pricing.dark {
+  background: #0d1117;
 }
 
 .pricing-container {
@@ -17,12 +22,12 @@
   margin-right: auto;
 }
 
-.section-badge {
+.pricing .section-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(59, 130, 246, 0.1);
-  color: #1e40af;
+  background: rgba(255, 204, 41, 0.15);
+  color: #ffcc29;
   padding: 0.5rem 1rem;
   border-radius: 50px;
   font-size: 0.875rem;
@@ -43,11 +48,19 @@
   margin-bottom: 1.5rem;
 }
 
+.pricing.dark .pricing-title {
+  color: #ededed;
+}
+
 .pricing-description {
   font-size: 1.25rem;
   line-height: 1.6;
   color: #6b7280;
   margin-bottom: 2.5rem;
+}
+
+.pricing.dark .pricing-description {
+  color: #8b949e;
 }
 
 .billing-toggle {
@@ -64,8 +77,16 @@
   transition: color 0.3s ease;
 }
 
+.pricing.dark .billing-toggle span {
+  color: #8b949e;
+}
+
 .billing-toggle span.active {
   color: #1f2937;
+}
+
+.pricing.dark .billing-toggle span.active {
+  color: #ededed;
 }
 
 .toggle-switch {
@@ -79,8 +100,16 @@
   transition: background 0.3s ease;
 }
 
+.pricing.dark .toggle-switch {
+  background: #21262d;
+}
+
 .toggle-switch:hover {
   background: #d1d5db;
+}
+
+.pricing.dark .toggle-switch:hover {
+  background: #30363d;
 }
 
 .toggle-slider {
@@ -100,7 +129,7 @@
 
 .toggle-slider.annual {
   left: 33px;
-  background: #3b82f6;
+  background: #ffcc29;
 }
 
 .savings-badge {
@@ -129,15 +158,25 @@
   transition: all 0.3s ease;
 }
 
+.pricing.dark .pricing-card {
+  background: #161b22;
+  border: 2px solid #21262d;
+}
+
 .pricing-card:hover {
-  border-color: #e0f2fe;
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+  border-color: rgba(255, 204, 41, 0.3);
+  box-shadow: 0 20px 40px rgba(255, 204, 41, 0.1);
   transform: translateY(-4px);
 }
 
+.pricing.dark .pricing-card:hover {
+  border-color: rgba(255, 204, 41, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
 .pricing-card.popular {
-  border-color: #3b82f6;
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
+  border-color: #ffcc29;
+  box-shadow: 0 20px 40px rgba(255, 204, 41, 0.15);
   transform: scale(1.05);
 }
 
@@ -150,8 +189,8 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #3b82f6, #1e40af);
-  color: white;
+  background: linear-gradient(135deg, #ffcc29, #e6b800);
+  color: #070A12;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.875rem;
@@ -175,12 +214,12 @@
 .plan-icon {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #3b82f6, #1e40af);
+  background: linear-gradient(135deg, #ffcc29, #e6b800);
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #070A12;
   margin: 0 auto 1rem;
 }
 
@@ -196,9 +235,17 @@
   margin-bottom: 0.5rem;
 }
 
+.pricing.dark .plan-name {
+  color: #ededed;
+}
+
 .plan-subtitle {
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+.pricing.dark .plan-subtitle {
+  color: #8b949e;
 }
 
 .plan-pricing {
@@ -219,6 +266,10 @@
   color: #1f2937;
 }
 
+.pricing.dark .currency {
+  color: #ededed;
+}
+
 .amount {
   font-size: 3rem;
   font-weight: 800;
@@ -227,10 +278,18 @@
   margin: 0 0.25rem;
 }
 
+.pricing.dark .amount {
+  color: #ffcc29;
+}
+
 .period {
   font-size: 1rem;
   color: #6b7280;
   font-weight: 500;
+}
+
+.pricing.dark .period {
+  color: #8b949e;
 }
 
 .annual-price {
@@ -238,12 +297,16 @@
   color: #6b7280;
 }
 
+.pricing.dark .annual-price {
+  color: #8b949e;
+}
+
 .plan-cta {
   width: 100%;
   padding: 1rem 2rem;
-  border: 2px solid #3b82f6;
+  border: 2px solid #ffcc29;
   background: transparent;
-  color: #3b82f6;
+  color: #ffcc29;
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 600;
@@ -257,21 +320,21 @@
 }
 
 .plan-cta:hover {
-  background: #3b82f6;
-  color: white;
+  background: #ffcc29;
+  color: #070A12;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 25px rgba(255, 204, 41, 0.3);
 }
 
 .plan-cta.popular-cta {
-  background: linear-gradient(135deg, #3b82f6, #1e40af);
-  color: white;
+  background: linear-gradient(135deg, #ffcc29, #e6b800);
+  color: #070A12;
   border-color: transparent;
 }
 
 .plan-cta.popular-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(255, 204, 41, 0.4);
 }
 
 .cta-icon {
@@ -289,6 +352,10 @@
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 1rem;
+}
+
+.pricing.dark .plan-features h4 {
+  color: #ededed;
 }
 
 .features-list,
@@ -311,8 +378,16 @@
   color: #374151;
 }
 
+.pricing.dark .feature-item {
+  color: #c9d1d9;
+}
+
 .limitation-item {
   color: #9ca3af;
+}
+
+.pricing.dark .limitation-item {
+  color: #6e7681;
 }
 
 .feature-check {
@@ -339,11 +414,20 @@
   border-radius: 16px;
 }
 
+.pricing.dark .pricing-features {
+  background: #161b22;
+  border: 1px solid #21262d;
+}
+
 .features-title {
   font-size: 1.5rem;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 2rem;
+}
+
+.pricing.dark .features-title {
+  color: #ededed;
 }
 
 .features-grid {
@@ -361,6 +445,10 @@
   color: #374151;
 }
 
+.pricing.dark .pricing-features .feature-item {
+  color: #c9d1d9;
+}
+
 .feature-icon {
   width: 40px;
   height: 40px;
@@ -369,8 +457,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  color: #ffcc29;
+  box-shadow: 0 4px 12px rgba(255, 204, 41, 0.15);
+}
+
+.pricing.dark .feature-icon {
+  background: #21262d;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .feature-icon svg {
@@ -390,6 +483,10 @@
   margin-bottom: 3rem;
 }
 
+.pricing.dark .faq-title {
+  color: #ededed;
+}
+
 .faq-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -403,9 +500,19 @@
   transition: all 0.3s ease;
 }
 
+.pricing.dark .faq-item {
+  background: #161b22;
+  border: 1px solid #21262d;
+}
+
 .faq-item:hover {
   background: white;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.pricing.dark .faq-item:hover {
+  background: #1c2128;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
 .faq-question {
@@ -415,18 +522,26 @@
   margin-bottom: 0.75rem;
 }
 
+.pricing.dark .faq-question {
+  color: #ededed;
+}
+
 .faq-answer {
   color: #6b7280;
   line-height: 1.6;
   margin: 0;
 }
 
+.pricing.dark .faq-answer {
+  color: #8b949e;
+}
+
 .pricing-cta {
-  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  background: linear-gradient(135deg, #e6b800, #ffcc29);
   border-radius: 20px;
   padding: 3rem;
   text-align: center;
-  color: white;
+  color: #070A12;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -437,12 +552,14 @@
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
+  color: #070A12;
 }
 
 .cta-content p {
   font-size: 1.125rem;
-  opacity: 0.9;
+  opacity: 0.8;
   margin: 0;
+  color: #070A12;
 }
 
 .cta-buttons {
@@ -451,12 +568,12 @@
   flex-shrink: 0;
 }
 
-.cta-primary {
+.pricing .cta-primary {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: white;
-  color: #1e40af;
+  background: #070A12;
+  color: #ffcc29;
   border: none;
   padding: 1rem 2rem;
   border-radius: 12px;
@@ -466,15 +583,16 @@
   white-space: nowrap;
 }
 
-.cta-primary:hover {
+.pricing .cta-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  background: #161b22;
 }
 
-.cta-secondary {
+.pricing .cta-secondary {
   background: transparent;
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #070A12;
+  border: 2px solid rgba(7, 10, 18, 0.3);
   padding: 1rem 2rem;
   border-radius: 12px;
   font-weight: 600;
@@ -483,9 +601,9 @@
   white-space: nowrap;
 }
 
-.cta-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
+.pricing .cta-secondary:hover {
+  background: rgba(7, 10, 18, 0.1);
+  border-color: rgba(7, 10, 18, 0.5);
 }
 
 @media (max-width: 1024px) {
@@ -543,8 +661,8 @@
     width: 100%;
   }
 
-  .cta-primary,
-  .cta-secondary {
+  .pricing .cta-primary,
+  .pricing .cta-secondary {
     width: 100%;
     justify-content: center;
   }

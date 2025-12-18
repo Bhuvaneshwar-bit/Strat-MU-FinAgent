@@ -2,9 +2,9 @@ import React from 'react';
 import { ArrowRight, Brain, TrendingUp, Shield, Zap } from 'lucide-react';
 import '../styles/Hero.css';
 
-const Hero = ({ onBookDemo }) => {
+const Hero = ({ onBookDemo, darkMode }) => {
   return (
-    <section className="hero">
+    <section className={`hero ${darkMode ? 'dark' : ''}`}>
       <div className="hero-container">
         <div className="hero-content">
           <div className="hero-badge">
@@ -18,7 +18,7 @@ const Hero = ({ onBookDemo }) => {
           </h1>
           
           <p className="hero-description">
-            StratSchool's Agentic AI automates your entire financial workflow. From bookkeeping 
+            Nebulaa InFINity's Agentic AI automates your entire financial workflow. From bookkeeping 
             to investor reports, cashflow forecasting to GST filing - get a complete CFO 
             solution designed for startups and solo entrepreneurs.
           </p>
@@ -72,7 +72,7 @@ const Hero = ({ onBookDemo }) => {
                 <span></span>
                 <span></span>
               </div>
-              <span className="mockup-title">StratSchool AI CFO Dashboard</span>
+              <span className="mockup-title">Nebulaa InFINity Dashboard</span>
             </div>
             <div className="mockup-content">
               <div className="mockup-sidebar">

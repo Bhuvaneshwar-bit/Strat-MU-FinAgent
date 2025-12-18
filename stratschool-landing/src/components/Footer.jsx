@@ -11,8 +11,10 @@ import {
   ArrowRight
 } from 'lucide-react';
 import '../styles/Footer.css';
+import LogoDark from '../assets/dark-logo.png';
+import LogoLight from '../assets/light-logo.png';
 
-const Footer = ({ onBookDemo }) => {
+const Footer = ({ onBookDemo, darkMode }) => {
   const footerLinks = {
     product: [
       { name: 'Features', href: '#features' },
@@ -61,7 +63,7 @@ const Footer = ({ onBookDemo }) => {
   };
 
   return (
-    <footer className="footer">
+    <footer className={`footer ${darkMode ? 'dark' : ''}`}>
       <div className="footer-container">
         {/* Newsletter Section */}
         <div className="footer-newsletter">
@@ -92,8 +94,8 @@ const Footer = ({ onBookDemo }) => {
           {/* Company Info */}
           <div className="footer-brand">
             <div className="footer-logo">
-              <TrendingUp className="logo-icon" />
-              <span className="logo-text">StratSchool</span>
+              <img src={darkMode ? LogoDark : LogoLight} alt="Nebulaa InFINity" className="logo-img" />
+              <span className="logo-text">Nebulaa InFINity</span>
             </div>
             <p className="footer-description">
               Empowering solo entrepreneurs and startups with AI-powered financial management. 
@@ -102,7 +104,7 @@ const Footer = ({ onBookDemo }) => {
             <div className="footer-contact">
               <div className="contact-item">
                 <Mail className="contact-icon" />
-                <span>hello@stratschool.com</span>
+                <span>hello@nebulaainfinity.com</span>
               </div>
               <div className="contact-item">
                 <Phone className="contact-icon" />
@@ -200,7 +202,7 @@ const Footer = ({ onBookDemo }) => {
         <div className="footer-bottom">
           <div className="footer-bottom-left">
             <p className="copyright">
-              © 2025 StratSchool. All rights reserved.
+              © 2025 Nebulaa InFINity. All rights reserved.
             </p>
             <div className="footer-badges">
               <span className="badge">SOC 2 Compliant</span>

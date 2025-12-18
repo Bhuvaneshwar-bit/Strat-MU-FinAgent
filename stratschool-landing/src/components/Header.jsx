@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Menu, X, TrendingUp, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
 import '../styles/Header.css';
+import LogoDark from '../assets/dark-logo.png';
+import LogoLight from '../assets/light-logo.png';
 
-const Header = ({ onBookDemo, onSignIn, onSignUp }) => {
+const Header = ({ onBookDemo, onSignIn, onSignUp, darkMode, setDarkMode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
 
@@ -35,11 +37,18 @@ const Header = ({ onBookDemo, onSignIn, onSignUp }) => {
   ];
 
   return (
-    <header className="header">
+    <header className={`header ${darkMode ? 'dark' : ''}`}>
       <div className="header-container">
         <div className="header-logo">
-          <TrendingUp className="logo-icon" />
-          <span className="logo-text">StratSchool</span>
+          <img 
+            src={darkMode ? LogoDark : LogoLight} 
+            alt="Nebulaa Logo" 
+            className="logo-img"
+          />
+          <div className="logo-text-container">
+            <span className="logo-text">Nebulaa</span>
+            <span className="logo-subtext">InFINity</span>
+          </div>
         </div>
 
         <nav className={`header-nav ${isMenuOpen ? 'nav-open' : ''}`}>
@@ -95,6 +104,14 @@ const Header = ({ onBookDemo, onSignIn, onSignUp }) => {
         </nav>
 
         <div className="header-auth">
+          {/* Dark Mode Toggle */}
+          <button 
+            className="theme-toggle-btn"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
           <button className="auth-btn signin-btn" onClick={onSignIn}>
             Sign In
           </button>
@@ -151,6 +168,12 @@ const Header = ({ onBookDemo, onSignIn, onSignUp }) => {
             Book Demo
           </button>
           <div className="mobile-auth">
+            <button 
+              className="theme-toggle-btn mobile"
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
             <button className="auth-btn signin-btn" onClick={onSignIn}>
               Sign In
             </button>

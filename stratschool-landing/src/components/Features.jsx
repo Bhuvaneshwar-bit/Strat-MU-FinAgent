@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import '../styles/Features.css';
 
-const Features = () => {
+const Features = ({ darkMode }) => {
   const features = [
     {
       icon: <BookOpen />,
@@ -91,7 +91,7 @@ const Features = () => {
   ];
 
   return (
-    <section id="features" className="features">
+    <section id="features" className={`features ${darkMode ? 'dark' : ''}`}>
       <div className="features-container">
         <div className="features-header">
           <div className="section-badge">
@@ -102,7 +102,7 @@ const Features = () => {
             Everything you need to manage your finances
           </h2>
           <p className="features-description">
-            StratSchool's AI CFO provides a complete suite of financial tools designed 
+            Nebulaa InFINity's AI CFO provides a complete suite of financial tools designed 
             specifically for solo entrepreneurs and startups. No more juggling multiple apps.
           </p>
         </div>
@@ -128,7 +128,7 @@ const Features = () => {
         </div>
 
         <div className="benefits-section">
-          <h3 className="benefits-title">Why Choose StratSchool AI CFO?</h3>
+          <h3 className="benefits-title">Why Choose Nebulaa InFINity AI CFO?</h3>
           <div className="benefits-grid">
             {benefits.map((benefit, index) => (
               <div key={index} className="benefit-card">

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import '../styles/About.css';
 
-const About = () => {
+const About = ({ darkMode }) => {
   const stats = [
     { number: "500+", label: "Entrepreneurs Served", icon: <Users /> },
     { number: "₹50M+", label: "Financial Data Processed", icon: <TrendingUp /> },
@@ -43,21 +43,21 @@ const About = () => {
   ];
 
   return (
-    <section id="about" className="about">
+    <section id="about" className={`about ${darkMode ? 'dark' : ''}`}>
       <div className="about-container">
         {/* Hero Section */}
         <div className="about-hero">
           <div className="about-content">
             <div className="section-badge">
               <Target className="badge-icon" />
-              <span>About StratSchool</span>
+              <span>About Nebulaa InFINity</span>
             </div>
             <h2 className="about-title">
               Democratizing Financial Management for
               <span className="title-highlight"> Solo Entrepreneurs</span>
             </h2>
             <p className="about-description">
-              At StratSchool, we believe every entrepreneur deserves access to professional-grade 
+              At Nebulaa InFINity, we believe every entrepreneur deserves access to professional-grade 
               financial tools. Our AI CFO is designed specifically for solo entrepreneurs and 
               startups who need enterprise-level financial management without the enterprise cost.
             </p>
