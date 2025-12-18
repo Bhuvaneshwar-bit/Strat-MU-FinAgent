@@ -1200,17 +1200,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       {/* Professional Header */}
       <header className="dashboard-header">
         <div className="header-brand">
-          <div className="brand-logo">
-            <img 
-              src={darkMode ? LogoDark : LogoLight} 
-              alt="Nebulaa Logo" 
-              className="brand-logo-img"
-            />
-            <div className="brand-text">
-              <h1>Nebulaa</h1>
-              <span>InFINity</span>
-            </div>
-          </div>
+          {/* Logo moved to sidebar */}
         </div>
 
         <div className="header-actions">
@@ -1248,33 +1238,101 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
             transition: 'width 0.3s ease, min-width 0.3s ease'
           }}
         >
-          {/* Collapse Toggle Button */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: sidebarCollapsed ? '50%' : '12px',
-              transform: sidebarCollapsed ? 'translateX(50%)' : 'none',
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              border: 'none',
-              background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-              cursor: 'pointer',
+          {/* Sidebar Header with Logo and Collapse Button */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+            padding: sidebarCollapsed ? '16px 8px' : '16px 16px',
+            borderBottom: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0',
+            minHeight: '64px'
+          }}>
+            {/* Logo and Brand */}
+            <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: darkMode ? '#a0a0a0' : '#64748b',
-              transition: 'all 0.2s ease',
-              zIndex: 10
-            }}
-            title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-          >
-            {sidebarCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
-          </button>
+              gap: '12px',
+              overflow: 'hidden'
+            }}>
+              <img 
+                src={darkMode ? LogoDark : LogoLight} 
+                alt="Nebulaa Logo" 
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  objectFit: 'contain',
+                  flexShrink: 0
+                }}
+              />
+              {!sidebarCollapsed && (
+                <div style={{ whiteSpace: 'nowrap' }}>
+                  <h1 style={{ 
+                    fontSize: '18px', 
+                    fontWeight: '700', 
+                    color: darkMode ? '#ededed' : '#1e293b',
+                    margin: 0,
+                    lineHeight: 1.2
+                  }}>Nebulaa</h1>
+                  <span style={{ 
+                    fontSize: '12px', 
+                    fontWeight: '600', 
+                    color: '#ffcc29',
+                    letterSpacing: '0.5px'
+                  }}>InFINity</span>
+                </div>
+              )}
+            </div>
 
-          <nav className="sidebar-navigation" style={{ marginTop: '50px', padding: sidebarCollapsed ? '12px 8px' : '24px 16px' }}>
+            {/* Collapse Toggle Button */}
+            {!sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: darkMode ? '#8b949e' : '#64748b',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0
+                }}
+                title="Collapse Sidebar"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Expand button when collapsed - shown below logo */}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              style={{
+                width: '32px',
+                height: '32px',
+                margin: '12px auto',
+                borderRadius: '6px',
+                border: 'none',
+                background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: darkMode ? '#8b949e' : '#64748b',
+                transition: 'all 0.2s ease'
+              }}
+              title="Expand Sidebar"
+            >
+              <PanelLeft size={16} />
+            </button>
+          )}
+
+          <nav className="sidebar-navigation" style={{ padding: sidebarCollapsed ? '12px 8px' : '16px' }}>
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
