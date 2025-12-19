@@ -209,6 +209,8 @@ const InvoiceGeneration = ({ user }) => {
     setHistoryLoading(true);
     try {
       const token = localStorage.getItem('token');
+      console.log('🔐 Token for fetch:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+      
       const response = await fetch(`${API_BASE_URL}/api/gst-invoices?search=${searchTerm}&status=${statusFilter}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -216,7 +218,10 @@ const InvoiceGeneration = ({ user }) => {
         }
       });
       
+      console.log('📥 Fetch response status:', response.status);
       const data = await response.json();
+      console.log('📥 Fetch response data:', data);
+      
       if (data.success) {
         setInvoiceHistory(data.invoices);
       }
@@ -231,6 +236,9 @@ const InvoiceGeneration = ({ user }) => {
   const saveInvoiceToDatabase = async (invoicePayload) => {
     try {
       const token = localStorage.getItem('token');
+      console.log('🔐 Token for save:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+      console.log('📤 Saving invoice payload:', invoicePayload);
+      
       const response = await fetch(`${API_BASE_URL}/api/gst-invoices`, {
         method: 'POST',
         headers: {
@@ -240,9 +248,12 @@ const InvoiceGeneration = ({ user }) => {
         body: JSON.stringify(invoicePayload)
       });
       
+      console.log('📤 Save response status:', response.status);
       const data = await response.json();
+      console.log('📤 Save response data:', data);
+      
       if (!data.success) {
-        console.error('Failed to save invoice:', data.error);
+        console.error('Failed to save invoice:', data.error || data.message);
       }
       return data;
     } catch (error) {
