@@ -3,7 +3,7 @@ import { X, Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/AuthModal.css';
 
-const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess, onSignUpSuccess }) => {
+const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess, onSignUpSuccess, darkMode }) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -154,8 +154,8 @@ const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess, onSig
   if (!isOpen) return null;
 
   return (
-    <div className="auth-modal-overlay" onClick={handleClose}>
-      <div className="auth-modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className={`auth-modal-overlay ${darkMode ? 'dark' : ''}`} onClick={handleClose}>
+      <div className={`auth-modal-content ${darkMode ? 'dark' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="auth-modal-header">
           <div>
             <h2 className="auth-modal-title">

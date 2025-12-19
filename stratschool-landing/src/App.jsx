@@ -277,6 +277,7 @@ function App() {
         onSwitchType={handleAuthModalSwitch}
         onSignInSuccess={handleSignInSuccess}
         onSignUpSuccess={handleSignUpSuccess}
+        darkMode={darkMode}
       />
 
       {/* Only render questionnaire when open - ensures fresh mount with current user */}

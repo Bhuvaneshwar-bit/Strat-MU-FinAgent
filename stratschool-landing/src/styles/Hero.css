@@ -99,13 +99,13 @@
   background: rgba(255, 204, 41, 0.15);
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  border: 1px solid rgba(255, 204, 41, 0.3);
+  border: none;
 }
 
 .hero.dark .hero-feature {
   color: #f3f4f6;
-  background: rgba(255, 204, 41, 0.1);
-  border: 1px solid rgba(255, 204, 41, 0.2);
+  background: rgba(255, 204, 41, 0.15);
+  border: none;
 }
 
 .feature-icon {

@@ -25,6 +25,11 @@
   animation: authModalSlideIn 0.3s ease;
 }
 
+.auth-modal-content.dark {
+  background: #161b22;
+  border: 1px solid #21262d;
+}
+
 @keyframes authModalSlideIn {
   from {
     opacity: 0;
@@ -44,6 +49,10 @@
   border-bottom: 1px solid #f3f4f6;
 }
 
+.auth-modal-content.dark .auth-modal-header {
+  border-bottom: 1px solid #21262d;
+}
+
 .auth-modal-title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -51,11 +60,19 @@
   margin: 0 0 0.5rem 0;
 }
 
+.auth-modal-content.dark .auth-modal-title {
+  color: #ededed;
+}
+
 .auth-modal-subtitle {
   color: #6b7280;
   font-size: 0.875rem;
   margin: 0;
   line-height: 1.5;
+}
+
+.auth-modal-content.dark .auth-modal-subtitle {
+  color: #8b949e;
 }
 
 .auth-modal-close {
@@ -73,9 +90,19 @@
   flex-shrink: 0;
 }
 
+.auth-modal-content.dark .auth-modal-close {
+  background: #21262d;
+  color: #8b949e;
+}
+
 .auth-modal-close:hover {
   background: #e5e7eb;
   color: #374151;
+}
+
+.auth-modal-content.dark .auth-modal-close:hover {
+  background: #30363d;
+  color: #ededed;
 }
 
 .auth-modal-close svg {
@@ -105,6 +132,10 @@
   font-size: 0.875rem;
 }
 
+.auth-modal-content.dark .form-group label {
+  color: #c9d1d9;
+}
+
 .input-wrapper {
   position: relative;
 }
@@ -131,10 +162,21 @@
   color: #1f2937;
 }
 
+.auth-modal-content.dark .form-group input {
+  background: #0d1117;
+  border-color: #30363d;
+  color: #ededed;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.auth-modal-content.dark .form-group input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .form-group input.error {
@@ -221,6 +263,11 @@
   margin-top: 2px;
 }
 
+.auth-modal-content.dark .checkbox-custom {
+  background: #0d1117;
+  border-color: #30363d;
+}
+
 .checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
   background: #3b82f6;
   border-color: #3b82f6;
@@ -239,6 +286,10 @@
 
 .checkbox-text {
   color: #6b7280;
+}
+
+.auth-modal-content.dark .checkbox-text {
+  color: #8b949e;
 }
 
 .terms-link {
@@ -322,12 +373,21 @@
   background: #e5e7eb;
 }
 
+.auth-modal-content.dark .auth-divider::before {
+  background: #30363d;
+}
+
 .auth-divider span {
   background: white;
   color: #9ca3af;
   padding: 0 1rem;
   font-size: 0.875rem;
   position: relative;
+}
+
+.auth-modal-content.dark .auth-divider span {
+  background: #161b22;
+  color: #8b949e;
 }
 
 .google-button {
@@ -348,9 +408,20 @@
   margin-bottom: 1.5rem;
 }
 
+.auth-modal-content.dark .google-button {
+  background: #0d1117;
+  color: #ededed;
+  border-color: #30363d;
+}
+
 .google-button:hover {
   border-color: #d1d5db;
   background: #f9fafb;
+}
+
+.auth-modal-content.dark .google-button:hover {
+  background: #21262d;
+  border-color: #484f58;
 }
 
 .google-icon {
@@ -364,10 +435,18 @@
   border-top: 1px solid #f3f4f6;
 }
 
+.auth-modal-content.dark .auth-switch {
+  border-top: 1px solid #21262d;
+}
+
 .auth-switch p {
   color: #6b7280;
   font-size: 0.875rem;
   margin: 0;
+}
+
+.auth-modal-content.dark .auth-switch p {
+  color: #8b949e;
 }
 
 .switch-button {
