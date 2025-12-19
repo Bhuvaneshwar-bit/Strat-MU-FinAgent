@@ -1489,7 +1489,7 @@ const InvoiceGeneration = ({ user }) => {
               />
             </div>
             <div className="form-group">
-              <label>IFSC Code {ifscLoading && <span className="ifsc-loading">🔍 Looking up...</span>}</label>
+              <label>IFSC Code</label>
               <input
                 type="text"
                 value={invoiceData.ifscCode}
@@ -1501,7 +1501,7 @@ const InvoiceGeneration = ({ user }) => {
               {ifscError && <span className="ifsc-error">{ifscError}</span>}
             </div>
             <div className="form-group">
-              <label>Branch Name {ifscLoading && <span className="ifsc-auto">(Auto-filling...)</span>}</label>
+              <label>Branch Name</label>
               <input
                 type="text"
                 value={invoiceData.branchName}
