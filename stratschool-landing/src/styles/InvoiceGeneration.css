@@ -229,12 +229,71 @@
   height: 1rem;
 }
 
-/* Items Table */
+/* Section Icons */
+.section-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: var(--space-2);
+  color: var(--color-primary);
+  vertical-align: middle;
+}
+
+/* Select Styles */
+.form-group select {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: var(--transition-fast);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.input-with-icon select {
+  padding-left: 2.5rem;
+}
+
+/* Helper Text */
+.helper-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Items Table - GST Version */
 .items-table {
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--bg-primary);
+}
+
+.items-table.gst-table .table-header {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 0.7fr 0.7fr 1fr 0.7fr 1.2fr 0.6fr;
+  background: linear-gradient(135deg, #ffcc29 0%, #e6b800 100%);
+  padding: var(--space-4);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: #070a12;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.items-table.gst-table .table-row {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 0.7fr 0.7fr 1fr 0.7fr 1.2fr 0.6fr;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-gray-100);
+  align-items: center;
 }
 
 .table-header {
@@ -264,7 +323,13 @@
   background: var(--color-gray-50);
 }
 
-.col-description input {
+/* GST Table Columns */
+.col-description input,
+.col-hsn input,
+.col-qty input,
+.col-unit select,
+.col-rate input,
+.col-gst select {
   border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-sm);
   padding: var(--space-2);
@@ -274,16 +339,26 @@
   background: var(--bg-primary);
 }
 
-.col-quantity input,
+.col-qty input,
 .col-rate input {
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  width: 100%;
-  font-size: var(--font-size-sm);
   text-align: center;
-  color: var(--text-primary);
-  background: var(--bg-primary);
+}
+
+.col-unit select,
+.col-gst select {
+  text-align: center;
+  cursor: pointer;
+}
+
+.col-description input:focus,
+.col-hsn input:focus,
+.col-qty input:focus,
+.col-rate input:focus,
+.col-unit select:focus,
+.col-gst select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
 .col-rate .input-with-icon {
@@ -300,14 +375,6 @@
   text-align: right;
   color: var(--text-primary);
   background: var(--bg-primary);
-}
-
-.col-description input:focus,
-.col-quantity input:focus,
-.col-rate input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
 .amount-display {
@@ -383,7 +450,39 @@
   color: var(--color-primary);
 }
 
+/* GST Totals Section */
+.gst-totals-section {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gst-totals-section .totals-display {
+  min-width: 350px;
+}
+
+.amount-in-words {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-gray-300);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.amount-in-words strong {
+  color: var(--text-primary);
+}
+
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .items-table.gst-table .table-header,
+  .items-table.gst-table .table-row {
+    grid-template-columns: 2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.6fr 1fr 0.5fr;
+    font-size: var(--font-size-xs);
+    padding: var(--space-2);
+  }
+}
+
 @media (max-width: 768px) {
   .invoice-form {
     padding: 0 var(--space-4);
@@ -398,6 +497,70 @@
   }
   
   .invoice-header {
+    flex-direction: column;
+    gap: var(--space-4);
+    align-items: stretch;
+  }
+  
+  .header-actions {
+    justify-content: center;
+  }
+  
+  .items-table.gst-table .table-header {
+    display: none;
+  }
+  
+  .items-table.gst-table .table-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    margin: var(--space-3);
+  }
+  
+  .items-table.gst-table .col-description {
+    flex: 1 1 100%;
+  }
+  
+  .items-table.gst-table .col-hsn,
+  .items-table.gst-table .col-qty,
+  .items-table.gst-table .col-unit,
+  .items-table.gst-table .col-rate,
+  .items-table.gst-table .col-gst {
+    flex: 1 1 45%;
+  }
+  
+  .items-table.gst-table .col-amount,
+  .items-table.gst-table .col-actions {
+    flex: 1 1 45%;
+    text-align: center;
+  }
+  
+  .table-header,
+  .table-row {
+    grid-template-columns: 1.5fr 0.5fr 0.8fr 0.8fr 0.4fr;
+    font-size: var(--font-size-xs);
+  }
+  
+  .totals-section {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+  
+  .totals-inputs {
+    grid-template-columns: 1fr;
+  }
+  
+  .gst-totals-section {
+    justify-content: center;
+  }
+  
+  .gst-totals-section .totals-display {
+    min-width: 100%;
+  }
+}
     flex-direction: column;
     gap: var(--space-4);
     align-items: stretch;

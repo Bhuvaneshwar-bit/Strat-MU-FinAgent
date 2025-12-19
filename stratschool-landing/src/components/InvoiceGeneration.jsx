@@ -5,8 +5,6 @@ import {
   Plus, 
   Trash2, 
   Download, 
-  Save, 
-  Calculator,
   Building,
   User,
   Mail,
@@ -14,12 +12,97 @@ import {
   MapPin,
   Calendar,
   Hash,
-  DollarSign,
   Percent,
+  Receipt,
   FileText,
-  Receipt
+  Package,
+  Truck,
+  CreditCard
 } from 'lucide-react';
 import '../styles/InvoiceGeneration.css';
+
+// Indian States for Place of Supply
+const INDIAN_STATES = [
+  { code: '01', name: 'Jammu & Kashmir' },
+  { code: '02', name: 'Himachal Pradesh' },
+  { code: '03', name: 'Punjab' },
+  { code: '04', name: 'Chandigarh' },
+  { code: '05', name: 'Uttarakhand' },
+  { code: '06', name: 'Haryana' },
+  { code: '07', name: 'Delhi' },
+  { code: '08', name: 'Rajasthan' },
+  { code: '09', name: 'Uttar Pradesh' },
+  { code: '10', name: 'Bihar' },
+  { code: '11', name: 'Sikkim' },
+  { code: '12', name: 'Arunachal Pradesh' },
+  { code: '13', name: 'Nagaland' },
+  { code: '14', name: 'Manipur' },
+  { code: '15', name: 'Mizoram' },
+  { code: '16', name: 'Tripura' },
+  { code: '17', name: 'Meghalaya' },
+  { code: '18', name: 'Assam' },
+  { code: '19', name: 'West Bengal' },
+  { code: '20', name: 'Jharkhand' },
+  { code: '21', name: 'Odisha' },
+  { code: '22', name: 'Chhattisgarh' },
+  { code: '23', name: 'Madhya Pradesh' },
+  { code: '24', name: 'Gujarat' },
+  { code: '26', name: 'Dadra & Nagar Haveli and Daman & Diu' },
+  { code: '27', name: 'Maharashtra' },
+  { code: '28', name: 'Andhra Pradesh (Old)' },
+  { code: '29', name: 'Karnataka' },
+  { code: '30', name: 'Goa' },
+  { code: '31', name: 'Lakshadweep' },
+  { code: '32', name: 'Kerala' },
+  { code: '33', name: 'Tamil Nadu' },
+  { code: '34', name: 'Puducherry' },
+  { code: '35', name: 'Andaman & Nicobar Islands' },
+  { code: '36', name: 'Telangana' },
+  { code: '37', name: 'Andhra Pradesh' },
+  { code: '38', name: 'Ladakh' }
+];
+
+// Convert number to Indian words
+const numberToIndianWords = (num) => {
+  if (num === 0) return 'Zero Rupees Only';
+  
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const numToWords = (n) => {
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + numToWords(n % 100) : '');
+    if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+    if (n < 10000000) return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numToWords(n % 100000) : '');
+    return numToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + numToWords(n % 10000000) : '');
+  };
+  
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+  
+  let result = numToWords(rupees) + ' Rupees';
+  if (paise > 0) {
+    result += ' and ' + numToWords(paise) + ' Paise';
+  }
+  result += ' Only';
+  
+  return result;
+};
+
+// Format number in Indian currency format
+const formatIndianCurrency = (num) => {
+  const x = num.toFixed(2);
+  const parts = x.split('.');
+  let lastThree = parts[0].substring(parts[0].length - 3);
+  const otherNumbers = parts[0].substring(0, parts[0].length - 3);
+  if (otherNumbers !== '') {
+    lastThree = ',' + lastThree;
+  }
+  const formatted = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + lastThree;
+  return '₹' + formatted + '.' + parts[1];
+};
 
 const InvoiceGeneration = ({ user }) => {
   const [invoiceData, setInvoiceData] = useState({
@@ -28,63 +111,134 @@ const InvoiceGeneration = ({ user }) => {
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     
-    // Company Details (From)
-    companyName: 'StratSchool AI CFO',
-    companyAddress: '',
-    companyCity: '',
-    companyZip: '',
-    companyPhone: '',
-    companyEmail: '',
+    // Supplier Details (From)
+    supplierName: '',
+    supplierGSTIN: '',
+    supplierPAN: '',
+    supplierAddress: '',
+    supplierCity: '',
+    supplierState: '27', // Default Maharashtra
+    supplierPincode: '',
+    supplierPhone: '',
+    supplierEmail: '',
     
-    // Client Details (To)
-    clientName: '',
-    clientCompany: '',
-    clientAddress: '',
-    clientCity: '',
-    clientZip: '',
-    clientPhone: '',
-    clientEmail: '',
+    // Buyer Details (To)
+    buyerName: '',
+    buyerGSTIN: '',
+    buyerAddress: '',
+    buyerCity: '',
+    buyerState: '27',
+    buyerPincode: '',
+    buyerPhone: '',
+    buyerEmail: '',
+    
+    // Place of Supply
+    placeOfSupply: '27',
+    
+    // Reverse Charge Applicable
+    reverseCharge: false,
     
     // Invoice Items
     items: [
       {
         id: 1,
         description: '',
+        hsnSac: '',
         quantity: 1,
+        unit: 'Nos',
         rate: 0,
-        amount: 0
+        taxableValue: 0,
+        gstRate: 18, // Default 18%
+        cgstRate: 9,
+        cgstAmount: 0,
+        sgstRate: 9,
+        sgstAmount: 0,
+        igstRate: 18,
+        igstAmount: 0,
+        totalAmount: 0
       }
     ],
     
     // Invoice Totals
-    subtotal: 0,
-    taxRate: 0,
-    taxAmount: 0,
-    discountRate: 0,
-    discountAmount: 0,
-    total: 0,
+    totalTaxableValue: 0,
+    totalCGST: 0,
+    totalSGST: 0,
+    totalIGST: 0,
+    totalTax: 0,
+    grandTotal: 0,
+    amountInWords: '',
+    
+    // Bank Details
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    branchName: '',
     
     // Additional Fields
     notes: '',
-    terms: 'Payment due within 30 days of invoice date.'
+    terms: 'Payment is due within 30 days from the date of invoice. Late payments may attract interest at 18% per annum.'
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Check if intra-state or inter-state supply
+  const isInterState = () => {
+    return invoiceData.supplierState !== invoiceData.placeOfSupply;
+  };
+
   // Calculate totals
-  const calculateTotals = (items, taxRate, discountRate) => {
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const discountAmount = subtotal * (discountRate / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * (taxRate / 100);
-    const total = taxableAmount + taxAmount;
+  const calculateTotals = (items, supplierState, placeOfSupply) => {
+    const interState = supplierState !== placeOfSupply;
+    
+    let totalTaxableValue = 0;
+    let totalCGST = 0;
+    let totalSGST = 0;
+    let totalIGST = 0;
+
+    const updatedItems = items.map(item => {
+      const taxableValue = item.quantity * item.rate;
+      let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
+      
+      if (interState) {
+        igstAmount = (taxableValue * item.gstRate) / 100;
+      } else {
+        cgstAmount = (taxableValue * (item.gstRate / 2)) / 100;
+        sgstAmount = (taxableValue * (item.gstRate / 2)) / 100;
+      }
+      
+      const totalAmount = taxableValue + cgstAmount + sgstAmount + igstAmount;
+      
+      totalTaxableValue += taxableValue;
+      totalCGST += cgstAmount;
+      totalSGST += sgstAmount;
+      totalIGST += igstAmount;
+
+      return {
+        ...item,
+        taxableValue,
+        cgstRate: item.gstRate / 2,
+        cgstAmount,
+        sgstRate: item.gstRate / 2,
+        sgstAmount,
+        igstRate: item.gstRate,
+        igstAmount,
+        totalAmount
+      };
+    });
+
+    const totalTax = totalCGST + totalSGST + totalIGST;
+    const grandTotal = totalTaxableValue + totalTax;
 
     return {
-      subtotal,
-      discountAmount,
-      taxAmount,
-      total
+      items: updatedItems,
+      totalTaxableValue,
+      totalCGST,
+      totalSGST,
+      totalIGST,
+      totalTax,
+      grandTotal,
+      amountInWords: numberToIndianWords(grandTotal)
     };
   };
 
@@ -92,18 +246,19 @@ const InvoiceGeneration = ({ user }) => {
   const updateItem = (index, field, value) => {
     const newItems = [...invoiceData.items];
     newItems[index] = { ...newItems[index], [field]: value };
-    
-    // Recalculate amount for this item
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = newItems[index].quantity * newItems[index].rate;
-    }
 
-    const totals = calculateTotals(newItems, invoiceData.taxRate, invoiceData.discountRate);
+    const totals = calculateTotals(newItems, invoiceData.supplierState, invoiceData.placeOfSupply);
     
     setInvoiceData(prev => ({
       ...prev,
-      items: newItems,
-      ...totals
+      items: totals.items,
+      totalTaxableValue: totals.totalTaxableValue,
+      totalCGST: totals.totalCGST,
+      totalSGST: totals.totalSGST,
+      totalIGST: totals.totalIGST,
+      totalTax: totals.totalTax,
+      grandTotal: totals.grandTotal,
+      amountInWords: totals.amountInWords
     }));
   };
 
@@ -112,9 +267,19 @@ const InvoiceGeneration = ({ user }) => {
     const newItem = {
       id: Date.now(),
       description: '',
+      hsnSac: '',
       quantity: 1,
+      unit: 'Nos',
       rate: 0,
-      amount: 0
+      taxableValue: 0,
+      gstRate: 18,
+      cgstRate: 9,
+      cgstAmount: 0,
+      sgstRate: 9,
+      sgstAmount: 0,
+      igstRate: 18,
+      igstAmount: 0,
+      totalAmount: 0
     };
     
     setInvoiceData(prev => ({
@@ -125,31 +290,54 @@ const InvoiceGeneration = ({ user }) => {
 
   // Remove item
   const removeItem = (index) => {
-    if (invoiceData.items.length === 1) return; // Keep at least one item
+    if (invoiceData.items.length === 1) return;
     
     const newItems = invoiceData.items.filter((_, i) => i !== index);
-    const totals = calculateTotals(newItems, invoiceData.taxRate, invoiceData.discountRate);
+    const totals = calculateTotals(newItems, invoiceData.supplierState, invoiceData.placeOfSupply);
     
     setInvoiceData(prev => ({
       ...prev,
-      items: newItems,
-      ...totals
+      items: totals.items,
+      totalTaxableValue: totals.totalTaxableValue,
+      totalCGST: totals.totalCGST,
+      totalSGST: totals.totalSGST,
+      totalIGST: totals.totalIGST,
+      totalTax: totals.totalTax,
+      grandTotal: totals.grandTotal,
+      amountInWords: totals.amountInWords
     }));
   };
 
-  // Update tax or discount rate
-  const updateRate = (field, value) => {
-    const rate = parseFloat(value) || 0;
-    const totals = calculateTotals(invoiceData.items, 
-      field === 'taxRate' ? rate : invoiceData.taxRate,
-      field === 'discountRate' ? rate : invoiceData.discountRate
-    );
-    
-    setInvoiceData(prev => ({
-      ...prev,
-      [field]: rate,
-      ...totals
-    }));
+  // Update state and recalculate
+  const updateState = (field, value) => {
+    setInvoiceData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Recalculate if state changes affect IGST/CGST+SGST
+      if (field === 'supplierState' || field === 'placeOfSupply') {
+        const totals = calculateTotals(updated.items, 
+          field === 'supplierState' ? value : updated.supplierState,
+          field === 'placeOfSupply' ? value : updated.placeOfSupply
+        );
+        return {
+          ...updated,
+          items: totals.items,
+          totalCGST: totals.totalCGST,
+          totalSGST: totals.totalSGST,
+          totalIGST: totals.totalIGST,
+          totalTax: totals.totalTax,
+          grandTotal: totals.grandTotal,
+          amountInWords: totals.amountInWords
+        };
+      }
+      return updated;
+    });
+  };
+
+  // Validate GSTIN format (15 characters)
+  const validateGSTIN = (gstin) => {
+    if (!gstin) return true; // Optional field
+    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    return gstinRegex.test(gstin);
   };
 
   // Validate form
@@ -157,10 +345,15 @@ const InvoiceGeneration = ({ user }) => {
     const newErrors = {};
     
     if (!invoiceData.invoiceNumber) newErrors.invoiceNumber = 'Invoice number is required';
-    if (!invoiceData.clientName) newErrors.clientName = 'Client name is required';
-    if (!invoiceData.clientEmail) newErrors.clientEmail = 'Client email is required';
+    if (!invoiceData.supplierName) newErrors.supplierName = 'Supplier name is required';
+    if (!invoiceData.supplierGSTIN) newErrors.supplierGSTIN = 'Supplier GSTIN is required';
+    if (invoiceData.supplierGSTIN && !validateGSTIN(invoiceData.supplierGSTIN)) {
+      newErrors.supplierGSTIN = 'Invalid GSTIN format';
+    }
+    if (!invoiceData.buyerName) newErrors.buyerName = 'Buyer name is required';
     if (!invoiceData.dueDate) newErrors.dueDate = 'Due date is required';
     if (invoiceData.items.some(item => !item.description)) newErrors.items = 'All items must have descriptions';
+    if (invoiceData.items.some(item => !item.hsnSac)) newErrors.hsnSac = 'HSN/SAC code is required for all items';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -172,221 +365,283 @@ const InvoiceGeneration = ({ user }) => {
     
     setLoading(true);
     try {
-      // For now, generate PDF directly since backend might not be running
-      // This will work even without backend connection
-      await generatePDF(invoiceData);
-      
-      // Try to save to MongoDB (optional - will fail gracefully if backend not running)
-      try {
-        const response = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            ...invoiceData,
-            userId: user?.id || 'demo-user',
-            createdAt: new Date().toISOString()
-          })
-        });
-
-        if (response.ok) {
-          console.log('Invoice saved to database successfully');
-        }
-      } catch (dbError) {
-        console.log('Database save failed (backend not running), but PDF generated successfully');
-      }
-      
-      // Reset form
-      setInvoiceData(prev => ({
-        ...prev,
-        invoiceNumber: '',
-        clientName: '',
-        clientCompany: '',
-        clientAddress: '',
-        clientCity: '',
-        clientZip: '',
-        clientPhone: '',
-        clientEmail: '',
-        items: [{ id: 1, description: '', quantity: 1, rate: 0, amount: 0 }],
-        subtotal: 0,
-        taxAmount: 0,
-        discountAmount: 0,
-        total: 0,
-        notes: ''
-      }));
-
-      alert('Invoice generated and downloaded successfully!');
+      await generateGSTPDF(invoiceData);
+      alert('GST Invoice generated and downloaded successfully!');
     } catch (error) {
       console.error('Error generating invoice:', error);
-      alert('Error generating invoice. Please check your input and try again.');
+      alert('Error generating invoice. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate PDF (professional implementation with jsPDF)
-  const generatePDF = async (invoice) => {
-    try {
-      const doc = new jsPDF();
-      
-      // Set font
-      doc.setFont('helvetica');
-      
-      // Header Section
-      doc.setFontSize(24);
-      doc.setTextColor(31, 41, 55); // Dark gray
-      doc.text('INVOICE', 20, 30);
-      
-      // Company Logo/Branding Area (placeholder for future logo)
-      doc.setFontSize(16);
-      doc.setTextColor(79, 70, 229); // Primary blue
-      doc.text('StratSchool AI CFO', 20, 45);
-      doc.setFontSize(10);
-      doc.setTextColor(107, 114, 128); // Medium gray
-      doc.text('Professional Financial Solutions', 20, 52);
-      
-      // Invoice Info Box
-      doc.setDrawColor(229, 231, 235); // Light gray border
-      doc.rect(130, 20, 60, 40);
-      doc.setFontSize(10);
-      doc.setTextColor(31, 41, 55);
-      doc.text(`Invoice #: ${invoice.invoiceNumber}`, 135, 30);
-      doc.text(`Date: ${new Date(invoice.invoiceDate).toLocaleDateString()}`, 135, 37);
-      doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, 135, 44);
-      doc.text(`Total: $${invoice.total.toFixed(2)}`, 135, 51);
-      
-      // Company Details (From)
-      doc.setFontSize(12);
-      doc.setTextColor(31, 41, 55);
-      doc.text('From:', 20, 75);
-      doc.setFontSize(10);
-      doc.text(invoice.companyName || 'StratSchool AI CFO', 20, 82);
-      if (invoice.companyAddress) doc.text(invoice.companyAddress, 20, 89);
-      if (invoice.companyCity && invoice.companyZip) {
-        doc.text(`${invoice.companyCity}, ${invoice.companyZip}`, 20, 96);
-      }
-      if (invoice.companyPhone) doc.text(`Phone: ${invoice.companyPhone}`, 20, 103);
-      if (invoice.companyEmail) doc.text(`Email: ${invoice.companyEmail}`, 20, 110);
-      
-      // Client Details (Bill To)
-      doc.setFontSize(12);
-      doc.text('Bill To:', 110, 75);
-      doc.setFontSize(10);
-      doc.text(invoice.clientName, 110, 82);
-      if (invoice.clientCompany) doc.text(invoice.clientCompany, 110, 89);
-      if (invoice.clientAddress) doc.text(invoice.clientAddress, 110, 96);
-      if (invoice.clientCity && invoice.clientZip) {
-        doc.text(`${invoice.clientCity}, ${invoice.clientZip}`, 110, 103);
-      }
-      if (invoice.clientPhone) doc.text(`Phone: ${invoice.clientPhone}`, 110, 110);
-      doc.text(`Email: ${invoice.clientEmail}`, 110, 117);
-      
-      // Items Table
-      const tableData = invoice.items.map(item => [
-        item.description,
-        item.quantity.toString(),
-        `$${item.rate.toFixed(2)}`,
-        `$${item.amount.toFixed(2)}`
-      ]);
-      
-      doc.autoTable({
-        startY: 130,
-        head: [['Description', 'Qty', 'Rate', 'Amount']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [79, 70, 229], // Primary blue
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 9,
-          textColor: [31, 41, 55]
-        },
-        columnStyles: {
-          0: { cellWidth: 80 },
-          1: { cellWidth: 20, halign: 'center' },
-          2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 30, halign: 'right' }
-        },
-        margin: { left: 20, right: 20 }
-      });
-      
-      // Totals Section
-      const finalY = doc.lastAutoTable.finalY + 20;
-      const totalsX = 130;
-      
-      doc.setFontSize(10);
-      doc.text(`Subtotal:`, totalsX, finalY);
-      doc.text(`$${invoice.subtotal.toFixed(2)}`, totalsX + 40, finalY);
-      
-      let currentY = finalY;
-      
-      if (invoice.discountAmount > 0) {
-        currentY += 7;
-        doc.setTextColor(220, 38, 38); // Red for discount
-        doc.text(`Discount (${invoice.discountRate}%):`, totalsX, currentY);
-        doc.text(`-$${invoice.discountAmount.toFixed(2)}`, totalsX + 40, currentY);
-        doc.setTextColor(31, 41, 55); // Reset to dark
-      }
-      
-      if (invoice.taxAmount > 0) {
-        currentY += 7;
-        doc.text(`Tax (${invoice.taxRate}%):`, totalsX, currentY);
-        doc.text(`$${invoice.taxAmount.toFixed(2)}`, totalsX + 40, currentY);
-      }
-      
-      // Total line with emphasis
-      currentY += 10;
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(79, 70, 229); // Primary blue
-      doc.text('Total:', totalsX, currentY);
-      doc.text(`$${invoice.total.toFixed(2)}`, totalsX + 40, currentY);
-      
-      // Notes Section
-      if (invoice.notes) {
-        currentY += 20;
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(31, 41, 55);
-        doc.text('Notes:', 20, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        const notesLines = doc.splitTextToSize(invoice.notes, 170);
-        doc.text(notesLines, 20, currentY + 7);
-        currentY += (notesLines.length * 5) + 10;
-      }
-      
-      // Terms & Conditions
-      if (invoice.terms) {
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Terms & Conditions:', 20, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        const termsLines = doc.splitTextToSize(invoice.terms, 170);
-        doc.text(termsLines, 20, currentY + 7);
-      }
-      
-      // Footer
-      const pageHeight = doc.internal.pageSize.height;
-      doc.setFontSize(8);
-      doc.setTextColor(107, 114, 128);
-      doc.text('Generated by StratSchool AI CFO Platform', 20, pageHeight - 15);
-      doc.text(`Generated on ${new Date().toLocaleDateString()}`, 20, pageHeight - 10);
-      
-      // Download the PDF
-      doc.save(`Invoice-${invoice.invoiceNumber}.pdf`);
-      
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      throw new Error('Failed to generate PDF');
+  // Get state name from code
+  const getStateName = (code) => {
+    const state = INDIAN_STATES.find(s => s.code === code);
+    return state ? state.name : '';
+  };
+
+  // Generate GST-Compliant PDF
+  const generateGSTPDF = async (invoice) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const interState = invoice.supplierState !== invoice.placeOfSupply;
+
+    // Border
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, margin, pageWidth - 2 * margin, 277);
+
+    // Header - TAX INVOICE
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TAX INVOICE', pageWidth / 2, 20, { align: 'center' });
+    
+    // Horizontal line
+    doc.line(margin, 25, pageWidth - margin, 25);
+
+    // Supplier Details (Left)
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Supplier Details:', margin + 2, 32);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    let y = 38;
+    doc.text(invoice.supplierName || 'N/A', margin + 2, y);
+    y += 5;
+    doc.text('GSTIN: ' + (invoice.supplierGSTIN || 'N/A'), margin + 2, y);
+    if (invoice.supplierPAN) {
+      y += 5;
+      doc.text('PAN: ' + invoice.supplierPAN, margin + 2, y);
     }
+    y += 5;
+    doc.text((invoice.supplierAddress || '') + ', ' + (invoice.supplierCity || ''), margin + 2, y);
+    y += 5;
+    doc.text(getStateName(invoice.supplierState) + ' - ' + (invoice.supplierPincode || ''), margin + 2, y);
+    if (invoice.supplierPhone) {
+      y += 5;
+      doc.text('Phone: ' + invoice.supplierPhone, margin + 2, y);
+    }
+    if (invoice.supplierEmail) {
+      y += 5;
+      doc.text('Email: ' + invoice.supplierEmail, margin + 2, y);
+    }
+
+    // Invoice Details (Right)
+    const rightColX = pageWidth / 2 + 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Invoice Details:', rightColX, 32);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    doc.text('Invoice No: ' + invoice.invoiceNumber, rightColX, 38);
+    doc.text('Invoice Date: ' + new Date(invoice.invoiceDate).toLocaleDateString('en-IN'), rightColX, 43);
+    doc.text('Due Date: ' + new Date(invoice.dueDate).toLocaleDateString('en-IN'), rightColX, 48);
+    doc.text('Place of Supply: ' + getStateName(invoice.placeOfSupply) + ' (' + invoice.placeOfSupply + ')', rightColX, 53);
+    doc.text('Reverse Charge: ' + (invoice.reverseCharge ? 'Yes' : 'No'), rightColX, 58);
+    doc.text('Supply Type: ' + (interState ? 'Inter-State' : 'Intra-State'), rightColX, 63);
+
+    // Vertical line between supplier and invoice details
+    doc.line(pageWidth / 2, 25, pageWidth / 2, 75);
+    
+    // Horizontal line
+    doc.line(margin, 75, pageWidth - margin, 75);
+
+    // Buyer Details
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Buyer Details (Bill To):', margin + 2, 82);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    y = 88;
+    doc.text(invoice.buyerName || 'N/A', margin + 2, y);
+    if (invoice.buyerGSTIN) {
+      y += 5;
+      doc.text('GSTIN: ' + invoice.buyerGSTIN, margin + 2, y);
+    }
+    y += 5;
+    doc.text((invoice.buyerAddress || '') + ', ' + (invoice.buyerCity || ''), margin + 2, y);
+    y += 5;
+    doc.text(getStateName(invoice.buyerState) + ' - ' + (invoice.buyerPincode || ''), margin + 2, y);
+    if (invoice.buyerPhone) {
+      y += 5;
+      doc.text('Phone: ' + invoice.buyerPhone, margin + 2, y);
+    }
+
+    // Horizontal line before items
+    doc.line(margin, 110, pageWidth - margin, 110);
+
+    // Items Table
+    const tableColumns = interState ? 
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate', 'Taxable Value', 'IGST %', 'IGST Amt', 'Total']] :
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate', 'Taxable Value', 'CGST %', 'CGST', 'SGST %', 'SGST', 'Total']];
+
+    const tableData = invoice.items.map((item, index) => {
+      if (interState) {
+        return [
+          (index + 1).toString(),
+          item.description,
+          item.hsnSac,
+          item.quantity.toString(),
+          item.unit,
+          formatIndianCurrency(item.rate),
+          formatIndianCurrency(item.taxableValue),
+          item.igstRate + '%',
+          formatIndianCurrency(item.igstAmount),
+          formatIndianCurrency(item.totalAmount)
+        ];
+      } else {
+        return [
+          (index + 1).toString(),
+          item.description,
+          item.hsnSac,
+          item.quantity.toString(),
+          item.unit,
+          formatIndianCurrency(item.rate),
+          formatIndianCurrency(item.taxableValue),
+          item.cgstRate + '%',
+          formatIndianCurrency(item.cgstAmount),
+          item.sgstRate + '%',
+          formatIndianCurrency(item.sgstAmount),
+          formatIndianCurrency(item.totalAmount)
+        ];
+      }
+    });
+
+    doc.autoTable({
+      startY: 115,
+      head: tableColumns,
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 204, 41],
+        textColor: [7, 10, 18],
+        fontSize: 7,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fontSize: 7,
+        textColor: [31, 41, 55]
+      },
+      columnStyles: interState ? {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 12, halign: 'center' },
+        4: { cellWidth: 12, halign: 'center' },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 14, halign: 'center' },
+        8: { cellWidth: 20, halign: 'right' },
+        9: { cellWidth: 22, halign: 'right' }
+      } : {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 14, halign: 'center' },
+        3: { cellWidth: 10, halign: 'center' },
+        4: { cellWidth: 10, halign: 'center' },
+        5: { cellWidth: 16, halign: 'right' },
+        6: { cellWidth: 18, halign: 'right' },
+        7: { cellWidth: 12, halign: 'center' },
+        8: { cellWidth: 16, halign: 'right' },
+        9: { cellWidth: 12, halign: 'center' },
+        10: { cellWidth: 16, halign: 'right' },
+        11: { cellWidth: 18, halign: 'right' }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    // Totals Section
+    const finalY = doc.lastAutoTable.finalY + 5;
+    
+    // Tax Summary Box
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Tax Summary:', margin + 2, finalY);
+    
+    doc.setFont('helvetica', 'normal');
+    const totalsX = pageWidth - margin - 70;
+    let totalsY = finalY;
+    
+    doc.text('Total Taxable Value:', totalsX, totalsY);
+    doc.text(formatIndianCurrency(invoice.totalTaxableValue), pageWidth - margin - 2, totalsY, { align: 'right' });
+    
+    if (interState) {
+      totalsY += 6;
+      doc.text('Total IGST:', totalsX, totalsY);
+      doc.text(formatIndianCurrency(invoice.totalIGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+    } else {
+      totalsY += 6;
+      doc.text('Total CGST:', totalsX, totalsY);
+      doc.text(formatIndianCurrency(invoice.totalCGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+      totalsY += 6;
+      doc.text('Total SGST:', totalsX, totalsY);
+      doc.text(formatIndianCurrency(invoice.totalSGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+    }
+    
+    totalsY += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Grand Total:', totalsX, totalsY);
+    doc.text(formatIndianCurrency(invoice.grandTotal), pageWidth - margin - 2, totalsY, { align: 'right' });
+
+    // Amount in Words
+    totalsY += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Amount in Words:', margin + 2, totalsY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const wordsLines = doc.splitTextToSize(invoice.amountInWords || numberToIndianWords(invoice.grandTotal), pageWidth - 2 * margin - 4);
+    doc.text(wordsLines, margin + 2, totalsY + 5);
+
+    // Bank Details
+    totalsY += 20;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Bank Details:', margin + 2, totalsY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    if (invoice.bankName) {
+      doc.text('Bank Name: ' + invoice.bankName, margin + 2, totalsY + 5);
+      doc.text('Account No: ' + (invoice.accountNumber || 'N/A'), margin + 2, totalsY + 10);
+      doc.text('IFSC Code: ' + (invoice.ifscCode || 'N/A'), margin + 2, totalsY + 15);
+      doc.text('Branch: ' + (invoice.branchName || 'N/A'), margin + 2, totalsY + 20);
+    }
+
+    // Terms & Conditions
+    if (invoice.terms) {
+      totalsY += 30;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Terms & Conditions:', margin + 2, totalsY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      const termsLines = doc.splitTextToSize(invoice.terms, pageWidth - 2 * margin - 4);
+      doc.text(termsLines, margin + 2, totalsY + 5);
+    }
+
+    // Signature Area
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('For ' + (invoice.supplierName || 'Supplier'), pageWidth - margin - 50, 260);
+    doc.line(pageWidth - margin - 60, 275, pageWidth - margin - 5, 275);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Authorised Signatory', pageWidth - margin - 45, 280);
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setTextColor(128);
+    doc.text('This is a computer-generated invoice and does not require a physical signature.', pageWidth / 2, 285, { align: 'center' });
+
+    // Download
+    doc.save('GST-Invoice-' + invoice.invoiceNumber + '.pdf');
   };
 
   return (
@@ -397,8 +652,8 @@ const InvoiceGeneration = ({ user }) => {
             <Receipt />
           </div>
           <div>
-            <h2>Invoice Generation</h2>
-            <p>Create professional invoices for your clients</p>
+            <h2>GST Invoice Generation</h2>
+            <p>Create GST-compliant tax invoices as per Indian standards</p>
           </div>
         </div>
         <div className="header-actions">
@@ -416,7 +671,7 @@ const InvoiceGeneration = ({ user }) => {
       <div className="invoice-form">
         {/* Invoice Details Section */}
         <div className="form-section">
-          <h3>Invoice Details</h3>
+          <h3><FileText className="section-icon" /> Invoice Details</h3>
           <div className="form-grid">
             <div className="form-group">
               <label>Invoice Number *</label>
@@ -426,7 +681,7 @@ const InvoiceGeneration = ({ user }) => {
                   type="text"
                   value={invoiceData.invoiceNumber}
                   onChange={(e) => setInvoiceData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-                  placeholder="INV-001"
+                  placeholder="INV/2024-25/001"
                   className={errors.invoiceNumber ? 'error' : ''}
                 />
               </div>
@@ -434,7 +689,7 @@ const InvoiceGeneration = ({ user }) => {
             </div>
 
             <div className="form-group">
-              <label>Invoice Date</label>
+              <label>Invoice Date *</label>
               <div className="input-with-icon">
                 <Calendar className="input-icon" />
                 <input
@@ -458,22 +713,123 @@ const InvoiceGeneration = ({ user }) => {
               </div>
               {errors.dueDate && <span className="error-message">{errors.dueDate}</span>}
             </div>
+
+            <div className="form-group">
+              <label>Reverse Charge Applicable?</label>
+              <select
+                value={invoiceData.reverseCharge ? 'yes' : 'no'}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, reverseCharge: e.target.value === 'yes' }))}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Company Details Section */}
+        {/* Supplier Details Section */}
         <div className="form-section">
-          <h3>From (Your Company)</h3>
+          <h3><Building className="section-icon" /> Supplier Details (From)</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label>Company Name</label>
+              <label>Business Name *</label>
               <div className="input-with-icon">
                 <Building className="input-icon" />
                 <input
                   type="text"
-                  value={invoiceData.companyName}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, companyName: e.target.value }))}
-                  placeholder="Your Company Name"
+                  value={invoiceData.supplierName}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierName: e.target.value }))}
+                  placeholder="Your Business Name"
+                  className={errors.supplierName ? 'error' : ''}
+                />
+              </div>
+              {errors.supplierName && <span className="error-message">{errors.supplierName}</span>}
+            </div>
+
+            <div className="form-group">
+              <label>GSTIN *</label>
+              <div className="input-with-icon">
+                <FileText className="input-icon" />
+                <input
+                  type="text"
+                  value={invoiceData.supplierGSTIN}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierGSTIN: e.target.value.toUpperCase() }))}
+                  placeholder="22AAAAA0000A1Z5"
+                  maxLength={15}
+                  className={errors.supplierGSTIN ? 'error' : ''}
+                />
+              </div>
+              {errors.supplierGSTIN && <span className="error-message">{errors.supplierGSTIN}</span>}
+            </div>
+
+            <div className="form-group">
+              <label>PAN</label>
+              <input
+                type="text"
+                value={invoiceData.supplierPAN}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierPAN: e.target.value.toUpperCase() }))}
+                placeholder="AAAAA0000A"
+                maxLength={10}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>State *</label>
+              <select
+                value={invoiceData.supplierState}
+                onChange={(e) => updateState('supplierState', e.target.value)}
+              >
+                {INDIAN_STATES.map(state => (
+                  <option key={state.code} value={state.code}>
+                    {state.code} - {state.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group full-width">
+              <label>Address</label>
+              <div className="input-with-icon">
+                <MapPin className="input-icon" />
+                <input
+                  type="text"
+                  value={invoiceData.supplierAddress}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierAddress: e.target.value }))}
+                  placeholder="Building, Street, Area"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>City</label>
+              <input
+                type="text"
+                value={invoiceData.supplierCity}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierCity: e.target.value }))}
+                placeholder="Mumbai"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>PIN Code</label>
+              <input
+                type="text"
+                value={invoiceData.supplierPincode}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierPincode: e.target.value }))}
+                placeholder="400001"
+                maxLength={6}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Phone</label>
+              <div className="input-with-icon">
+                <Phone className="input-icon" />
+                <input
+                  type="tel"
+                  value={invoiceData.supplierPhone}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierPhone: e.target.value }))}
+                  placeholder="+91 98765 43210"
                 />
               </div>
             </div>
@@ -484,119 +840,80 @@ const InvoiceGeneration = ({ user }) => {
                 <Mail className="input-icon" />
                 <input
                   type="email"
-                  value={invoiceData.companyEmail}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, companyEmail: e.target.value }))}
-                  placeholder="company@example.com"
+                  value={invoiceData.supplierEmail}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, supplierEmail: e.target.value }))}
+                  placeholder="business@example.com"
                 />
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>Phone</label>
-              <div className="input-with-icon">
-                <Phone className="input-icon" />
-                <input
-                  type="tel"
-                  value={invoiceData.companyPhone}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, companyPhone: e.target.value }))}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-            </div>
-
-            <div className="form-group full-width">
-              <label>Address</label>
-              <div className="input-with-icon">
-                <MapPin className="input-icon" />
-                <input
-                  type="text"
-                  value={invoiceData.companyAddress}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, companyAddress: e.target.value }))}
-                  placeholder="123 Business Street"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>City</label>
-              <input
-                type="text"
-                value={invoiceData.companyCity}
-                onChange={(e) => setInvoiceData(prev => ({ ...prev, companyCity: e.target.value }))}
-                placeholder="New York"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>ZIP Code</label>
-              <input
-                type="text"
-                value={invoiceData.companyZip}
-                onChange={(e) => setInvoiceData(prev => ({ ...prev, companyZip: e.target.value }))}
-                placeholder="10001"
-              />
             </div>
           </div>
         </div>
 
-        {/* Client Details Section */}
+        {/* Buyer Details Section */}
         <div className="form-section">
-          <h3>Bill To (Client)</h3>
+          <h3><User className="section-icon" /> Buyer Details (Bill To)</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label>Client Name *</label>
+              <label>Buyer Name / Business *</label>
               <div className="input-with-icon">
                 <User className="input-icon" />
                 <input
                   type="text"
-                  value={invoiceData.clientName}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, clientName: e.target.value }))}
-                  placeholder="John Doe"
-                  className={errors.clientName ? 'error' : ''}
+                  value={invoiceData.buyerName}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerName: e.target.value }))}
+                  placeholder="Customer / Business Name"
+                  className={errors.buyerName ? 'error' : ''}
                 />
               </div>
-              {errors.clientName && <span className="error-message">{errors.clientName}</span>}
+              {errors.buyerName && <span className="error-message">{errors.buyerName}</span>}
             </div>
 
             <div className="form-group">
-              <label>Company</label>
+              <label>GSTIN (if registered)</label>
               <div className="input-with-icon">
-                <Building className="input-icon" />
+                <FileText className="input-icon" />
                 <input
                   type="text"
-                  value={invoiceData.clientCompany}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, clientCompany: e.target.value }))}
-                  placeholder="Client Company Inc."
+                  value={invoiceData.buyerGSTIN}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerGSTIN: e.target.value.toUpperCase() }))}
+                  placeholder="22BBBBB0000B1Z5"
+                  maxLength={15}
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Email *</label>
-              <div className="input-with-icon">
-                <Mail className="input-icon" />
-                <input
-                  type="email"
-                  value={invoiceData.clientEmail}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, clientEmail: e.target.value }))}
-                  placeholder="client@example.com"
-                  className={errors.clientEmail ? 'error' : ''}
-                />
-              </div>
-              {errors.clientEmail && <span className="error-message">{errors.clientEmail}</span>}
+              <label>State</label>
+              <select
+                value={invoiceData.buyerState}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerState: e.target.value }))}
+              >
+                {INDIAN_STATES.map(state => (
+                  <option key={state.code} value={state.code}>
+                    {state.code} - {state.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group">
-              <label>Phone</label>
+              <label>Place of Supply *</label>
               <div className="input-with-icon">
-                <Phone className="input-icon" />
-                <input
-                  type="tel"
-                  value={invoiceData.clientPhone}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, clientPhone: e.target.value }))}
-                  placeholder="+1 (555) 987-6543"
-                />
+                <Truck className="input-icon" />
+                <select
+                  value={invoiceData.placeOfSupply}
+                  onChange={(e) => updateState('placeOfSupply', e.target.value)}
+                >
+                  {INDIAN_STATES.map(state => (
+                    <option key={state.code} value={state.code}>
+                      {state.code} - {state.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+              <small className="helper-text">
+                {isInterState() ? '⚠️ Inter-State Supply (IGST applicable)' : '✓ Intra-State Supply (CGST + SGST applicable)'}
+              </small>
             </div>
 
             <div className="form-group full-width">
@@ -605,9 +922,9 @@ const InvoiceGeneration = ({ user }) => {
                 <MapPin className="input-icon" />
                 <input
                   type="text"
-                  value={invoiceData.clientAddress}
-                  onChange={(e) => setInvoiceData(prev => ({ ...prev, clientAddress: e.target.value }))}
-                  placeholder="456 Client Avenue"
+                  value={invoiceData.buyerAddress}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerAddress: e.target.value }))}
+                  placeholder="Building, Street, Area"
                 />
               </div>
             </div>
@@ -616,20 +933,47 @@ const InvoiceGeneration = ({ user }) => {
               <label>City</label>
               <input
                 type="text"
-                value={invoiceData.clientCity}
-                onChange={(e) => setInvoiceData(prev => ({ ...prev, clientCity: e.target.value }))}
-                placeholder="Los Angeles"
+                value={invoiceData.buyerCity}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerCity: e.target.value }))}
+                placeholder="Delhi"
               />
             </div>
 
             <div className="form-group">
-              <label>ZIP Code</label>
+              <label>PIN Code</label>
               <input
                 type="text"
-                value={invoiceData.clientZip}
-                onChange={(e) => setInvoiceData(prev => ({ ...prev, clientZip: e.target.value }))}
-                placeholder="90210"
+                value={invoiceData.buyerPincode}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerPincode: e.target.value }))}
+                placeholder="110001"
+                maxLength={6}
               />
+            </div>
+
+            <div className="form-group">
+              <label>Phone</label>
+              <div className="input-with-icon">
+                <Phone className="input-icon" />
+                <input
+                  type="tel"
+                  value={invoiceData.buyerPhone}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerPhone: e.target.value }))}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Email</label>
+              <div className="input-with-icon">
+                <Mail className="input-icon" />
+                <input
+                  type="email"
+                  value={invoiceData.buyerEmail}
+                  onChange={(e) => setInvoiceData(prev => ({ ...prev, buyerEmail: e.target.value }))}
+                  placeholder="buyer@example.com"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -637,7 +981,7 @@ const InvoiceGeneration = ({ user }) => {
         {/* Invoice Items Section */}
         <div className="form-section">
           <div className="section-header">
-            <h3>Invoice Items</h3>
+            <h3><Package className="section-icon" /> Invoice Items</h3>
             <button 
               className="secondary-button"
               onClick={addItem}
@@ -648,12 +992,15 @@ const InvoiceGeneration = ({ user }) => {
             </button>
           </div>
 
-          <div className="items-table">
+          <div className="items-table gst-table">
             <div className="table-header">
               <div className="col-description">Description</div>
-              <div className="col-quantity">Qty</div>
-              <div className="col-rate">Rate</div>
-              <div className="col-amount">Amount</div>
+              <div className="col-hsn">HSN/SAC</div>
+              <div className="col-qty">Qty</div>
+              <div className="col-unit">Unit</div>
+              <div className="col-rate">Rate (₹)</div>
+              <div className="col-gst">GST %</div>
+              <div className="col-amount">Amount (₹)</div>
               <div className="col-actions">Actions</div>
             </div>
 
@@ -664,32 +1011,66 @@ const InvoiceGeneration = ({ user }) => {
                     type="text"
                     value={item.description}
                     onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    placeholder="Service or product description"
+                    placeholder="Product/Service description"
                   />
                 </div>
-                <div className="col-quantity">
+                <div className="col-hsn">
+                  <input
+                    type="text"
+                    value={item.hsnSac}
+                    onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
+                    placeholder="9983"
+                    maxLength={8}
+                  />
+                </div>
+                <div className="col-qty">
                   <input
                     type="number"
                     value={item.quantity}
                     onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                     min="0"
+                    step="1"
+                  />
+                </div>
+                <div className="col-unit">
+                  <select
+                    value={item.unit}
+                    onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                  >
+                    <option value="Nos">Nos</option>
+                    <option value="Pcs">Pcs</option>
+                    <option value="Kg">Kg</option>
+                    <option value="Ltr">Ltr</option>
+                    <option value="Mtr">Mtr</option>
+                    <option value="Hrs">Hrs</option>
+                    <option value="Days">Days</option>
+                    <option value="Box">Box</option>
+                    <option value="Set">Set</option>
+                  </select>
+                </div>
+                <div className="col-rate">
+                  <input
+                    type="number"
+                    value={item.rate}
+                    onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                    min="0"
                     step="0.01"
                   />
                 </div>
-                <div className="col-rate">
-                  <div className="input-with-icon">
-                    <DollarSign className="input-icon" />
-                    <input
-                      type="number"
-                      value={item.rate}
-                      onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
+                <div className="col-gst">
+                  <select
+                    value={item.gstRate}
+                    onChange={(e) => updateItem(index, 'gstRate', parseFloat(e.target.value))}
+                  >
+                    <option value="0">0%</option>
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
+                    <option value="28">28%</option>
+                  </select>
                 </div>
                 <div className="col-amount">
-                  <span className="amount-display">${item.amount.toFixed(2)}</span>
+                  <span className="amount-display">{formatIndianCurrency(item.totalAmount)}</span>
                 </div>
                 <div className="col-actions">
                   {invoiceData.items.length > 1 && (
@@ -706,69 +1087,90 @@ const InvoiceGeneration = ({ user }) => {
             ))}
           </div>
           {errors.items && <span className="error-message">{errors.items}</span>}
+          {errors.hsnSac && <span className="error-message">{errors.hsnSac}</span>}
         </div>
 
         {/* Invoice Totals Section */}
         <div className="form-section">
-          <div className="totals-section">
-            <div className="totals-inputs">
-              <div className="form-group">
-                <label>Discount (%)</label>
-                <div className="input-with-icon">
-                  <Percent className="input-icon" />
-                  <input
-                    type="number"
-                    value={invoiceData.discountRate}
-                    onChange={(e) => updateRate('discountRate', e.target.value)}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Tax (%)</label>
-                <div className="input-with-icon">
-                  <Percent className="input-icon" />
-                  <input
-                    type="number"
-                    value={invoiceData.taxRate}
-                    onChange={(e) => updateRate('taxRate', e.target.value)}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-            </div>
-
+          <h3><CreditCard className="section-icon" /> Tax Summary</h3>
+          <div className="gst-totals-section">
             <div className="totals-display">
               <div className="total-row">
-                <span>Subtotal:</span>
-                <span>${invoiceData.subtotal.toFixed(2)}</span>
+                <span>Total Taxable Value:</span>
+                <span>{formatIndianCurrency(invoiceData.totalTaxableValue)}</span>
               </div>
-              {invoiceData.discountAmount > 0 && (
-                <div className="total-row discount">
-                  <span>Discount ({invoiceData.discountRate}%):</span>
-                  <span>-${invoiceData.discountAmount.toFixed(2)}</span>
-                </div>
-              )}
-              {invoiceData.taxAmount > 0 && (
+              {isInterState() ? (
                 <div className="total-row">
-                  <span>Tax ({invoiceData.taxRate}%):</span>
-                  <span>${invoiceData.taxAmount.toFixed(2)}</span>
+                  <span>Total IGST:</span>
+                  <span>{formatIndianCurrency(invoiceData.totalIGST)}</span>
                 </div>
+              ) : (
+                <>
+                  <div className="total-row">
+                    <span>Total CGST:</span>
+                    <span>{formatIndianCurrency(invoiceData.totalCGST)}</span>
+                  </div>
+                  <div className="total-row">
+                    <span>Total SGST:</span>
+                    <span>{formatIndianCurrency(invoiceData.totalSGST)}</span>
+                  </div>
+                </>
               )}
               <div className="total-row final">
-                <span>Total:</span>
-                <span>${invoiceData.total.toFixed(2)}</span>
+                <span>Grand Total:</span>
+                <span>{formatIndianCurrency(invoiceData.grandTotal)}</span>
+              </div>
+              <div className="amount-in-words">
+                <strong>Amount in Words:</strong> {invoiceData.amountInWords || numberToIndianWords(invoiceData.grandTotal)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Additional Information Section */}
+        {/* Bank Details Section */}
+        <div className="form-section">
+          <h3><Building className="section-icon" /> Bank Details</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Bank Name</label>
+              <input
+                type="text"
+                value={invoiceData.bankName}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, bankName: e.target.value }))}
+                placeholder="State Bank of India"
+              />
+            </div>
+            <div className="form-group">
+              <label>Account Number</label>
+              <input
+                type="text"
+                value={invoiceData.accountNumber}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, accountNumber: e.target.value }))}
+                placeholder="1234567890"
+              />
+            </div>
+            <div className="form-group">
+              <label>IFSC Code</label>
+              <input
+                type="text"
+                value={invoiceData.ifscCode}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
+                placeholder="SBIN0001234"
+              />
+            </div>
+            <div className="form-group">
+              <label>Branch Name</label>
+              <input
+                type="text"
+                value={invoiceData.branchName}
+                onChange={(e) => setInvoiceData(prev => ({ ...prev, branchName: e.target.value }))}
+                placeholder="Andheri West Branch"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Terms & Conditions Section */}
         <div className="form-section">
           <h3>Additional Information</h3>
           <div className="form-grid">
@@ -777,8 +1179,8 @@ const InvoiceGeneration = ({ user }) => {
               <textarea
                 value={invoiceData.notes}
                 onChange={(e) => setInvoiceData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Additional notes or information for the client"
-                rows="3"
+                placeholder="Additional notes for the buyer"
+                rows="2"
               ></textarea>
             </div>
 
