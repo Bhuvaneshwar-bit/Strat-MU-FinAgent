@@ -288,9 +288,40 @@ router.get('/my-data', authenticate, async (req, res) => {
     console.log('📊 Fetching P&L data for user:', userId);
     
     // Get the most recent P&L statement for this user
-    const latestStatement = await PLStatement.findOne({ userId })
+    let latestStatement = await PLStatement.findOne({ userId })
       .sort({ 'metadata.createdAt': -1, createdAt: -1 })
       .select('-__v');
+    
+    // FALLBACK: Check for legacy 'test-user-id' data and migrate it
+    if (!latestStatement) {
+      console.log('📊 No data found for user, checking for legacy test-user-id data...');
+      const legacyStatement = await PLStatement.findOne({ userId: 'test-user-id' })
+        .sort({ 'metadata.createdAt': -1, createdAt: -1 });
+      
+      if (legacyStatement) {
+        console.log('🔄 Found legacy data, migrating to user:', userId);
+        // Update the userId to the real user
+        legacyStatement.userId = userId;
+        await legacyStatement.save();
+        latestStatement = legacyStatement;
+        console.log('✅ Migration complete!');
+      }
+    }
+    
+    // Also check for 'anonymous-user' data
+    if (!latestStatement) {
+      console.log('📊 Checking for anonymous-user data...');
+      const anonStatement = await PLStatement.findOne({ userId: 'anonymous-user' })
+        .sort({ 'metadata.createdAt': -1, createdAt: -1 });
+      
+      if (anonStatement) {
+        console.log('🔄 Found anonymous data, migrating to user:', userId);
+        anonStatement.userId = userId;
+        await anonStatement.save();
+        latestStatement = anonStatement;
+        console.log('✅ Migration complete!');
+      }
+    }
     
     if (!latestStatement) {
       console.log('📊 No P&L data found for user:', userId);
