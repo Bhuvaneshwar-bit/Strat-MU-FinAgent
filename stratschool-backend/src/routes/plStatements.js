@@ -334,25 +334,46 @@ router.get('/my-data', authenticate, async (req, res) => {
     
     console.log('✅ Found P&L data for user, statement ID:', latestStatement._id);
     
-    // Format the data to match what the frontend expects (plData format)
+    // Format the data to match what the frontend Dashboard expects
+    // Dashboard looks for: plData.analysisMetrics, plData.plStatement, plData.insights
     const plData = {
-      // Analysis summary
-      totalRevenue: latestStatement.analysis?.totalRevenue || 0,
-      totalExpenses: latestStatement.analysis?.totalExpenses || 0,
-      netIncome: latestStatement.analysis?.netIncome || 0,
-      transactionCount: latestStatement.analysis?.transactionCount || 0,
+      // Analysis metrics - Dashboard looks for plData.analysisMetrics.totalRevenue etc
+      analysisMetrics: {
+        totalRevenue: latestStatement.analysis?.totalRevenue || 0,
+        totalExpenses: latestStatement.analysis?.totalExpenses || 0,
+        netIncome: latestStatement.analysis?.netIncome || 0,
+        transactionCount: latestStatement.analysis?.transactionCount || 0
+      },
       
-      // Breakdown data
-      revenue: latestStatement.revenue || [],
-      expenses: latestStatement.expenses || [],
+      // Full P&L statement - Dashboard looks for plData.plStatement.revenue.totalRevenue etc
+      plStatement: latestStatement.profitLossStatement || {
+        revenue: {
+          totalRevenue: latestStatement.analysis?.totalRevenue || 0,
+          revenueStreams: latestStatement.revenue || []
+        },
+        expenses: {
+          totalExpenses: latestStatement.analysis?.totalExpenses || 0,
+          expenseCategories: latestStatement.expenses || []
+        },
+        profitability: {
+          netIncome: latestStatement.analysis?.netIncome || 0,
+          netProfitMargin: latestStatement.analysis?.totalRevenue > 0 
+            ? ((latestStatement.analysis?.netIncome || 0) / latestStatement.analysis.totalRevenue * 100).toFixed(2)
+            : 0
+        }
+      },
       
-      // Full P&L statement
-      profitLossStatement: latestStatement.profitLossStatement || {},
+      // Transactions for the transaction list
+      transactions: [],
       
       // Insights and recommendations
       insights: latestStatement.insights || [],
       recommendations: latestStatement.recommendations || [],
       executiveSummary: latestStatement.executiveSummary || '',
+      
+      // Raw breakdown data (fallback)
+      revenue: latestStatement.revenue || [],
+      expenses: latestStatement.expenses || [],
       
       // Metadata
       period: latestStatement.period,
