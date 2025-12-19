@@ -71,6 +71,41 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// IFSC Code Lookup - Proxy to Razorpay IFSC API (avoids CSP issues)
+app.get('/api/ifsc/:code', async (req, res) => {
+  try {
+    const ifscCode = req.params.code.toUpperCase();
+    
+    // Validate IFSC format
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(ifscCode)) {
+      return res.status(400).json({ success: false, message: 'Invalid IFSC format' });
+    }
+    
+    const response = await fetch(`https://ifsc.razorpay.com/${ifscCode}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      res.json({
+        success: true,
+        bank: data.BANK,
+        branch: data.BRANCH,
+        address: data.ADDRESS,
+        city: data.CITY,
+        state: data.STATE,
+        ifsc: data.IFSC
+      });
+    } else if (response.status === 404) {
+      res.status(404).json({ success: false, message: 'IFSC not found' });
+    } else {
+      res.status(500).json({ success: false, message: 'Lookup failed' });
+    }
+  } catch (error) {
+    console.error('IFSC lookup error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../stratschool-landing/dist')));
 

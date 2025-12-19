@@ -234,7 +234,7 @@ const InvoiceGeneration = ({ user }) => {
     }
   };
 
-  // IFSC Code Lookup - Auto-fetch bank details using Razorpay IFSC API
+  // IFSC Code Lookup - Uses backend proxy to avoid CSP issues
   const lookupIFSC = async (ifscCode) => {
     // Validate IFSC format (11 characters: first 4 letters, 5th is 0, last 6 alphanumeric)
     const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
@@ -247,24 +247,22 @@ const InvoiceGeneration = ({ user }) => {
     setIfscError('');
 
     try {
-      const response = await fetch(`https://ifsc.razorpay.com/${ifscCode}`);
+      const response = await fetch(`${API_BASE_URL}/api/ifsc/${ifscCode}`);
+      const data = await response.json();
       
-      if (response.ok) {
-        const data = await response.json();
+      if (data.success) {
         setInvoiceData(prev => ({
           ...prev,
-          bankName: data.BANK || prev.bankName,
-          branchName: data.BRANCH || prev.branchName
+          bankName: data.bank || prev.bankName,
+          branchName: data.branch || prev.branchName
         }));
         setIfscError('');
-      } else if (response.status === 404) {
-        setIfscError('IFSC not found');
       } else {
-        setIfscError('Lookup failed');
+        setIfscError(data.message || 'IFSC not found');
       }
     } catch (error) {
       console.error('IFSC lookup error:', error);
-      setIfscError('Network error');
+      setIfscError('Lookup failed');
     } finally {
       setIfscLoading(false);
     }
