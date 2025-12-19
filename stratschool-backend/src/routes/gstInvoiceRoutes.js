@@ -12,7 +12,7 @@ router.use(authenticate);
 // @access  Private
 router.get('/next-number', async (req, res) => {
   try {
-    const nextNumber = await GSTInvoice.generateInvoiceNumber(req.user._id);
+    const nextNumber = await GSTInvoice.generateInvoiceNumber(req.user.userId);
     res.json({ success: true, invoiceNumber: nextNumber });
   } catch (error) {
     console.error('Error generating invoice number:', error);
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
     const { page = 1, limit = 20, status, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
     // Build query
-    const query = { userId: req.user._id };
+    const query = { userId: req.user.userId };
     
     if (status && status !== 'all') {
       query.status = status;
@@ -75,7 +75,7 @@ router.post('/', async (req, res) => {
   try {
     const invoiceData = {
       ...req.body,
-      userId: req.user._id
+      userId: req.user.userId
     };
     
     const invoice = new GSTInvoice(invoiceData);
@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
   try {
     const invoice = await GSTInvoice.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.userId
     });
     
     if (!invoice) {
@@ -125,7 +125,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const invoice = await GSTInvoice.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
+      { _id: req.params.id, userId: req.user.userId },
       { $set: req.body },
       { new: true, runValidators: true }
     );
@@ -148,7 +148,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const invoice = await GSTInvoice.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.userId
     });
     
     if (!invoice) {
@@ -174,7 +174,7 @@ router.put('/:id/status', async (req, res) => {
     }
     
     const invoice = await GSTInvoice.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
+      { _id: req.params.id, userId: req.user.userId },
       { $set: { status } },
       { new: true }
     );
@@ -196,7 +196,7 @@ router.put('/:id/status', async (req, res) => {
 router.get('/stats/summary', async (req, res) => {
   try {
     const stats = await GSTInvoice.aggregate([
-      { $match: { userId: req.user._id } },
+      { $match: { userId: req.user.userId } },
       {
         $group: {
           _id: '$status',
@@ -206,9 +206,9 @@ router.get('/stats/summary', async (req, res) => {
       }
     ]);
     
-    const totalInvoices = await GSTInvoice.countDocuments({ userId: req.user._id });
+    const totalInvoices = await GSTInvoice.countDocuments({ userId: req.user.userId });
     const totalRevenue = await GSTInvoice.aggregate([
-      { $match: { userId: req.user._id, status: 'paid' } },
+      { $match: { userId: req.user.userId, status: 'paid' } },
       { $group: { _id: null, total: { $sum: '$grandTotal' } } }
     ]);
     
