@@ -650,10 +650,23 @@ const InvoiceGeneration = ({ user }) => {
     // Horizontal line before items
     doc.line(margin, 110, pageWidth - margin, 110);
 
-    // Items Table
+    // Helper function for PDF - format number without ₹ symbol for cleaner table display
+    const formatNumForPDF = (num) => {
+      const x = num.toFixed(2);
+      const parts = x.split('.');
+      let lastThree = parts[0].substring(parts[0].length - 3);
+      const otherNumbers = parts[0].substring(0, parts[0].length - 3);
+      if (otherNumbers !== '') {
+        lastThree = ',' + lastThree;
+      }
+      const formatted = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + lastThree;
+      return formatted + '.' + parts[1];
+    };
+
+    // Items Table - Use ₹ in header for context
     const tableColumns = interState ? 
-      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate', 'Taxable Value', 'IGST %', 'IGST Amt', 'Total']] :
-      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate', 'Taxable Value', 'CGST %', 'CGST', 'SGST %', 'SGST', 'Total']];
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate (₹)', 'Taxable (₹)', 'IGST %', 'IGST (₹)', 'Total (₹)']] :
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate (₹)', 'Taxable (₹)', 'CGST %', 'CGST (₹)', 'SGST %', 'SGST (₹)', 'Total (₹)']];
 
     const tableData = invoice.items.map((item, index) => {
       if (interState) {
@@ -663,11 +676,11 @@ const InvoiceGeneration = ({ user }) => {
           item.hsnSac,
           item.quantity.toString(),
           item.unit,
-          formatIndianCurrency(item.rate),
-          formatIndianCurrency(item.taxableValue),
+          formatNumForPDF(item.rate),
+          formatNumForPDF(item.taxableValue),
           item.igstRate + '%',
-          formatIndianCurrency(item.igstAmount),
-          formatIndianCurrency(item.totalAmount)
+          formatNumForPDF(item.igstAmount),
+          formatNumForPDF(item.totalAmount)
         ];
       } else {
         return [
@@ -676,13 +689,13 @@ const InvoiceGeneration = ({ user }) => {
           item.hsnSac,
           item.quantity.toString(),
           item.unit,
-          formatIndianCurrency(item.rate),
-          formatIndianCurrency(item.taxableValue),
+          formatNumForPDF(item.rate),
+          formatNumForPDF(item.taxableValue),
           item.cgstRate + '%',
-          formatIndianCurrency(item.cgstAmount),
+          formatNumForPDF(item.cgstAmount),
           item.sgstRate + '%',
-          formatIndianCurrency(item.sgstAmount),
-          formatIndianCurrency(item.totalAmount)
+          formatNumForPDF(item.sgstAmount),
+          formatNumForPDF(item.totalAmount)
         ];
       }
     });
@@ -743,30 +756,30 @@ const InvoiceGeneration = ({ user }) => {
     doc.text('Tax Summary:', margin + 2, finalY);
     
     doc.setFont('helvetica', 'normal');
-    const totalsX = pageWidth - margin - 70;
+    const totalsX = pageWidth - margin - 75;
     let totalsY = finalY;
     
     doc.text('Total Taxable Value:', totalsX, totalsY);
-    doc.text(formatIndianCurrency(invoice.totalTaxableValue), pageWidth - margin - 2, totalsY, { align: 'right' });
+    doc.text('Rs. ' + formatNumForPDF(invoice.totalTaxableValue), pageWidth - margin - 2, totalsY, { align: 'right' });
     
     if (interState) {
       totalsY += 6;
       doc.text('Total IGST:', totalsX, totalsY);
-      doc.text(formatIndianCurrency(invoice.totalIGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalIGST), pageWidth - margin - 2, totalsY, { align: 'right' });
     } else {
       totalsY += 6;
       doc.text('Total CGST:', totalsX, totalsY);
-      doc.text(formatIndianCurrency(invoice.totalCGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalCGST), pageWidth - margin - 2, totalsY, { align: 'right' });
       totalsY += 6;
       doc.text('Total SGST:', totalsX, totalsY);
-      doc.text(formatIndianCurrency(invoice.totalSGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalSGST), pageWidth - margin - 2, totalsY, { align: 'right' });
     }
     
     totalsY += 8;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('Grand Total:', totalsX, totalsY);
-    doc.text(formatIndianCurrency(invoice.grandTotal), pageWidth - margin - 2, totalsY, { align: 'right' });
+    doc.text('Rs. ' + formatNumForPDF(invoice.grandTotal), pageWidth - margin - 2, totalsY, { align: 'right' });
 
     // Amount in Words
     totalsY += 10;
