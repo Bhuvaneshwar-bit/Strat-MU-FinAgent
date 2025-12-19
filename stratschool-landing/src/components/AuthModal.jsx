@@ -108,6 +108,12 @@ const AuthModal = ({ isOpen, onClose, type, onSwitchType, onSignInSuccess, onSig
       console.log('📧 User data received:', data.user);
       
       if (data.success) {
+        // Store the JWT token in localStorage
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          console.log('🔐 Token stored in localStorage');
+        }
+        
         if (type === 'signin') {
           // Go directly to dashboard for existing users
           console.log('🔑 Calling onSignInSuccess with:', data.user);
