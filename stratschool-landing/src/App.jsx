@@ -51,6 +51,7 @@ function App() {
           const userPlDataKey = getUserPlDataKey(userId);
           
           let savedPlData = localStorage.getItem(userPlDataKey);
+          let localPlData = null;
           
           // Fallback to temp key
           if (!savedPlData) {
@@ -73,12 +74,19 @@ function App() {
           
           if (savedPlData) {
             console.log('📊 Found P&L data in localStorage (cache)');
-            setOnboardingData({ plData: JSON.parse(savedPlData) });
+            localPlData = JSON.parse(savedPlData);
+            setOnboardingData({ plData: localPlData });
           }
           
-          // Always try to fetch from database to ensure we have the latest data
-          if (token) {
-            console.log('🌐 Fetching P&L data from database...');
+          // Check if localStorage has good data (non-zero values)
+          const localHasGoodData = localPlData && (
+            (localPlData.analysisMetrics?.totalRevenue > 0 || localPlData.analysisMetrics?.totalExpenses > 0) ||
+            (localPlData.plStatement?.revenue?.totalRevenue > 0 || localPlData.plStatement?.expenses?.totalExpenses > 0)
+          );
+          
+          // Only fetch from database if localStorage is empty or has incomplete data
+          if (token && !localHasGoodData) {
+            console.log('🌐 Fetching P&L data from database (localStorage empty or incomplete)...');
             try {
               const response = await fetch(`${API_BASE_URL}/api/pl-statements/my-data`, {
                 headers: {
@@ -101,6 +109,8 @@ function App() {
             } catch (fetchError) {
               console.error('⚠️ Failed to fetch P&L from database, using localStorage cache');
             }
+          } else if (localHasGoodData) {
+            console.log('📊 Using localStorage cache (has good data)');
           }
           
           setShowDashboard(true);
@@ -145,6 +155,7 @@ function App() {
     // Load user-specific P&L data
     const userPlDataKey = getUserPlDataKey(userData._id || userData.id || userData.email);
     let savedPlData = localStorage.getItem(userPlDataKey);
+    let localPlData = null;
     
     // Check for temp plData (saved during signup when user was null)
     if (!savedPlData) {
@@ -163,16 +174,22 @@ function App() {
     if (savedPlData) {
       try {
         console.log('📊 Loading P&L data from localStorage cache');
-        setOnboardingData({ plData: JSON.parse(savedPlData) });
+        localPlData = JSON.parse(savedPlData);
+        setOnboardingData({ plData: localPlData });
       } catch (e) {
         console.error('Failed to load saved P&L data');
       }
     }
     
-    // ALWAYS try to fetch from database to ensure we have the latest data
+    // Only fetch from database if localStorage is empty or has incomplete data
     const token = localStorage.getItem('token');
-    if (token) {
-      console.log('🌐 Fetching P&L data from database after sign-in...');
+    const localHasGoodData = localPlData && (
+      (localPlData.analysisMetrics?.totalRevenue > 0 || localPlData.analysisMetrics?.totalExpenses > 0) ||
+      (localPlData.plStatement?.revenue?.totalRevenue > 0 || localPlData.plStatement?.expenses?.totalExpenses > 0)
+    );
+    
+    if (token && !localHasGoodData) {
+      console.log('🌐 Fetching P&L data from database (localStorage empty or incomplete)...');
       try {
         const response = await fetch(`${API_BASE_URL}/api/pl-statements/my-data`, {
           headers: {
