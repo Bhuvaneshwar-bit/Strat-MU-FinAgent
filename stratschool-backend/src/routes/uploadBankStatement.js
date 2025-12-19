@@ -12,6 +12,7 @@ const { processPdf, deleteTempFile } = require('../utils/aws/decryptPdf');
 const { analyzeDocumentFromBufferComplete } = require('../utils/aws/textractHandler');
 const { parseBankStatement } = require('../utils/aws/parseBankStatement');
 const authenticate = require('../middleware/auth');
+const PLStatement = require('../models/PLStatement');
 
 // Configure multer for memory storage (no disk writes)
 const upload = multer({
@@ -179,6 +180,149 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
     console.log(`   Total Credits: ₹${bankStatement.summary?.total_credits || 0}`);
     console.log(`   Total Debits: ₹${bankStatement.summary?.total_debits || 0}`);
     console.log('='.repeat(60) + '\n');
+    
+    // 🔥 SAVE TO DATABASE FOR CROSS-DEVICE SYNC
+    console.log('💾 Saving to database for cross-device sync...');
+    try {
+      const userId = req.user?.userId || req.body?.userId || 'anonymous-user';
+      console.log(`   User ID: ${userId}`);
+      
+      // Calculate financial metrics from bank statement
+      const totalRevenue = bankStatement.summary?.total_credits || 0;
+      const totalExpenses = bankStatement.summary?.total_debits || 0;
+      const netIncome = totalRevenue - totalExpenses;
+      const transactionCount = bankStatement.transactions?.length || 0;
+      
+      // Categorize transactions for P&L breakdown (as arrays for schema)
+      const revenueCategories = [];
+      const expenseCategories = [];
+      const categoryTotals = {};
+      
+      if (bankStatement.transactions && Array.isArray(bankStatement.transactions)) {
+        bankStatement.transactions.forEach(txn => {
+          const category = txn.category || 'Uncategorized';
+          const amount = Math.abs(parseFloat(txn.amount) || 0);
+          
+          if (!categoryTotals[category]) {
+            categoryTotals[category] = { credits: 0, debits: 0, transactions: [] };
+          }
+          
+          if (txn.type === 'credit' || parseFloat(txn.amount) > 0) {
+            categoryTotals[category].credits += amount;
+          } else {
+            categoryTotals[category].debits += amount;
+          }
+          categoryTotals[category].transactions.push(txn);
+        });
+        
+        // Convert to arrays for schema
+        Object.entries(categoryTotals).forEach(([category, data]) => {
+          if (data.credits > 0) {
+            revenueCategories.push({ category, amount: data.credits, transactions: data.transactions.filter(t => t.type === 'credit') });
+          }
+          if (data.debits > 0) {
+            expenseCategories.push({ category, amount: data.debits, transactions: data.transactions.filter(t => t.type === 'debit') });
+          }
+        });
+      }
+      
+      // Create P&L statement document matching the schema
+      const plData = {
+        userId: userId,
+        period: 'Monthly',
+        status: 'completed',
+        
+        // Raw bank data
+        rawBankData: {
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          uploadDate: new Date(),
+          transactionCount: transactionCount
+        },
+        
+        // Analysis (matches schema)
+        analysis: {
+          period: 'Monthly',
+          totalRevenue: totalRevenue,
+          totalExpenses: totalExpenses,
+          netIncome: netIncome,
+          transactionCount: transactionCount
+        },
+        
+        // Revenue breakdown (array format for schema)
+        revenue: revenueCategories,
+        
+        // Expenses breakdown (array format for schema)
+        expenses: expenseCategories,
+        
+        // Profit Loss Statement (matches schema)
+        profitLossStatement: {
+          revenue: {
+            totalRevenue: totalRevenue,
+            breakdown: Object.fromEntries(revenueCategories.map(r => [r.category, r.amount])),
+            revenueStreams: revenueCategories.map(r => ({ name: r.category, category: r.category, amount: r.amount }))
+          },
+          expenses: {
+            totalExpenses: totalExpenses,
+            breakdown: Object.fromEntries(expenseCategories.map(e => [e.category, e.amount])),
+            expenseCategories: expenseCategories.map(e => ({ name: e.category, category: e.category, amount: e.amount }))
+          },
+          profitability: {
+            netIncome: netIncome,
+            grossProfit: netIncome,
+            profitMargin: totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0,
+            netProfitMargin: totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0
+          }
+        },
+        
+        // Store for Dashboard compatibility (rawAnalysis is flexible Mixed type)
+        rawAnalysis: {
+          analysisMetrics: {
+            totalRevenue: totalRevenue,
+            totalExpenses: totalExpenses,
+            netProfit: netIncome,
+            transactionCount: transactionCount,
+            profitMargin: totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(2) + '%' : '0%',
+            burnRate: totalExpenses,
+            runway: totalExpenses > 0 ? Math.floor(netIncome / totalExpenses) : 0
+          },
+          plStatement: {
+            revenue: {
+              total: totalRevenue,
+              categories: revenueCategories.map(r => ({ name: r.category, amount: r.amount }))
+            },
+            expenses: {
+              total: totalExpenses,
+              categories: expenseCategories.map(e => ({ name: e.category, amount: e.amount }))
+            },
+            netIncome: netIncome
+          },
+          transactions: bankStatement.transactions || []
+        },
+        
+        // Metadata
+        metadata: {
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          analysisType: 'AWS-Textract',
+          aiModel: 'textract',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      };
+      
+      // Upsert - update if exists for this user, create if not
+      const savedPL = await PLStatement.findOneAndUpdate(
+        { userId: userId },
+        plData,
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      
+      console.log(`✅ Saved to database! Document ID: ${savedPL._id}`);
+    } catch (dbError) {
+      console.error('⚠️ Database save failed (non-fatal):', dbError.message);
+      // Don't fail the whole request if DB save fails - still return data to frontend
+    }
     
     return res.status(200).json({
       success: true,

@@ -336,35 +336,64 @@ router.get('/my-data', authenticate, async (req, res) => {
     
     // Format the data to match what the frontend Dashboard expects
     // Dashboard looks for: plData.analysisMetrics, plData.plStatement, plData.insights
+    
+    // Check if we have rawAnalysis with the Dashboard-compatible format (from new uploads)
+    const hasRawAnalysisFormat = latestStatement.rawAnalysis?.analysisMetrics;
+    
     const plData = {
       // Analysis metrics - Dashboard looks for plData.analysisMetrics.totalRevenue etc
-      analysisMetrics: {
-        totalRevenue: latestStatement.analysis?.totalRevenue || 0,
-        totalExpenses: latestStatement.analysis?.totalExpenses || 0,
-        netIncome: latestStatement.analysis?.netIncome || 0,
-        transactionCount: latestStatement.analysis?.transactionCount || 0
-      },
+      analysisMetrics: hasRawAnalysisFormat 
+        ? latestStatement.rawAnalysis.analysisMetrics 
+        : {
+            totalRevenue: latestStatement.analysis?.totalRevenue || 0,
+            totalExpenses: latestStatement.analysis?.totalExpenses || 0,
+            netIncome: latestStatement.analysis?.netIncome || 0,
+            netProfit: latestStatement.analysis?.netIncome || 0,
+            transactionCount: latestStatement.analysis?.transactionCount || 0,
+            profitMargin: latestStatement.analysis?.totalRevenue > 0 
+              ? ((latestStatement.analysis?.netIncome || 0) / latestStatement.analysis.totalRevenue * 100).toFixed(2) + '%'
+              : '0%',
+            burnRate: latestStatement.analysis?.totalExpenses || 0,
+            runway: latestStatement.analysis?.totalExpenses > 0 
+              ? Math.floor((latestStatement.analysis?.netIncome || 0) / latestStatement.analysis.totalExpenses)
+              : 0
+          },
       
-      // Full P&L statement - Dashboard looks for plData.plStatement.revenue.totalRevenue etc
-      plStatement: latestStatement.profitLossStatement || {
-        revenue: {
-          totalRevenue: latestStatement.analysis?.totalRevenue || 0,
-          revenueStreams: latestStatement.revenue || []
-        },
-        expenses: {
-          totalExpenses: latestStatement.analysis?.totalExpenses || 0,
-          expenseCategories: latestStatement.expenses || []
-        },
-        profitability: {
-          netIncome: latestStatement.analysis?.netIncome || 0,
-          netProfitMargin: latestStatement.analysis?.totalRevenue > 0 
-            ? ((latestStatement.analysis?.netIncome || 0) / latestStatement.analysis.totalRevenue * 100).toFixed(2)
-            : 0
-        }
-      },
+      // Full P&L statement - Dashboard looks for plData.plStatement.revenue.total etc
+      plStatement: hasRawAnalysisFormat 
+        ? latestStatement.rawAnalysis.plStatement 
+        : {
+            revenue: {
+              total: latestStatement.profitLossStatement?.revenue?.totalRevenue || latestStatement.analysis?.totalRevenue || 0,
+              totalRevenue: latestStatement.profitLossStatement?.revenue?.totalRevenue || latestStatement.analysis?.totalRevenue || 0,
+              categories: (latestStatement.profitLossStatement?.revenue?.revenueStreams || latestStatement.revenue || []).map(r => ({
+                name: r.name || r.category,
+                amount: r.amount || 0
+              })),
+              revenueStreams: latestStatement.profitLossStatement?.revenue?.revenueStreams || latestStatement.revenue || []
+            },
+            expenses: {
+              total: latestStatement.profitLossStatement?.expenses?.totalExpenses || latestStatement.analysis?.totalExpenses || 0,
+              totalExpenses: latestStatement.profitLossStatement?.expenses?.totalExpenses || latestStatement.analysis?.totalExpenses || 0,
+              categories: (latestStatement.profitLossStatement?.expenses?.expenseCategories || latestStatement.expenses || []).map(e => ({
+                name: e.name || e.category,
+                amount: e.amount || 0
+              })),
+              expenseCategories: latestStatement.profitLossStatement?.expenses?.expenseCategories || latestStatement.expenses || []
+            },
+            netIncome: latestStatement.profitLossStatement?.profitability?.netIncome || latestStatement.analysis?.netIncome || 0,
+            profitability: latestStatement.profitLossStatement?.profitability || {
+              netIncome: latestStatement.analysis?.netIncome || 0,
+              netProfitMargin: latestStatement.analysis?.totalRevenue > 0 
+                ? ((latestStatement.analysis?.netIncome || 0) / latestStatement.analysis.totalRevenue * 100).toFixed(2)
+                : 0
+            }
+          },
       
-      // Transactions for the transaction list
-      transactions: [],
+      // Transactions for the transaction list (from rawAnalysis or empty)
+      transactions: hasRawAnalysisFormat 
+        ? latestStatement.rawAnalysis.transactions || []
+        : [],
       
       // Insights and recommendations
       insights: latestStatement.insights || [],
