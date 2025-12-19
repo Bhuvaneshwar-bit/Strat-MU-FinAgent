@@ -695,40 +695,43 @@ const InvoiceGeneration = ({ user }) => {
       headStyles: {
         fillColor: [255, 204, 41],
         textColor: [7, 10, 18],
-        fontSize: 7,
+        fontSize: 6.5,
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
+        cellPadding: 2
       },
       bodyStyles: {
-        fontSize: 7,
-        textColor: [31, 41, 55]
+        fontSize: 6.5,
+        textColor: [31, 41, 55],
+        cellPadding: 2
       },
       columnStyles: interState ? {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 18, halign: 'center' },
-        3: { cellWidth: 12, halign: 'center' },
-        4: { cellWidth: 12, halign: 'center' },
-        5: { cellWidth: 20, halign: 'right' },
-        6: { cellWidth: 22, halign: 'right' },
-        7: { cellWidth: 14, halign: 'center' },
-        8: { cellWidth: 20, halign: 'right' },
-        9: { cellWidth: 22, halign: 'right' }
+        0: { cellWidth: 12, halign: 'center' },  // S.No
+        1: { cellWidth: 35 },                     // Description
+        2: { cellWidth: 18, halign: 'center' },   // HSN/SAC
+        3: { cellWidth: 12, halign: 'center' },   // Qty
+        4: { cellWidth: 14, halign: 'center' },   // Unit
+        5: { cellWidth: 22, halign: 'right' },    // Rate
+        6: { cellWidth: 25, halign: 'right' },    // Taxable Value
+        7: { cellWidth: 14, halign: 'center' },   // IGST %
+        8: { cellWidth: 22, halign: 'right' },    // IGST Amt
+        9: { cellWidth: 25, halign: 'right' }     // Total
       } : {
-        0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 32 },
-        2: { cellWidth: 14, halign: 'center' },
-        3: { cellWidth: 10, halign: 'center' },
-        4: { cellWidth: 10, halign: 'center' },
-        5: { cellWidth: 16, halign: 'right' },
-        6: { cellWidth: 18, halign: 'right' },
-        7: { cellWidth: 12, halign: 'center' },
-        8: { cellWidth: 16, halign: 'right' },
-        9: { cellWidth: 12, halign: 'center' },
-        10: { cellWidth: 16, halign: 'right' },
-        11: { cellWidth: 18, halign: 'right' }
+        0: { cellWidth: 10, halign: 'center' },   // S.No
+        1: { cellWidth: 28 },                      // Description
+        2: { cellWidth: 14, halign: 'center' },   // HSN/SAC
+        3: { cellWidth: 10, halign: 'center' },   // Qty
+        4: { cellWidth: 12, halign: 'center' },   // Unit
+        5: { cellWidth: 18, halign: 'right' },    // Rate
+        6: { cellWidth: 20, halign: 'right' },    // Taxable Value
+        7: { cellWidth: 12, halign: 'center' },   // CGST %
+        8: { cellWidth: 18, halign: 'right' },    // CGST
+        9: { cellWidth: 12, halign: 'center' },   // SGST %
+        10: { cellWidth: 18, halign: 'right' },   // SGST
+        11: { cellWidth: 20, halign: 'right' }    // Total
       },
-      margin: { left: margin, right: margin }
+      margin: { left: margin, right: margin },
+      tableWidth: 'auto'
     });
 
     // Totals Section
