@@ -224,13 +224,38 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     const creditTransactions = allTransactions.filter(t => t.amount > 0 || t.category?.type === 'revenue');
     const debitTransactions = allTransactions.filter(t => t.amount < 0 || t.category?.type === 'expenses');
 
+    // Use ?? instead of || for numeric values to handle negative numbers correctly
+    const totalRevenue = plData.analysisMetrics?.totalRevenue ?? plData.plStatement?.revenue?.totalRevenue ?? plData.plStatement?.revenue?.total ?? 0;
+    const totalExpenses = plData.analysisMetrics?.totalExpenses ?? plData.plStatement?.expenses?.totalExpenses ?? plData.plStatement?.expenses?.total ?? 0;
+    
+    // Calculate net profit - can be negative!
+    let netProfit = plData.analysisMetrics?.netIncome ?? plData.analysisMetrics?.netProfit ?? plData.plStatement?.profitability?.netIncome ?? plData.plStatement?.netIncome ?? null;
+    
+    // If netProfit is still null, calculate it from revenue - expenses
+    if (netProfit === null) {
+      netProfit = totalRevenue - totalExpenses;
+    }
+    
+    // Calculate profit margin - can be negative!
+    let profitMargin = plData.plStatement?.profitability?.netProfitMargin ?? plData.analysisMetrics?.profitMargin ?? null;
+    if (profitMargin === null && totalRevenue > 0) {
+      profitMargin = ((netProfit / totalRevenue) * 100).toFixed(2);
+    } else if (profitMargin === null) {
+      profitMargin = 0;
+    }
+    
+    // Parse profitMargin if it's a string with %
+    if (typeof profitMargin === 'string') {
+      profitMargin = parseFloat(profitMargin.replace('%', '')) || 0;
+    }
+
     return {
-      totalRevenue: plData.analysisMetrics?.totalRevenue || plData.plStatement?.revenue?.totalRevenue || 0,
-      totalExpenses: plData.analysisMetrics?.totalExpenses || plData.plStatement?.expenses?.totalExpenses || 0,
-      netProfit: plData.analysisMetrics?.netIncome || plData.plStatement?.profitability?.netIncome || 0,
-      profitMargin: plData.plStatement?.profitability?.netProfitMargin || 0,
-      revenueBreakdown: plData.plStatement?.revenue?.revenueStreams || [],
-      expenseBreakdown: plData.plStatement?.expenses?.expenseCategories || [],
+      totalRevenue,
+      totalExpenses,
+      netProfit,
+      profitMargin,
+      revenueBreakdown: plData.plStatement?.revenue?.revenueStreams || plData.plStatement?.revenue?.categories || [],
+      expenseBreakdown: plData.plStatement?.expenses?.expenseCategories || plData.plStatement?.expenses?.categories || [],
       insights: plData.insights || [],
       transactions: allTransactions,
       creditTransactions,
