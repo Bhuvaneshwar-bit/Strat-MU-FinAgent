@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -17,8 +17,15 @@ import {
   FileText,
   Package,
   Truck,
-  CreditCard
+  CreditCard,
+  History,
+  Eye,
+  ChevronLeft,
+  RefreshCw,
+  Search,
+  Filter
 } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 import '../styles/InvoiceGeneration.css';
 
 // Indian States for Place of Supply
@@ -181,6 +188,68 @@ const InvoiceGeneration = ({ user }) => {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  // Invoice History State
+  const [activeTab, setActiveTab] = useState('create'); // 'create' or 'history'
+  const [invoiceHistory, setInvoiceHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  // Fetch invoice history on component mount and when switching to history tab
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchInvoiceHistory();
+    }
+  }, [activeTab]);
+
+  // Fetch invoice history from API
+  const fetchInvoiceHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/gst-invoices?search=${searchTerm}&status=${statusFilter}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setInvoiceHistory(data.invoices);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice history:', error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Save invoice to database
+  const saveInvoiceToDatabase = async (invoicePayload) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/gst-invoices`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(invoicePayload)
+      });
+      
+      const data = await response.json();
+      if (!data.success) {
+        console.error('Failed to save invoice:', data.error);
+      }
+      return data;
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   // Check if intra-state or inter-state supply
   const isInterState = () => {
@@ -365,13 +434,59 @@ const InvoiceGeneration = ({ user }) => {
     
     setLoading(true);
     try {
+      // Prepare invoice payload for saving
+      const invoicePayload = {
+        ...invoiceData,
+        supplyType: isInterState() ? 'inter-state' : 'intra-state',
+        amountInWords: numberToIndianWords(invoiceData.grandTotal)
+      };
+      
+      // Save to database
+      const saveResult = await saveInvoiceToDatabase(invoicePayload);
+      
+      // Generate and download PDF
       await generateGSTPDF(invoiceData);
-      alert('GST Invoice generated and downloaded successfully!');
+      
+      if (saveResult.success) {
+        alert('GST Invoice generated, downloaded, and saved successfully!');
+      } else {
+        alert('GST Invoice generated and downloaded! (Note: Could not save to history)');
+      }
     } catch (error) {
       console.error('Error generating invoice:', error);
       alert('Error generating invoice. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // View invoice details from history
+  const viewInvoiceDetails = async (invoiceId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/gst-invoices/${invoiceId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSelectedInvoice(data.invoice);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+    }
+  };
+
+  // Re-download invoice from history
+  const redownloadInvoice = async (invoice) => {
+    try {
+      await generateGSTPDF(invoice);
+    } catch (error) {
+      console.error('Error re-downloading invoice:', error);
+      alert('Error downloading invoice. Please try again.');
     }
   };
 
@@ -657,17 +772,179 @@ const InvoiceGeneration = ({ user }) => {
           </div>
         </div>
         <div className="header-actions">
-          <button 
-            className="primary-button"
-            onClick={generateInvoice}
-            disabled={loading}
-          >
-            <Download className="button-icon" />
-            {loading ? 'Generating...' : 'Generate Invoice'}
-          </button>
+          <div className="tab-buttons">
+            <button 
+              className={`tab-button ${activeTab === 'create' ? 'active' : ''}`}
+              onClick={() => setActiveTab('create')}
+            >
+              <Plus className="button-icon" />
+              Create New
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              <History className="button-icon" />
+              Invoice History
+            </button>
+          </div>
+          {activeTab === 'create' && (
+            <button 
+              className="primary-button"
+              onClick={generateInvoice}
+              disabled={loading}
+            >
+              <Download className="button-icon" />
+              {loading ? 'Generating...' : 'Generate Invoice'}
+            </button>
+          )}
         </div>
       </div>
 
+      {/* History Tab */}
+      {activeTab === 'history' && (
+        <div className="invoice-history-section">
+          {selectedInvoice ? (
+            <div className="invoice-detail-view">
+              <button className="back-button" onClick={() => setSelectedInvoice(null)}>
+                <ChevronLeft /> Back to List
+              </button>
+              <div className="invoice-detail-card">
+                <div className="detail-header">
+                  <h3>Invoice #{selectedInvoice.invoiceNumber}</h3>
+                  <span className={`status-badge ${selectedInvoice.status}`}>{selectedInvoice.status}</span>
+                </div>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <label>Buyer</label>
+                    <span>{selectedInvoice.buyerName}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Invoice Date</label>
+                    <span>{new Date(selectedInvoice.invoiceDate).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Due Date</label>
+                    <span>{new Date(selectedInvoice.dueDate).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Supply Type</label>
+                    <span>{selectedInvoice.supplyType}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Taxable Value</label>
+                    <span>{formatIndianCurrency(selectedInvoice.totalTaxableValue)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Total Tax</label>
+                    <span>{formatIndianCurrency(selectedInvoice.totalTax)}</span>
+                  </div>
+                  <div className="detail-item grand-total">
+                    <label>Grand Total</label>
+                    <span>{formatIndianCurrency(selectedInvoice.grandTotal)}</span>
+                  </div>
+                </div>
+                <button 
+                  className="primary-button"
+                  onClick={() => redownloadInvoice(selectedInvoice)}
+                >
+                  <Download className="button-icon" /> Download PDF
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="history-controls">
+                <div className="search-box">
+                  <Search className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search invoices..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="filter-box">
+                  <Filter className="filter-icon" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="sent">Sent</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <button className="refresh-button" onClick={fetchInvoiceHistory}>
+                  <RefreshCw className={historyLoading ? 'spinning' : ''} />
+                </button>
+              </div>
+
+              {historyLoading ? (
+                <div className="history-loading">
+                  <RefreshCw className="spinning" />
+                  <p>Loading invoices...</p>
+                </div>
+              ) : invoiceHistory.length === 0 ? (
+                <div className="no-invoices">
+                  <Receipt className="empty-icon" />
+                  <h3>No Invoices Yet</h3>
+                  <p>Create your first GST invoice to see it here</p>
+                  <button 
+                    className="primary-button"
+                    onClick={() => setActiveTab('create')}
+                  >
+                    <Plus className="button-icon" /> Create Invoice
+                  </button>
+                </div>
+              ) : (
+                <div className="invoice-history-table">
+                  <div className="history-table-header">
+                    <div className="col-inv">Invoice #</div>
+                    <div className="col-date">Date</div>
+                    <div className="col-buyer">Buyer</div>
+                    <div className="col-amount">Amount</div>
+                    <div className="col-status">Status</div>
+                    <div className="col-actions">Actions</div>
+                  </div>
+                  {invoiceHistory.map(inv => (
+                    <div key={inv._id} className="history-table-row">
+                      <div className="col-inv">{inv.invoiceNumber}</div>
+                      <div className="col-date">{new Date(inv.invoiceDate).toLocaleDateString('en-IN')}</div>
+                      <div className="col-buyer">{inv.buyerName}</div>
+                      <div className="col-amount">{formatIndianCurrency(inv.grandTotal)}</div>
+                      <div className="col-status">
+                        <span className={`status-badge ${inv.status}`}>{inv.status}</span>
+                      </div>
+                      <div className="col-actions">
+                        <button 
+                          className="action-btn view"
+                          onClick={() => viewInvoiceDetails(inv._id)}
+                          title="View Details"
+                        >
+                          <Eye />
+                        </button>
+                        <button 
+                          className="action-btn download"
+                          onClick={() => viewInvoiceDetails(inv._id).then(() => redownloadInvoice(inv))}
+                          title="Download PDF"
+                        >
+                          <Download />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Create Invoice Tab */}
+      {activeTab === 'create' && (
       <div className="invoice-form">
         {/* Invoice Details Section */}
         <div className="form-section">
@@ -1196,6 +1473,7 @@ const InvoiceGeneration = ({ user }) => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
