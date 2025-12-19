@@ -137,7 +137,7 @@ function App() {
   };
 
   // Called after successful sign IN (existing user) - go directly to dashboard
-  const handleSignInSuccess = (userData) => {
+  const handleSignInSuccess = async (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData)); // Persist user
     setIsAuthModalOpen(false);
@@ -157,17 +157,51 @@ function App() {
       }
     }
     
+    // Show dashboard immediately (will show loading or empty state)
+    setShowDashboard(true);
+    
     if (savedPlData) {
       try {
+        console.log('📊 Loading P&L data from localStorage cache');
         setOnboardingData({ plData: JSON.parse(savedPlData) });
       } catch (e) {
         console.error('Failed to load saved P&L data');
       }
-    } else {
-      // No saved data for this user - clear any previous data
-      setOnboardingData(null);
     }
-    setShowDashboard(true); // Go directly to dashboard for existing users
+    
+    // ALWAYS try to fetch from database to ensure we have the latest data
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('🌐 Fetching P&L data from database after sign-in...');
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pl-statements/my-data`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📥 Database response:', data);
+          if (data.success && data.hasData) {
+            console.log('✅ Found P&L data in database, syncing...');
+            setOnboardingData({ plData: data.plData });
+            // Update localStorage cache
+            localStorage.setItem(userPlDataKey, JSON.stringify(data.plData));
+          } else {
+            console.log('📊 No P&L data found in database for this user');
+            if (!savedPlData) {
+              setOnboardingData(null);
+            }
+          }
+        } else {
+          console.log('⚠️ Failed to fetch from database, status:', response.status);
+        }
+      } catch (fetchError) {
+        console.error('⚠️ Failed to fetch P&L from database:', fetchError);
+      }
+    }
   };
 
   // Called after successful sign UP (new user) - show questionnaire
