@@ -37,7 +37,21 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
   
   try {
     const { period, businessInfo } = req.body;
-    const userId = 'test-user-id'; // For testing without auth
+    
+    // Get userId from Authorization header if present
+    let userId = 'anonymous-user';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'stratschool_jwt_secret_key_2025_super_secure_random_string');
+        userId = decoded.userId;
+        console.log('🔐 Authenticated user for P&L:', userId);
+      } catch (e) {
+        console.log('⚠️ Token verification failed, using anonymous user');
+      }
+    }
     
     if (!req.file) {
       return res.status(400).json({ 
@@ -262,6 +276,72 @@ router.post('/chat', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to generate AI response',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get user's latest/current P&L data - used to sync across devices
+router.get('/my-data', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log('📊 Fetching P&L data for user:', userId);
+    
+    // Get the most recent P&L statement for this user
+    const latestStatement = await PLStatement.findOne({ userId })
+      .sort({ 'metadata.createdAt': -1, createdAt: -1 })
+      .select('-__v');
+    
+    if (!latestStatement) {
+      console.log('📊 No P&L data found for user:', userId);
+      return res.json({
+        success: true,
+        hasData: false,
+        message: 'No financial data found for this user'
+      });
+    }
+    
+    console.log('✅ Found P&L data for user, statement ID:', latestStatement._id);
+    
+    // Format the data to match what the frontend expects (plData format)
+    const plData = {
+      // Analysis summary
+      totalRevenue: latestStatement.analysis?.totalRevenue || 0,
+      totalExpenses: latestStatement.analysis?.totalExpenses || 0,
+      netIncome: latestStatement.analysis?.netIncome || 0,
+      transactionCount: latestStatement.analysis?.transactionCount || 0,
+      
+      // Breakdown data
+      revenue: latestStatement.revenue || [],
+      expenses: latestStatement.expenses || [],
+      
+      // Full P&L statement
+      profitLossStatement: latestStatement.profitLossStatement || {},
+      
+      // Insights and recommendations
+      insights: latestStatement.insights || [],
+      recommendations: latestStatement.recommendations || [],
+      executiveSummary: latestStatement.executiveSummary || '',
+      
+      // Metadata
+      period: latestStatement.period,
+      statementId: latestStatement._id,
+      lastUpdated: latestStatement.metadata?.updatedAt || latestStatement.createdAt,
+      fileName: latestStatement.rawBankData?.fileName || 'Unknown'
+    };
+    
+    return res.json({
+      success: true,
+      hasData: true,
+      plData,
+      statementId: latestStatement._id
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching user P&L data:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch financial data',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

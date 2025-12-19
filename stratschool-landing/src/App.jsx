@@ -10,6 +10,7 @@ import BookDemoModal from './components/BookDemoModal';
 import AuthModal from './components/AuthModal';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import Dashboard from './components/Dashboard';
+import { API_BASE_URL } from './config/api';
 import './App.css';
 
 function App() {
@@ -35,52 +36,82 @@ function App() {
 
   // Check for existing user session on app load
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        console.log('🔄 Restoring user session for:', userData.email);
-        setUser(userData);
-        
-        // Load P&L data - check user-specific key first, then temp, then global
-        const userId = userData._id || userData.id || userData.email;
-        const userPlDataKey = getUserPlDataKey(userId);
-        
-        let savedPlData = localStorage.getItem(userPlDataKey);
-        
-        // Fallback to temp key
-        if (!savedPlData) {
-          savedPlData = localStorage.getItem('plData_temp');
-          if (savedPlData) {
-            console.log('📦 Migrating temp plData to user key');
-            localStorage.setItem(userPlDataKey, savedPlData);
+    const restoreSession = async () => {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          console.log('🔄 Restoring user session for:', userData.email);
+          setUser(userData);
+          
+          // Load P&L data - first check localStorage (cache), then fetch from database
+          const userId = userData._id || userData.id || userData.email;
+          const userPlDataKey = getUserPlDataKey(userId);
+          
+          let savedPlData = localStorage.getItem(userPlDataKey);
+          
+          // Fallback to temp key
+          if (!savedPlData) {
+            savedPlData = localStorage.getItem('plData_temp');
+            if (savedPlData) {
+              console.log('📦 Migrating temp plData to user key');
+              localStorage.setItem(userPlDataKey, savedPlData);
+            }
           }
-        }
-        
-        // Fallback to global key (legacy)
-        if (!savedPlData) {
-          savedPlData = localStorage.getItem('plData');
-          if (savedPlData) {
-            console.log('📦 Migrating global plData to user key');
-            localStorage.setItem(userPlDataKey, savedPlData);
-            localStorage.removeItem('plData');
+          
+          // Fallback to global key (legacy)
+          if (!savedPlData) {
+            savedPlData = localStorage.getItem('plData');
+            if (savedPlData) {
+              console.log('📦 Migrating global plData to user key');
+              localStorage.setItem(userPlDataKey, savedPlData);
+              localStorage.removeItem('plData');
+            }
           }
+          
+          if (savedPlData) {
+            console.log('📊 Found P&L data in localStorage (cache)');
+            setOnboardingData({ plData: JSON.parse(savedPlData) });
+          }
+          
+          // Always try to fetch from database to ensure we have the latest data
+          if (token) {
+            console.log('🌐 Fetching P&L data from database...');
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/pl-statements/my-data`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.hasData) {
+                  console.log('✅ Found P&L data in database, syncing...');
+                  setOnboardingData({ plData: data.plData });
+                  // Update localStorage cache
+                  localStorage.setItem(userPlDataKey, JSON.stringify(data.plData));
+                } else if (!savedPlData) {
+                  console.log('📊 No P&L data found in database or localStorage');
+                }
+              }
+            } catch (fetchError) {
+              console.error('⚠️ Failed to fetch P&L from database, using localStorage cache');
+            }
+          }
+          
+          setShowDashboard(true);
+        } catch (e) {
+          console.error('Failed to restore user session');
+          localStorage.removeItem('user');
         }
-        
-        if (savedPlData) {
-          console.log('📊 Found P&L data for user');
-          setOnboardingData({ plData: JSON.parse(savedPlData) });
-        } else {
-          console.log('📊 No P&L data found for this user');
-        }
-        
-        setShowDashboard(true);
-      } catch (e) {
-        console.error('Failed to restore user session');
-        localStorage.removeItem('user');
       }
-    }
+    };
+    
+    restoreSession();
   }, []);
 
   const handleBookDemo = () => {

@@ -290,14 +290,20 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
 
       setProcessingStage('📊 Generating P&L statement and automated bookkeeping...');
 
+      // Get auth token for authenticated requests
+      const token = localStorage.getItem('token');
+      const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       // Call both APIs simultaneously
       const [plResponse, bookkeepingResponse] = await Promise.all([
         fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
           method: 'POST',
+          headers: authHeaders,
           body: formData
         }),
         fetch(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
           method: 'POST',
+          headers: authHeaders,
           body: bookkeepingFormData
         })
       ]);
