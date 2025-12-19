@@ -98,6 +98,12 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
+/* Keep highlight card yellow in dark mode */
+.about.dark .visual-card.highlight {
+  background: linear-gradient(135deg, #e6b800, #ffcc29);
+  border: none;
+}
+
 .visual-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
@@ -149,7 +155,8 @@
   color: #ededed;
 }
 
-.visual-card.highlight .card-header h3 {
+.visual-card.highlight .card-header h3,
+.about.dark .visual-card.highlight .card-header h3 {
   color: #070A12;
 }
 
@@ -163,7 +170,8 @@
   color: #c9d1d9;
 }
 
-.visual-card.highlight p {
+.visual-card.highlight p,
+.about.dark .visual-card.highlight p {
   color: rgba(7, 10, 18, 0.8);
 }
 
