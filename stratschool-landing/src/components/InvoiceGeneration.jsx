@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { 
   Plus, 
   Trash2, 
@@ -512,7 +512,7 @@ const InvoiceGeneration = ({ user }) => {
       }
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 115,
       head: tableColumns,
       body: tableData,
