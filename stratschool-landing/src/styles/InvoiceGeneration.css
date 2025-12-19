@@ -115,6 +115,39 @@
   font-weight: var(--font-weight-medium);
   color: var(--text-primary);
   margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* IFSC Lookup Styles */
+.ifsc-loading {
+  font-size: 0.75rem;
+  color: #D4AF37;
+  animation: pulse 1.5s infinite;
+}
+
+.ifsc-auto {
+  font-size: 0.7rem;
+  color: #22c55e;
+  font-weight: normal;
+}
+
+.ifsc-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.form-group input.input-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* Input Styles */

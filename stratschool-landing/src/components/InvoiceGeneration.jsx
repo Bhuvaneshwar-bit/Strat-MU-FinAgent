@@ -196,6 +196,8 @@ const InvoiceGeneration = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [ifscLoading, setIfscLoading] = useState(false);
+  const [ifscError, setIfscError] = useState('');
 
   // Fetch invoice history on component mount and when switching to history tab
   useEffect(() => {
@@ -229,6 +231,55 @@ const InvoiceGeneration = ({ user }) => {
       console.error('Error fetching invoice history:', error);
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  // IFSC Code Lookup - Auto-fetch bank details using Razorpay IFSC API
+  const lookupIFSC = async (ifscCode) => {
+    // Validate IFSC format (11 characters: first 4 letters, 5th is 0, last 6 alphanumeric)
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(ifscCode)) {
+      setIfscError('Invalid IFSC format');
+      return;
+    }
+
+    setIfscLoading(true);
+    setIfscError('');
+
+    try {
+      const response = await fetch(`https://ifsc.razorpay.com/${ifscCode}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setInvoiceData(prev => ({
+          ...prev,
+          bankName: data.BANK || prev.bankName,
+          branchName: data.BRANCH || prev.branchName
+        }));
+        setIfscError('');
+      } else if (response.status === 404) {
+        setIfscError('IFSC not found');
+      } else {
+        setIfscError('Lookup failed');
+      }
+    } catch (error) {
+      console.error('IFSC lookup error:', error);
+      setIfscError('Network error');
+    } finally {
+      setIfscLoading(false);
+    }
+  };
+
+  // Handle IFSC code change with auto-lookup
+  const handleIFSCChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setInvoiceData(prev => ({ ...prev, ifscCode: value }));
+    
+    // Auto-lookup when IFSC is 11 characters
+    if (value.length === 11) {
+      lookupIFSC(value);
+    } else {
+      setIfscError('');
     }
   };
 
@@ -1438,21 +1489,25 @@ const InvoiceGeneration = ({ user }) => {
               />
             </div>
             <div className="form-group">
-              <label>IFSC Code</label>
+              <label>IFSC Code {ifscLoading && <span className="ifsc-loading">🔍 Looking up...</span>}</label>
               <input
                 type="text"
                 value={invoiceData.ifscCode}
-                onChange={(e) => setInvoiceData(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
+                onChange={handleIFSCChange}
                 placeholder="SBIN0001234"
+                maxLength={11}
+                className={ifscError ? 'input-error' : ''}
               />
+              {ifscError && <span className="ifsc-error">{ifscError}</span>}
             </div>
             <div className="form-group">
-              <label>Branch Name</label>
+              <label>Branch Name {ifscLoading && <span className="ifsc-auto">(Auto-filling...)</span>}</label>
               <input
                 type="text"
                 value={invoiceData.branchName}
                 onChange={(e) => setInvoiceData(prev => ({ ...prev, branchName: e.target.value }))}
-                placeholder="Andheri West Branch"
+                placeholder="Auto-filled from IFSC"
+                readOnly={ifscLoading}
               />
             </div>
           </div>
