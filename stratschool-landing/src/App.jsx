@@ -287,6 +287,7 @@ function App() {
           onClose={() => setIsOnboardingOpen(false)}
           onComplete={handleOnboardingComplete}
           user={user}
+          darkMode={darkMode}
         />
       )}
     </div>

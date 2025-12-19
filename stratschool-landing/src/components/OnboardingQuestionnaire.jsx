@@ -4,7 +4,7 @@ import PasswordModal from './PasswordModal';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import '../styles/OnboardingQuestionnaire.css';
 
-const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser }) => {
+const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, darkMode = true }) => {
   // Get user from prop OR localStorage - localStorage is more reliable during long async operations
   const [storedUser, setStoredUser] = useState(null);
   
@@ -455,8 +455,8 @@ You can continue to see your results in the dashboard.`;
   // Show password modal if password-protected file detected
   if (showPasswordModal) {
     return (
-      <div className="onboarding-overlay">
-        <div className="onboarding-modal">
+      <div className={`onboarding-overlay ${darkMode ? 'dark' : ''}`}>
+        <div className={`onboarding-modal ${darkMode ? 'dark' : ''}`}>
           <div className="onboarding-header">
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: '100%' }}></div>
@@ -484,8 +484,8 @@ You can continue to see your results in the dashboard.`;
     console.log('Upload step rendered:', { uploadedFile: uploadedFile?.name, isProcessing });
     
     return (
-      <div className="onboarding-overlay">
-        <div className="onboarding-modal">
+      <div className={`onboarding-overlay ${darkMode ? 'dark' : ''}`}>
+        <div className={`onboarding-modal ${darkMode ? 'dark' : ''}`}>
           <div className="onboarding-header">
             <div className="progress-bar">
               <div 
@@ -640,8 +640,8 @@ You can continue to see your results in the dashboard.`;
 
   // Regular questionnaire flow
   return (
-    <div className="onboarding-overlay">
-      <div className="onboarding-modal">
+    <div className={`onboarding-overlay ${darkMode ? 'dark' : ''}`}>
+      <div className={`onboarding-modal ${darkMode ? 'dark' : ''}`}>
         <div className="onboarding-header">
           <div className="progress-bar">
             <div 

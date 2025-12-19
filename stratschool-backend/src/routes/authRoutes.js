@@ -27,8 +27,24 @@ router.post('/signup', async (req, res) => {
     
     await user.save();
     
+    // Generate JWT token for the new user (so they don't inherit old user's token)
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'stratschool_jwt_secret_key_2025_super_secure_random_string',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+    
     console.log('✅ User registered successfully:', email);
-    res.json({ success: true, message: 'User registered successfully' });
+    res.json({ 
+      success: true, 
+      message: 'User registered successfully',
+      token,
+      user: { 
+        firstName: user.firstName, 
+        lastName: user.lastName, 
+        email: user.email 
+      }
+    });
   } catch (error) {
     console.error('❌ Signup error:', error);
     res.json({ success: false, message: error.message });
