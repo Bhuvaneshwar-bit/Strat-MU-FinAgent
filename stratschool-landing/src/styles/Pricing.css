@@ -26,13 +26,18 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 204, 41, 0.15);
-  color: #ffcc29;
+  background: rgba(255, 204, 41, 0.2);
+  color: #b8860b;
   padding: 0.5rem 1rem;
   border-radius: 50px;
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
+}
+
+.pricing.dark .section-badge {
+  background: rgba(255, 204, 41, 0.15);
+  color: #ffcc29;
 }
 
 .badge-icon {
@@ -55,12 +60,12 @@
 .pricing-description {
   font-size: 1.25rem;
   line-height: 1.6;
-  color: #6b7280;
+  color: #4b5563;
   margin-bottom: 2.5rem;
 }
 
 .pricing.dark .pricing-description {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .billing-toggle {
@@ -73,12 +78,12 @@
 
 .billing-toggle span {
   font-weight: 600;
-  color: #6b7280;
+  color: #4b5563;
   transition: color 0.3s ease;
 }
 
 .pricing.dark .billing-toggle span {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .billing-toggle span.active {
@@ -240,12 +245,12 @@
 }
 
 .plan-subtitle {
-  color: #6b7280;
+  color: #4b5563;
   font-size: 0.875rem;
 }
 
 .pricing.dark .plan-subtitle {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .plan-pricing {
@@ -284,21 +289,21 @@
 
 .period {
   font-size: 1rem;
-  color: #6b7280;
+  color: #4b5563;
   font-weight: 500;
 }
 
 .pricing.dark .period {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .annual-price {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #4b5563;
 }
 
 .pricing.dark .annual-price {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .plan-cta {

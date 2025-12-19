@@ -70,7 +70,7 @@
 .nav-link {
   background: none;
   border: none;
-  color: #374151;
+  color: #1f2937;
   font-weight: 500;
   font-size: 1rem;
   cursor: pointer;
@@ -80,7 +80,7 @@
 }
 
 .header.dark .nav-link {
-  color: #a0a0a0;
+  color: #c9d1d9;
 }
 
 .nav-link:hover {
@@ -204,12 +204,12 @@
 
 .dropdown-item-desc {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #4b5563;
   line-height: 1.4;
 }
 
 .header.dark .dropdown-item-desc {
-  color: #8b949e;
+  color: #c9d1d9;
 }
 
 .header-auth {
