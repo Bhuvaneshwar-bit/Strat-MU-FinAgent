@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   BarChart3, 
   DollarSign, 
@@ -460,6 +462,375 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       }
     };
   }, [metrics.totalRevenue, metrics.totalExpenses, metrics.netProfit, metrics.transactions]);
+
+  // ============================================================
+  // PROFESSIONAL P&L STATEMENT PDF EXPORT (Indian Standard - Schedule III)
+  // ============================================================
+  const generatePLStatementPDF = () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPos = margin;
+
+    // Helper: Format currency in Indian format
+    const formatINR = (amount) => {
+      const num = parseFloat(amount) || 0;
+      const isNegative = num < 0;
+      const absNum = Math.abs(num);
+      const formatted = absNum.toLocaleString('en-IN', {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      });
+      return isNegative ? `(${formatted})` : formatted;
+    };
+
+    // Helper: Add horizontal line
+    const addLine = (y, color = [200, 200, 200]) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageWidth - margin, y);
+    };
+
+    // Helper: Add text with alignment
+    const addText = (text, x, y, options = {}) => {
+      const { align = 'left', fontSize = 10, fontStyle = 'normal', color = [0, 0, 0] } = options;
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', fontStyle);
+      doc.setTextColor(...color);
+      if (align === 'right') {
+        doc.text(text, x, y, { align: 'right' });
+      } else if (align === 'center') {
+        doc.text(text, x, y, { align: 'center' });
+      } else {
+        doc.text(text, x, y);
+      }
+    };
+
+    // Get company/user details
+    const companyName = user?.companyName || user?.businessName || `${user?.firstName || 'User'}'s Business`;
+    const statementPeriod = plData?.period || 'Monthly';
+    const currentDate = new Date();
+    const statementDate = currentDate.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+    
+    // Calculate period dates
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 1);
+    const periodString = `${startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} to ${endDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+
+    // ==================== HEADER SECTION ====================
+    // Company Name (Bold, Large)
+    addText(companyName.toUpperCase(), pageWidth / 2, yPos, {
+      align: 'center',
+      fontSize: 16,
+      fontStyle: 'bold',
+      color: [30, 30, 30]
+    });
+    yPos += 7;
+
+    // CIN/Registration (if available)
+    if (user?.cin || user?.registrationNumber) {
+      addText(`CIN: ${user.cin || user.registrationNumber}`, pageWidth / 2, yPos, {
+        align: 'center',
+        fontSize: 9,
+        color: [80, 80, 80]
+      });
+      yPos += 5;
+    }
+
+    // Address (if available)
+    if (user?.address || user?.city) {
+      const address = [user.address, user.city, user.state, user.pincode].filter(Boolean).join(', ');
+      addText(address, pageWidth / 2, yPos, {
+        align: 'center',
+        fontSize: 9,
+        color: [80, 80, 80]
+      });
+      yPos += 6;
+    }
+
+    // Statement Title
+    yPos += 3;
+    addText('STATEMENT OF PROFIT AND LOSS', pageWidth / 2, yPos, {
+      align: 'center',
+      fontSize: 13,
+      fontStyle: 'bold',
+      color: [0, 0, 0]
+    });
+    yPos += 6;
+
+    // Period
+    addText(`For the period ${periodString}`, pageWidth / 2, yPos, {
+      align: 'center',
+      fontSize: 10,
+      fontStyle: 'italic',
+      color: [60, 60, 60]
+    });
+    yPos += 4;
+
+    // Sub-header as per Schedule III
+    addText('(As per Schedule III of the Companies Act, 2013)', pageWidth / 2, yPos, {
+      align: 'center',
+      fontSize: 8,
+      color: [100, 100, 100]
+    });
+    yPos += 8;
+
+    addLine(yPos, [0, 0, 0]);
+    yPos += 6;
+
+    // ==================== P&L TABLE ====================
+    // Column headers
+    const col1 = margin;
+    const col2 = 100;
+    const col3 = pageWidth - margin;
+
+    addText('Particulars', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    addText('Note', col2, yPos, { fontSize: 10, fontStyle: 'bold', align: 'center' });
+    addText('Amount (₹)', col3, yPos, { fontSize: 10, fontStyle: 'bold', align: 'right' });
+    yPos += 4;
+    addLine(yPos, [0, 0, 0]);
+    yPos += 6;
+
+    // ========== I. REVENUE FROM OPERATIONS ==========
+    addText('I. Revenue from Operations', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    yPos += 6;
+
+    // Revenue breakdown
+    const revenueCategories = metrics.revenueBreakdown || [];
+    let totalRevenueFromOps = 0;
+
+    if (revenueCategories.length > 0) {
+      revenueCategories.forEach((cat, idx) => {
+        const name = cat.name || cat.category || `Revenue Stream ${idx + 1}`;
+        const amount = parseFloat(cat.amount) || 0;
+        totalRevenueFromOps += amount;
+        addText(`    ${name}`, col1, yPos, { fontSize: 9 });
+        addText(formatINR(amount), col3, yPos, { fontSize: 9, align: 'right' });
+        yPos += 5;
+      });
+    } else {
+      // If no breakdown, show total as single item
+      addText('    Sales/Service Revenue', col1, yPos, { fontSize: 9 });
+      addText(formatINR(metrics.totalRevenue), col3, yPos, { fontSize: 9, align: 'right' });
+      totalRevenueFromOps = metrics.totalRevenue;
+      yPos += 5;
+    }
+
+    // Total Revenue from Operations
+    yPos += 2;
+    addText('Total Revenue from Operations (I)', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    addText(formatINR(totalRevenueFromOps), col3, yPos, { fontSize: 10, fontStyle: 'bold', align: 'right' });
+    yPos += 8;
+
+    // ========== II. OTHER INCOME ==========
+    addText('II. Other Income', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    yPos += 6;
+    addText('    Interest Income', col1, yPos, { fontSize: 9 });
+    addText('-', col3, yPos, { fontSize: 9, align: 'right' });
+    yPos += 5;
+    addText('    Other Non-Operating Income', col1, yPos, { fontSize: 9 });
+    addText('-', col3, yPos, { fontSize: 9, align: 'right' });
+    yPos += 5;
+    addText('Total Other Income (II)', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    addText('-', col3, yPos, { fontSize: 10, fontStyle: 'bold', align: 'right' });
+    yPos += 8;
+
+    // ========== III. TOTAL INCOME ==========
+    addLine(yPos - 2);
+    addText('III. TOTAL INCOME (I + II)', col1, yPos, { fontSize: 11, fontStyle: 'bold', color: [0, 100, 0] });
+    addText(formatINR(metrics.totalRevenue), col3, yPos, { fontSize: 11, fontStyle: 'bold', align: 'right', color: [0, 100, 0] });
+    yPos += 3;
+    addLine(yPos);
+    yPos += 8;
+
+    // ========== IV. EXPENSES ==========
+    addText('IV. Expenses', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    yPos += 6;
+
+    // Expense breakdown
+    const expenseCategories = metrics.expenseBreakdown || [];
+    let totalExpensesCalc = 0;
+
+    // Standard expense categories as per Schedule III
+    const scheduleIIIExpenses = [
+      { label: 'Cost of Materials Consumed', key: 'materials' },
+      { label: 'Purchases of Stock-in-Trade', key: 'purchases' },
+      { label: 'Changes in Inventories', key: 'inventory' },
+      { label: 'Employee Benefits Expense', key: 'salary' },
+      { label: 'Finance Costs', key: 'finance' },
+      { label: 'Depreciation and Amortisation', key: 'depreciation' },
+      { label: 'Other Expenses', key: 'other' }
+    ];
+
+    if (expenseCategories.length > 0) {
+      // Map actual expenses to Schedule III format
+      expenseCategories.forEach((cat, idx) => {
+        const name = cat.name || cat.category || `Expense ${idx + 1}`;
+        const amount = parseFloat(cat.amount) || 0;
+        totalExpensesCalc += amount;
+        addText(`    ${name}`, col1, yPos, { fontSize: 9 });
+        addText(formatINR(amount), col3, yPos, { fontSize: 9, align: 'right' });
+        yPos += 5;
+      });
+    } else {
+      // Show total as "Other Expenses"
+      addText('    Operating Expenses', col1, yPos, { fontSize: 9 });
+      addText(formatINR(metrics.totalExpenses), col3, yPos, { fontSize: 9, align: 'right' });
+      totalExpensesCalc = metrics.totalExpenses;
+      yPos += 5;
+    }
+
+    // Total Expenses
+    yPos += 2;
+    addText('Total Expenses (IV)', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    addText(formatINR(metrics.totalExpenses), col3, yPos, { fontSize: 10, fontStyle: 'bold', align: 'right' });
+    yPos += 3;
+    addLine(yPos);
+    yPos += 8;
+
+    // ========== V. PROFIT BEFORE TAX ==========
+    const profitBeforeTax = metrics.netProfit;
+    const isProfit = profitBeforeTax >= 0;
+    const pbtColor = isProfit ? [0, 100, 0] : [180, 0, 0];
+
+    addText('V. Profit/(Loss) Before Tax (III - IV)', col1, yPos, { fontSize: 11, fontStyle: 'bold' });
+    addText(formatINR(profitBeforeTax), col3, yPos, { fontSize: 11, fontStyle: 'bold', align: 'right', color: pbtColor });
+    yPos += 8;
+
+    // ========== VI. TAX EXPENSE ==========
+    addText('VI. Tax Expense', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    yPos += 6;
+    addText('    (1) Current Tax', col1, yPos, { fontSize: 9 });
+    addText('-', col3, yPos, { fontSize: 9, align: 'right' });
+    yPos += 5;
+    addText('    (2) Deferred Tax', col1, yPos, { fontSize: 9 });
+    addText('-', col3, yPos, { fontSize: 9, align: 'right' });
+    yPos += 5;
+    addText('Total Tax Expense', col1, yPos, { fontSize: 10 });
+    addText('-', col3, yPos, { fontSize: 10, align: 'right' });
+    yPos += 8;
+
+    // ========== VII. PROFIT AFTER TAX ==========
+    addLine(yPos - 2, [0, 0, 0]);
+    yPos += 2;
+    const netProfitColor = isProfit ? [0, 128, 0] : [200, 0, 0];
+    addText('VII. Profit/(Loss) for the Period (V - VI)', col1, yPos, { fontSize: 12, fontStyle: 'bold' });
+    addText(`₹ ${formatINR(profitBeforeTax)}`, col3, yPos, { fontSize: 12, fontStyle: 'bold', align: 'right', color: netProfitColor });
+    yPos += 2;
+    addLine(yPos, [0, 0, 0]);
+    yPos += 1;
+    addLine(yPos, [0, 0, 0]); // Double line for final total
+    yPos += 12;
+
+    // ==================== KEY FINANCIAL RATIOS ====================
+    addText('KEY FINANCIAL RATIOS', col1, yPos, { fontSize: 11, fontStyle: 'bold', color: [50, 50, 50] });
+    yPos += 8;
+
+    const profitMarginVal = metrics.totalRevenue > 0 
+      ? ((metrics.netProfit / metrics.totalRevenue) * 100).toFixed(2) 
+      : '0.00';
+    const expenseRatio = metrics.totalRevenue > 0 
+      ? ((metrics.totalExpenses / metrics.totalRevenue) * 100).toFixed(2) 
+      : '0.00';
+
+    // Ratios table
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Ratio', 'Value', 'Interpretation']],
+      body: [
+        ['Net Profit Margin', `${profitMarginVal}%`, profitMarginVal >= 10 ? 'Healthy' : profitMarginVal >= 0 ? 'Moderate' : 'Needs Attention'],
+        ['Expense Ratio', `${expenseRatio}%`, expenseRatio <= 80 ? 'Efficient' : expenseRatio <= 95 ? 'Moderate' : 'High'],
+        ['Revenue Coverage', `${metrics.totalRevenue > 0 ? (metrics.totalRevenue / metrics.totalExpenses).toFixed(2) : '0.00'}x`, metrics.totalRevenue >= metrics.totalExpenses ? 'Positive' : 'Negative'],
+        ['Monthly Burn Rate', `₹${formatINR(financialHealth.monthlyBurnRate)}`, financialHealth.monthlyBurnRate < metrics.totalRevenue ? 'Sustainable' : 'High'],
+        ['Runway', `${financialHealth.runway.toFixed(1)} months`, financialHealth.runway > 6 ? 'Good' : financialHealth.runway > 3 ? 'Moderate' : 'Low'],
+        ['Financial Health Score', `${financialHealth.healthScore}/100 (${financialHealth.healthGrade})`, financialHealth.healthStatus]
+      ],
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 40, halign: 'right' },
+        2: { cellWidth: 50 }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    yPos = doc.lastAutoTable.finalY + 15;
+
+    // ==================== NOTES & DISCLAIMERS ====================
+    // Check if we need a new page
+    if (yPos > pageHeight - 60) {
+      doc.addPage();
+      yPos = margin;
+    }
+
+    addText('Notes:', col1, yPos, { fontSize: 10, fontStyle: 'bold' });
+    yPos += 6;
+    const notes = [
+      '1. This statement has been prepared based on bank transaction data analysis.',
+      '2. Revenue includes all credit transactions; Expenses include all debit transactions.',
+      '3. Tax calculations are not included and should be computed separately as per applicable laws.',
+      '4. This is a simplified P&L for management purposes and may not comply with all statutory requirements.',
+      '5. For statutory filings, please consult a qualified Chartered Accountant.'
+    ];
+
+    notes.forEach((note) => {
+      addText(note, col1, yPos, { fontSize: 8, color: [80, 80, 80] });
+      yPos += 5;
+    });
+
+    yPos += 10;
+
+    // ==================== SIGNATURE SECTION ====================
+    if (yPos > pageHeight - 45) {
+      doc.addPage();
+      yPos = margin;
+    }
+
+    addLine(yPos);
+    yPos += 12;
+
+    // Signature blocks
+    const sigWidth = (pageWidth - 2 * margin - 20) / 2;
+    
+    addText('For ' + companyName, col1, yPos, { fontSize: 9, fontStyle: 'bold' });
+    addText('Prepared By', col1 + sigWidth + 20, yPos, { fontSize: 9, fontStyle: 'bold' });
+    yPos += 20;
+
+    addLine(yPos, [100, 100, 100]);
+    doc.line(col1 + sigWidth + 20, yPos, col1 + sigWidth + 20 + 60, yPos);
+    yPos += 5;
+
+    addText('Authorised Signatory', col1, yPos, { fontSize: 8 });
+    addText('StratSchool FinAgent', col1 + sigWidth + 20, yPos, { fontSize: 8 });
+    yPos += 5;
+    addText(`Date: ${statementDate}`, col1, yPos, { fontSize: 8 });
+    addText(`Generated: ${currentDate.toLocaleTimeString('en-IN')}`, col1 + sigWidth + 20, yPos, { fontSize: 8 });
+
+    // ==================== FOOTER ====================
+    const footerY = pageHeight - 10;
+    addText('This is a computer-generated document and does not require a physical signature.', pageWidth / 2, footerY - 5, {
+      align: 'center',
+      fontSize: 7,
+      color: [120, 120, 120]
+    });
+    addText(`Generated by Nebulaa FinAgent | ${currentDate.toLocaleDateString('en-IN')}`, pageWidth / 2, footerY, {
+      align: 'center',
+      fontSize: 7,
+      color: [120, 120, 120]
+    });
+
+    // Save the PDF
+    const fileName = `PL_Statement_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${currentDate.toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
 
   // Generate bar chart data for expenses over time
   const expenseBarData = useMemo(() => {
@@ -1415,7 +1786,11 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                           <RefreshCw className="button-icon" />
                           Re-upload Statement
                         </button>
-                        <button className="primary-button">
+                        <button 
+                          className="primary-button"
+                          onClick={generatePLStatementPDF}
+                          title="Download P&L Statement as PDF"
+                        >
                           <Download className="button-icon" />
                           Export Report
                         </button>
