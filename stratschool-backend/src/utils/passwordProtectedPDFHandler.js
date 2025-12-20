@@ -6,7 +6,6 @@
 const { PDFDocument } = require('pdf-lib');
 const { TextractClient, DetectDocumentTextCommand, AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const pdf = require('pdf-parse');
-const pdf2pic = require('pdf2pic');
 const fs = require('fs');
 const path = require('path');
 
@@ -177,89 +176,29 @@ class PasswordProtectedPDFHandler {
   }
 
   /**
-   * Convert PDF to images and extract text with Textract
+   * Extract text from PDF using pdf-parse (fallback method)
+   * Previously used pdf2pic for image conversion, but that requires Poppler binaries
+   * which are not available on Render. Now uses pdf-parse for direct text extraction.
    */
   async extractFromPDFViaImages(pdfBuffer) {
-    const tempDir = path.join(__dirname, '../../temp');
-    const tempPdfPath = path.join(tempDir, `temp_${Date.now()}.pdf`);
-    
     try {
-      console.log('🔄 Converting PDF to images for Textract processing...');
+      console.log('📝 Using pdf-parse for text extraction (image conversion disabled)...');
       
-      // Ensure temp directory exists
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
+      // Use pdf-parse for direct text extraction
+      const data = await pdf(pdfBuffer);
+      const extractedText = data.text || '';
+      
+      console.log(`✅ pdf-parse extracted ${extractedText.length} characters from ${data.numpages} pages`);
+      
+      if (extractedText.length < 100) {
+        console.log('⚠️ Very little text extracted - PDF may have embedded fonts or be scanned');
       }
       
-      // Write PDF to temporary file
-      fs.writeFileSync(tempPdfPath, pdfBuffer);
-      
-      // Setup pdf2pic converter
-      const convert = pdf2pic.fromPath(tempPdfPath, {
-        density: 300, // High quality
-        saveFilename: `page_${Date.now()}`,
-        savePath: tempDir,
-        format: 'png',
-        width: 2000,
-        height: 2000
-      });
-      
-      // Convert first few pages (bank statements are usually 1-3 pages)
-      const maxPages = 5; // Limit to avoid processing too many pages
-      let allExtractedText = '';
-      let pageCount = 0;
-      
-      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-        try {
-          console.log(`🔄 Converting page ${pageNum}...`);
-          const result = await convert(pageNum);
-          
-          if (result && result.path) {
-            pageCount++;
-            console.log(`🖼️ Processing image: ${path.basename(result.path)}`);
-            
-            const imageBuffer = fs.readFileSync(result.path);
-            const pageText = await this.extractTextFromImage(imageBuffer);
-            allExtractedText += pageText + '\n\n';
-            console.log(`📄 Extracted ${pageText.length} characters from page ${pageNum}`);
-            
-            // Clean up image file
-            try {
-              fs.unlinkSync(result.path);
-            } catch (cleanupError) {
-              console.log('⚠️ Failed to cleanup image:', cleanupError.message);
-            }
-          } else {
-            console.log(`📄 Page ${pageNum} not found, stopping conversion`);
-            break;
-          }
-        } catch (pageError) {
-          console.log(`⚠️ Failed to convert page ${pageNum}:`, pageError.message);
-          if (pageNum === 1) {
-            // If first page fails, there's a real problem
-            throw pageError;
-          }
-          // For subsequent pages, just stop processing
-          break;
-        }
-      }
-      
-      console.log(`📄 Converted PDF to ${pageCount} image(s)`);
-      console.log(`✅ Total extracted text: ${allExtractedText.length} characters`);
-      return allExtractedText;
+      return extractedText;
       
     } catch (error) {
-      console.error('❌ PDF-to-image conversion failed:', error.message);
+      console.error('❌ PDF text extraction failed:', error.message);
       throw error;
-    } finally {
-      // Clean up temporary PDF file
-      try {
-        if (fs.existsSync(tempPdfPath)) {
-          fs.unlinkSync(tempPdfPath);
-        }
-      } catch (cleanupError) {
-        console.log('⚠️ Failed to cleanup temp PDF:', cleanupError.message);
-      }
     }
   }
 

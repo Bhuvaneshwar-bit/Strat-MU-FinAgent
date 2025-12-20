@@ -14,172 +14,93 @@ const {
 } = require('@aws-sdk/client-textract');
 const { PDFDocument } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
-const path = require('path');
-const fs = require('fs').promises;
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 /**
- * Convert PDF to images using pdf-poppler (for Textract fallback)
- * @param {Buffer} pdfBuffer - PDF file buffer
- * @returns {Promise<Buffer[]>} - Array of image buffers (PNG)
+ * Parse bank statement transactions using Gemini AI
+ * Used as fallback when Textract cannot extract tables from text-based PDFs
+ * @param {string} rawText - Raw text extracted from PDF
+ * @returns {Promise<Object>} - Structured transaction data
  */
-async function convertPdfToImages(pdfBuffer) {
+async function parseTransactionsWithGemini(rawText) {
   try {
-    console.log('🖼️  Converting PDF to images for Textract...');
+    console.log('🤖 Using Gemini AI to parse bank statement text...');
     
-    // Try pdf-poppler first (better quality)
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY not configured');
+      return null;
+    }
+    
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    
+    const prompt = `You are a bank statement parser. Extract ALL transactions from this bank statement text.
+
+IMPORTANT RULES:
+1. Extract EVERY transaction line - do not skip any
+2. Identify the date (DD-MM-YYYY or DD/MM/YYYY format)
+3. Identify the description/narration
+4. Identify if it's a DEBIT (money out) or CREDIT (money in)
+5. Extract the transaction amount (ignore the balance column)
+6. Return ONLY valid JSON, no markdown, no explanation
+
+Look for patterns like:
+- Date columns (transaction date, value date)
+- Description/Particulars/Narration column
+- Debit Amount column (withdrawals)
+- Credit Amount column (deposits)
+- Balance column (ignore this for transaction amount)
+
+BANK STATEMENT TEXT:
+${rawText.substring(0, 30000)}
+
+Return a JSON object with this EXACT structure:
+{
+  "account_number": "extracted account number or null",
+  "account_holder": "extracted name or null",
+  "bank_name": "extracted bank name or null",
+  "opening_balance": number or null,
+  "closing_balance": number or null,
+  "transactions": [
+    {
+      "date": "DD-MM-YYYY",
+      "description": "transaction description",
+      "amount": 12345.67,
+      "type": "debit" or "credit",
+      "balance": number or null
+    }
+  ],
+  "summary": {
+    "total_credits": total of all credit amounts,
+    "total_debits": total of all debit amounts,
+    "transaction_count": number of transactions
+  }
+}
+
+Return ONLY the JSON object, nothing else.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text();
+    
+    // Clean up the response - remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
     try {
-      const { Poppler } = require('pdf-poppler');
-      const tempDir = path.join(__dirname, '../../../temp');
-      await fs.mkdir(tempDir, { recursive: true });
-      
-      const tempPdfPath = path.join(tempDir, `temp_${Date.now()}.pdf`);
-      await fs.writeFile(tempPdfPath, pdfBuffer);
-      
-      const opts = {
-        format: 'png',
-        out_dir: tempDir,
-        out_prefix: `page_${Date.now()}`,
-        scale: 2048 // High resolution for better OCR
-      };
-      
-      await Poppler.convert(tempPdfPath, opts);
-      
-      // Read generated images
-      const files = await fs.readdir(tempDir);
-      const imageFiles = files.filter(f => f.startsWith(opts.out_prefix) && f.endsWith('.png'));
-      imageFiles.sort();
-      
-      const imageBuffers = [];
-      for (const file of imageFiles) {
-        const imgPath = path.join(tempDir, file);
-        const imgBuffer = await fs.readFile(imgPath);
-        imageBuffers.push(imgBuffer);
-        await fs.unlink(imgPath); // Cleanup
-      }
-      
-      await fs.unlink(tempPdfPath); // Cleanup temp PDF
-      
-      console.log(`   ✅ Converted ${imageBuffers.length} pages to images`);
-      return imageBuffers;
-      
-    } catch (popplerError) {
-      console.log('   pdf-poppler not available, trying pdf2pic...');
-      
-      // Fallback to pdf2pic
-      const { fromBuffer } = require('pdf2pic');
-      const tempDir = path.join(__dirname, '../../../temp');
-      await fs.mkdir(tempDir, { recursive: true });
-      
-      const options = {
-        density: 300,
-        saveFilename: `page_${Date.now()}`,
-        savePath: tempDir,
-        format: 'png',
-        width: 2048,
-        height: 2048
-      };
-      
-      const convert = fromBuffer(pdfBuffer, options);
-      
-      // Get page count
-      const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-      const pageCount = pdfDoc.getPageCount();
-      
-      const imageBuffers = [];
-      for (let i = 1; i <= pageCount; i++) {
-        try {
-          const result = await convert(i);
-          if (result && result.path) {
-            const imgBuffer = await fs.readFile(result.path);
-            imageBuffers.push(imgBuffer);
-            await fs.unlink(result.path); // Cleanup
-          }
-        } catch (pageError) {
-          console.warn(`   ⚠️ Failed to convert page ${i}: ${pageError.message}`);
-        }
-      }
-      
-      console.log(`   ✅ Converted ${imageBuffers.length} pages to images`);
-      return imageBuffers;
+      const parsed = JSON.parse(text);
+      console.log(`✅ Gemini extracted ${parsed.transactions?.length || 0} transactions`);
+      return parsed;
+    } catch (parseError) {
+      console.error('❌ Failed to parse Gemini response as JSON:', parseError.message);
+      console.log('   Raw response:', text.substring(0, 500));
+      return null;
     }
     
   } catch (error) {
-    console.error('❌ PDF to image conversion failed:', error.message);
+    console.error('❌ Gemini parsing failed:', error.message);
     return null;
   }
-}
-
-/**
- * Analyze image buffer with Textract
- * @param {Buffer} imageBuffer - PNG/JPEG image buffer
- * @returns {Promise<Object>} - Textract response
- */
-async function analyzeImageWithTextract(imageBuffer) {
-  try {
-    const params = {
-      Document: {
-        Bytes: imageBuffer
-      },
-      FeatureTypes: ['TABLES', 'FORMS', 'LAYOUT']
-    };
-    
-    const command = new AnalyzeDocumentCommand(params);
-    const response = await textractClient.send(command);
-    
-    return response;
-  } catch (error) {
-    console.error('   ❌ Image analysis failed:', error.message);
-    return null;
-  }
-}
-
-/**
- * Analyze PDF by converting to images first (fallback method)
- * @param {Buffer} pdfBuffer - PDF file buffer
- * @returns {Promise<Object>} - Combined Textract response
- */
-async function analyzePdfAsImages(pdfBuffer) {
-  console.log('🔄 Using image conversion fallback for Textract...');
-  
-  const imageBuffers = await convertPdfToImages(pdfBuffer);
-  
-  if (!imageBuffers || imageBuffers.length === 0) {
-    console.log('   ❌ Image conversion failed, falling back to pdf-parse');
-    return null;
-  }
-  
-  console.log(`📑 Analyzing ${imageBuffers.length} images with Textract...`);
-  
-  const allBlocks = [];
-  
-  for (let i = 0; i < imageBuffers.length; i++) {
-    console.log(`   Processing image ${i + 1}/${imageBuffers.length}...`);
-    
-    const response = await analyzeImageWithTextract(imageBuffers[i]);
-    
-    if (response && response.Blocks) {
-      response.Blocks.forEach(block => {
-        block.Page = i + 1;
-        allBlocks.push(block);
-      });
-      console.log(`   ✅ Page ${i + 1}: Found ${response.Blocks.length} blocks`);
-    }
-    
-    // Small delay to avoid rate limiting
-    if (i < imageBuffers.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-  }
-  
-  console.log(`✅ Image analysis complete. Total blocks: ${allBlocks.length}`);
-  
-  return {
-    Blocks: allBlocks,
-    DocumentMetadata: {
-      Pages: imageBuffers.length
-    },
-    source: 'image-conversion'
-  };
 }
 
 /**
@@ -699,7 +620,7 @@ function getBlockText(block, blockMap) {
 /**
  * Main function: Analyze document from buffer (RECOMMENDED)
  * Automatically handles multi-page PDFs by splitting them
- * Falls back to image conversion if Textract doesn't extract enough from PDF
+ * Falls back to Gemini AI if Textract doesn't extract enough from PDF
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Processed Textract results
  */
@@ -729,33 +650,45 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
       return processedData;
     }
     
-    // STEP 2: Textract failed to get enough data - try image conversion
-    console.log('⚠️  Textract found minimal content from PDF, trying image conversion...');
-    
-    const imageTextractResponse = await analyzePdfAsImages(pdfBuffer);
-    
-    if (imageTextractResponse && imageTextractResponse.Blocks) {
-      const imageProcessedData = processTextractResponse(imageTextractResponse);
-      const imageTextCount = imageProcessedData.text?.length || 0;
-      const imageTableCount = imageProcessedData.tables?.length || 0;
-      
-      console.log(`   Image Textract extracted: ${imageTextCount} text blocks, ${imageTableCount} tables`);
-      
-      // If image conversion got better results, use it
-      if (imageTextCount > textBlockCount || imageTableCount > 0) {
-        console.log('✅ Image conversion extracted more content - using image-based results');
-        imageProcessedData.source = 'image-conversion';
-        return imageProcessedData;
-      }
-    }
-    
-    // STEP 3: Image conversion also failed - fall back to pdf-parse
-    console.log('⚠️  Image conversion did not improve results, trying pdf-parse fallback...');
+    // STEP 2: Textract failed to get enough data - use pdf-parse + Gemini
+    console.log('⚠️  Textract found minimal content from PDF, trying pdf-parse + Gemini AI...');
     
     const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
     
-    if (pdfParseData && pdfParseData.text.length > textBlockCount) {
-      console.log(`✅ pdf-parse extracted more content: ${pdfParseData.text.length} lines`);
+    if (pdfParseData && pdfParseData.rawText && pdfParseData.rawText.length > 100) {
+      console.log(`   pdf-parse extracted ${pdfParseData.rawText.length} characters`);
+      
+      // STEP 3: Use Gemini AI to parse the raw text into structured transactions
+      const geminiResult = await parseTransactionsWithGemini(pdfParseData.rawText);
+      
+      if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
+        console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions`);
+        
+        // Return structured data in a format compatible with the existing flow
+        return {
+          text: pdfParseData.text,
+          keyValuePairs: [],
+          tables: [],
+          rawText: pdfParseData.rawText,
+          pageCount: pdfParseData.pageCount,
+          source: 'gemini-ai',
+          geminiParsed: geminiResult,
+          // Include parsed transactions for direct use
+          parsedTransactions: geminiResult.transactions.map(tx => ({
+            date: tx.date,
+            description: tx.description,
+            debit: tx.type === 'debit' ? tx.amount : 0,
+            credit: tx.type === 'credit' ? tx.amount : 0,
+            balance: tx.balance || 0
+          })),
+          summary: geminiResult.summary
+        };
+      } else {
+        console.log('⚠️  Gemini AI parsing failed or returned no transactions');
+      }
+      
+      // Return pdf-parse data with raw text for regex fallback
+      console.log('✅ Using pdf-parse text with regex parsing fallback');
       return {
         ...pdfParseData,
         source: 'pdf-parse-fallback'
@@ -769,12 +702,33 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
   } catch (error) {
     console.error('❌ Complete document analysis failed:', error.message);
     
-    // Last resort: try pdf-parse only
-    console.log('🔄 Attempting pdf-parse as last resort...');
-    const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
-    if (pdfParseData && pdfParseData.text.length > 0) {
-      console.log('✅ pdf-parse fallback succeeded');
-      return pdfParseData;
+    // Last resort: try pdf-parse + Gemini
+    console.log('🔄 Attempting pdf-parse + Gemini as last resort...');
+    try {
+      const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+      if (pdfParseData && pdfParseData.rawText) {
+        const geminiResult = await parseTransactionsWithGemini(pdfParseData.rawText);
+        if (geminiResult && geminiResult.transactions?.length > 0) {
+          console.log('✅ Last resort Gemini parsing succeeded');
+          return {
+            text: pdfParseData.text,
+            rawText: pdfParseData.rawText,
+            source: 'gemini-ai',
+            geminiParsed: geminiResult,
+            parsedTransactions: geminiResult.transactions.map(tx => ({
+              date: tx.date,
+              description: tx.description,
+              debit: tx.type === 'debit' ? tx.amount : 0,
+              credit: tx.type === 'credit' ? tx.amount : 0,
+              balance: tx.balance || 0
+            })),
+            summary: geminiResult.summary
+          };
+        }
+        return pdfParseData;
+      }
+    } catch (fallbackError) {
+      console.error('❌ Fallback also failed:', fallbackError.message);
     }
     
     throw error;
@@ -817,14 +771,13 @@ module.exports = {
   analyzeDocumentFromBuffer,
   analyzeDocumentFromBufferComplete,
   analyzeMultiPagePdfFromBuffer,
-  analyzePdfAsImages,
-  convertPdfToImages,
   splitPdfPages,
   startDocumentAnalysis,
   getDocumentAnalysis,
   processTextractResponse,
   analyzeDocumentComplete,
   extractTextWithPdfParse,
+  parseTransactionsWithGemini,
   textractClient,
   createTextractClient
 };
