@@ -46,6 +46,7 @@ import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
 import BookkeepingDashboard from './BookkeepingDashboard';
 import AIChatbot from './AIChatbot';
+import { buildApiUrl } from '../config/api';
 
 // Logo imports
 import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
