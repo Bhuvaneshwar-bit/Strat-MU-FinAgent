@@ -34,8 +34,8 @@ async function parsePdfWithGemini(pdfBuffer) {
     
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Use gemini-1.5-flash which has stable PDF support
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Use gemini-2.0-flash which is the current model with PDF support
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     
     // Convert PDF buffer to base64
     const pdfBase64 = pdfBuffer.toString('base64');
