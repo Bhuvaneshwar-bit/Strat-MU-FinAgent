@@ -150,19 +150,19 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
     console.log('-'.repeat(60));
     let bankStatement;
     try {
-      // Check if Gemini already parsed the transactions (either from text or vision)
-      if ((textractData.source === 'gemini-ai' || textractData.source === 'gemini-vision') && 
+      // Check if Azure Document Intelligence parsed the transactions
+      if (textractData.source === 'azure-document-intelligence' && 
           textractData.parsedTransactions && textractData.parsedTransactions.length > 0) {
-        console.log(`   Using ${textractData.source === 'gemini-vision' ? 'Gemini Vision' : 'Gemini AI'} parsed transactions...`);
-        const geminiData = textractData.geminiParsed;
+        console.log('   Using Azure Document Intelligence parsed transactions...');
+        const azureData = textractData.azureParsed;
         
-        // Convert Gemini format to standard format
+        // Convert Azure format to standard format
         bankStatement = {
-          account_number: geminiData.account_number || 'Unknown',
-          account_holder: geminiData.account_holder || 'Unknown',
-          bank_name: geminiData.bank_name || 'Unknown Bank',
-          opening_balance: geminiData.opening_balance || 0,
-          closing_balance: geminiData.closing_balance || 0,
+          account_number: azureData.account_number || 'Unknown',
+          account_holder: azureData.account_holder || 'Unknown',
+          bank_name: azureData.bank_name || 'Unknown Bank',
+          opening_balance: 0,
+          closing_balance: 0,
           transactions: textractData.parsedTransactions.map(tx => ({
             date: tx.date,
             description: tx.description,
@@ -178,10 +178,10 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
             total_debits: textractData.parsedTransactions.reduce((sum, tx) => sum + (tx.debit || 0), 0),
             transaction_count: textractData.parsedTransactions.length
           },
-          source: textractData.source
+          source: 'azure-document-intelligence'
         };
         
-        console.log(`✅ ${textractData.source === 'gemini-vision' ? 'Gemini Vision' : 'Gemini AI'} parsed ${bankStatement.transactions.length} transactions`);
+        console.log(`✅ Azure Document Intelligence parsed ${bankStatement.transactions.length} transactions`);
       } else {
         // Use traditional Textract parsing
         bankStatement = parseBankStatement(textractData);

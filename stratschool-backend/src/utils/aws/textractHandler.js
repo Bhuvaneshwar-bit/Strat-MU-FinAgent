@@ -2,6 +2,7 @@
  * AWS Textract Handler
  * Manages document analysis using AWS Textract
  * Extracts text, key-value pairs, tables, and forms from documents
+ * Falls back to Azure Document Intelligence when Textract fails
  * 
  * @module textractHandler
  */
@@ -13,8 +14,7 @@ const {
   GetDocumentAnalysisCommand
 } = require('@aws-sdk/client-textract');
 const { PDFDocument } = require('pdf-lib');
-const pdfParse = require('pdf-parse');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { analyzeWithAzure } = require('../azure/azureDocumentIntelligence');
 
 /**
  * Parse bank statement transactions using Gemini AI
@@ -732,7 +732,7 @@ function getBlockText(block, blockMap) {
 /**
  * Main function: Analyze document from buffer (RECOMMENDED)
  * Automatically handles multi-page PDFs by splitting them
- * Falls back to Gemini AI if Textract doesn't extract enough from PDF
+ * Falls back to Azure Document Intelligence if Textract doesn't extract enough
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Processed Textract results
  */
@@ -740,7 +740,7 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
   try {
     console.log('📄 Starting complete Textract analysis from buffer...');
     
-    // STEP 1: Try direct PDF analysis (works for most bank statements)
+    // STEP 1: Try direct PDF analysis with Textract (works for most bank statements)
     const textractResponse = await analyzeMultiPagePdfFromBuffer(pdfBuffer);
     let processedData = processTextractResponse(textractResponse);
     
@@ -750,113 +750,74 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
     
     console.log(`   Textract extracted: ${textBlockCount} text blocks, ${tableCount} tables`);
     
-    // If we have tables, use existing flow (works for HDFC, SBI, etc.)
+    // If we have tables, use existing Textract flow (works for HDFC, SBI, etc.)
     if (tableCount > 0) {
-      console.log('✅ Tables found - using standard table extraction flow');
+      console.log('✅ Tables found - using standard Textract table extraction flow');
       return processedData;
     }
     
-    // If we have enough text, use it
+    // If we have enough text blocks, use Textract results
     if (textBlockCount >= 50) {
-      console.log('✅ Sufficient text extracted - using standard flow');
+      console.log('✅ Sufficient text extracted - using standard Textract flow');
       return processedData;
     }
     
-    // STEP 2: Textract failed - try pdf-parse first
-    console.log('⚠️  Textract found minimal content from PDF, trying pdf-parse...');
+    // STEP 2: Textract failed to extract data - use Azure Document Intelligence as fallback
+    console.log('⚠️  Textract found minimal content, using Azure Document Intelligence as fallback...');
     
-    let pdfParseData = null;
-    try {
-      pdfParseData = await extractTextWithPdfParse(pdfBuffer);
-    } catch (pdfParseError) {
-      console.log('⚠️  pdf-parse failed:', pdfParseError.message);
-    }
+    const azureResult = await analyzeWithAzure(pdfBuffer);
     
-    if (pdfParseData && pdfParseData.rawText && pdfParseData.rawText.length > 100) {
-      console.log(`   pdf-parse extracted ${pdfParseData.rawText.length} characters`);
-      
-      // Use Gemini AI to parse the raw text into structured transactions
-      const geminiResult = await parseTransactionsWithGemini(pdfParseData.rawText);
-      
-      if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
-        console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions from text`);
-        
-        return {
-          text: pdfParseData.text,
-          keyValuePairs: [],
-          tables: [],
-          rawText: pdfParseData.rawText,
-          pageCount: pdfParseData.pageCount,
-          source: 'gemini-ai',
-          geminiParsed: geminiResult,
-          parsedTransactions: geminiResult.transactions.map(tx => ({
-            date: tx.date,
-            description: tx.description,
-            debit: tx.type === 'debit' ? tx.amount : 0,
-            credit: tx.type === 'credit' ? tx.amount : 0,
-            balance: tx.balance || 0
-          })),
-          summary: geminiResult.summary
-        };
-      }
-    }
-    
-    // STEP 3: pdf-parse failed or returned no useful text - use Gemini Vision directly on PDF
-    console.log('🔄 pdf-parse failed or returned no text, using Gemini 3 Pro Vision on PDF directly...');
-    
-    const geminiVisionResult = await parsePdfWithGeminiVision(pdfBuffer);
-    
-    if (geminiVisionResult && geminiVisionResult.transactions && geminiVisionResult.transactions.length > 0) {
-      console.log(`✅ Gemini Vision extracted ${geminiVisionResult.transactions.length} transactions directly from PDF`);
+    if (azureResult && azureResult.transactions && azureResult.transactions.length > 0) {
+      console.log(`✅ Azure Document Intelligence extracted ${azureResult.transactions.length} transactions`);
       
       return {
         text: [],
         keyValuePairs: [],
         tables: [],
-        rawText: '',
+        rawText: azureResult.rawContent || '',
         pageCount: 0,
-        source: 'gemini-vision',
-        geminiParsed: geminiVisionResult,
-        parsedTransactions: geminiVisionResult.transactions.map(tx => ({
+        source: 'azure-document-intelligence',
+        azureParsed: azureResult,
+        parsedTransactions: azureResult.transactions.map(tx => ({
           date: tx.date,
           description: tx.description,
-          debit: tx.type === 'debit' ? tx.amount : 0,
-          credit: tx.type === 'credit' ? tx.amount : 0,
+          debit: tx.debit || 0,
+          credit: tx.credit || 0,
           balance: tx.balance || 0
         })),
-        summary: geminiVisionResult.summary
+        summary: azureResult.summary
       };
     }
     
-    // Return whatever we got from direct Textract as last fallback
-    console.log('⚠️  All parsing methods failed, returning original Textract results');
+    // Return whatever we got from Textract as last fallback
+    console.log('⚠️  Azure also found no transactions, returning original Textract results');
     return processedData;
     
   } catch (error) {
     console.error('❌ Complete document analysis failed:', error.message);
     
-    // Last resort: try Gemini Vision directly
-    console.log('🔄 Attempting Gemini Vision as last resort...');
+    // Last resort: try Azure directly
+    console.log('🔄 Attempting Azure Document Intelligence as last resort...');
     try {
-      const geminiVisionResult = await parsePdfWithGeminiVision(pdfBuffer);
-      if (geminiVisionResult && geminiVisionResult.transactions?.length > 0) {
-        console.log('✅ Last resort Gemini Vision succeeded');
+      const azureResult = await analyzeWithAzure(pdfBuffer);
+      if (azureResult && azureResult.transactions?.length > 0) {
+        console.log('✅ Last resort Azure analysis succeeded');
         return {
           text: [],
-          source: 'gemini-vision',
-          geminiParsed: geminiVisionResult,
-          parsedTransactions: geminiVisionResult.transactions.map(tx => ({
+          source: 'azure-document-intelligence',
+          azureParsed: azureResult,
+          parsedTransactions: azureResult.transactions.map(tx => ({
             date: tx.date,
             description: tx.description,
-            debit: tx.type === 'debit' ? tx.amount : 0,
-            credit: tx.type === 'credit' ? tx.amount : 0,
+            debit: tx.debit || 0,
+            credit: tx.credit || 0,
             balance: tx.balance || 0
           })),
-          summary: geminiVisionResult.summary
+          summary: azureResult.summary
         };
       }
     } catch (fallbackError) {
-      console.error('❌ Gemini Vision fallback also failed:', fallbackError.message);
+      console.error('❌ Azure fallback also failed:', fallbackError.message);
     }
     
     throw error;
