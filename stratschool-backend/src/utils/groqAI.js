@@ -20,55 +20,41 @@ class GroqAIService {
       let messages = [];
       
       // Add system message for context
-      let systemMessage = `You are a helpful AI financial advisor for StratSchool, a financial analysis platform for Indian businesses. You help users understand their P&L statements, analyze uploaded financial data, and provide actionable business insights. Be friendly, professional, and give specific, data-driven recommendations. IMPORTANT: All amounts are in Indian Rupees (INR/₹). Always display currency as ₹ (Rupees), never use $ (dollars).`;
+      let systemMessage = `You are Daddy, a concise AI financial advisor for StratSchool. 
+
+CRITICAL RULES:
+1. Keep ALL responses to 2-3 sentences MAX
+2. Be direct and to the point - no lengthy explanations
+3. Use bullet points only if absolutely necessary (max 3 bullets)
+4. All amounts are in Indian Rupees (₹) - never use $
+5. Reference the actual data provided below
+6. Don't repeat what the user already knows
+7. Give ONE actionable insight per response
+
+Example good response: "Your net loss is ₹42,921. Focus on reducing your highest expense category to improve margins."
+Example bad response: Long paragraphs with multiple observations and detailed breakdowns.`;
       
       if (plData) {
-        systemMessage += `\n\n=== CURRENT FINANCIAL DATA CONTEXT ===`;
+        systemMessage += `\n\n=== FINANCIAL DATA ===`;
         
         // Basic P&L Information
         if (plData.totalRevenue || plData.totalExpenses) {
-          systemMessage += `\n\n📊 P&L Summary:
-- Total Revenue: ₹${plData.totalRevenue?.toLocaleString('en-IN') || 'N/A'}
-- Total Expenses: ₹${plData.totalExpenses?.toLocaleString('en-IN') || 'N/A'}  
-- Net Income: ₹${plData.netIncome?.toLocaleString('en-IN') || 'N/A'}
-- Profit Margin: ${plData.profitMargin || 'N/A'}%
-- Period: ${plData.period || 'Current Period'}
-- Transaction Count: ${plData.transactionCount || 'N/A'}`;
+          systemMessage += `\nRevenue: ₹${plData.totalRevenue?.toLocaleString('en-IN') || 'N/A'} | Expenses: ₹${plData.totalExpenses?.toLocaleString('en-IN') || 'N/A'} | Net: ₹${plData.netIncome?.toLocaleString('en-IN') || 'N/A'} | Margin: ${plData.profitMargin || 'N/A'}%`;
         }
 
-        // Revenue Breakdown
+        // Revenue Categories (simplified)
         if (plData.revenueBreakdown && plData.revenueBreakdown.length > 0) {
-          systemMessage += `\n\n💰 Revenue Categories:`;
-          plData.revenueBreakdown.forEach(rev => {
-            systemMessage += `\n- ${rev.category}: ₹${rev.amount?.toLocaleString('en-IN')} (${rev.transactionCount} transactions)`;
-            if (rev.sampleTransactions && rev.sampleTransactions.length > 0) {
-              systemMessage += `\n  Sample: ${rev.sampleTransactions.map(t => t.description || t.particulars || 'Transaction').join(', ')}`;
-            }
-          });
+          const topRevenue = plData.revenueBreakdown.slice(0, 3).map(r => `${r.category}: ₹${r.amount?.toLocaleString('en-IN')}`).join(' | ');
+          systemMessage += `\nTop Revenue: ${topRevenue}`;
         }
 
-        // Expense Breakdown  
+        // Expense Categories (simplified)
         if (plData.expenseBreakdown && plData.expenseBreakdown.length > 0) {
-          systemMessage += `\n\n💸 Expense Categories:`;
-          plData.expenseBreakdown.forEach(exp => {
-            systemMessage += `\n- ${exp.category}: ₹${exp.amount?.toLocaleString('en-IN')} (${exp.transactionCount} transactions)`;
-            if (exp.sampleTransactions && exp.sampleTransactions.length > 0) {
-              systemMessage += `\n  Sample: ${exp.sampleTransactions.map(t => t.description || t.particulars || 'Transaction').join(', ')}`;
-            }
-          });
+          const topExpenses = plData.expenseBreakdown.slice(0, 3).map(e => `${e.category}: ₹${e.amount?.toLocaleString('en-IN')}`).join(' | ');
+          systemMessage += `\nTop Expenses: ${topExpenses}`;
         }
 
-        // Uploaded File Context
-        if (plData.uploadedFile) {
-          systemMessage += `\n\n📄 Data Source:
-- File: ${plData.uploadedFile.fileName}
-- Upload Date: ${new Date(plData.uploadedFile.uploadDate).toLocaleDateString()}
-- Transactions Processed: ${plData.uploadedFile.transactionCount}`;
-        }
-
-        systemMessage += `\n\n=== END CONTEXT ===
-        
-Use this detailed financial data to provide specific, actionable insights. Reference actual numbers, categories, and transactions when giving advice. Help the user understand trends, identify opportunities, and make informed business decisions.`;
+        systemMessage += `\n\nRemember: Keep responses to 2-3 sentences. Be concise and actionable.`;
       }
 
       messages.push({
