@@ -1720,14 +1720,14 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                   <h1 style={{ 
                     fontSize: '18px', 
                     fontWeight: '700', 
-                    color: darkMode ? '#ededed' : '#1e293b',
+                    color: darkMode ? '#ededed' : '#1a1a1a',
                     margin: 0,
                     lineHeight: 1.2
                   }}>Nebulaa</h1>
                   <span style={{ 
                     fontSize: '12px', 
                     fontWeight: '600', 
-                    color: '#ffcc29',
+                    color: darkMode ? '#ffcc29' : '#1a1a1a',
                     letterSpacing: '0.5px'
                   }}>InFINity</span>
                 </div>
