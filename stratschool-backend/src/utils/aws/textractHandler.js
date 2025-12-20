@@ -13,6 +13,42 @@ const {
   GetDocumentAnalysisCommand
 } = require('@aws-sdk/client-textract');
 const { PDFDocument } = require('pdf-lib');
+const pdfParse = require('pdf-parse');
+
+/**
+ * Extract text directly from PDF using pdf-parse (fallback for text-based PDFs)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} - Extracted text data
+ */
+async function extractTextWithPdfParse(pdfBuffer) {
+  try {
+    console.log('📝 Using pdf-parse for text extraction (fallback)...');
+    const data = await pdfParse(pdfBuffer);
+    
+    // Split text into lines and create block-like structure
+    const lines = data.text.split('\n').filter(line => line.trim());
+    console.log(`   Extracted ${lines.length} lines of text`);
+    
+    const textBlocks = lines.map((line, index) => ({
+      text: line.trim(),
+      confidence: 100,
+      geometry: null,
+      page: Math.floor(index / 50) + 1 // Approximate page number
+    }));
+    
+    return {
+      text: textBlocks,
+      keyValuePairs: [],
+      tables: [],
+      rawText: data.text,
+      pageCount: data.numpages,
+      source: 'pdf-parse'
+    };
+  } catch (error) {
+    console.error('❌ pdf-parse extraction failed:', error.message);
+    return null;
+  }
+}
 
 /**
  * Create Textract client with static credentials
@@ -63,7 +99,8 @@ async function analyzeDocumentFromBuffer(pdfBuffer) {
       },
       FeatureTypes: [
         'TABLES',      // Extract tables
-        'FORMS'        // Extract key-value pairs
+        'FORMS',       // Extract key-value pairs
+        'LAYOUT'       // Extract layout elements (better for text-based PDFs)
       ]
     };
     
@@ -495,6 +532,7 @@ function getBlockText(block, blockMap) {
 /**
  * Main function: Analyze document from buffer (RECOMMENDED)
  * Automatically handles multi-page PDFs by splitting them
+ * Falls back to pdf-parse if Textract doesn't extract enough text
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Processed Textract results
  */
@@ -506,7 +544,35 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
     const textractResponse = await analyzeMultiPagePdfFromBuffer(pdfBuffer);
     
     // Process and structure the response
-    const processedData = processTextractResponse(textractResponse);
+    let processedData = processTextractResponse(textractResponse);
+    
+    // Check if Textract extracted enough text (fallback threshold)
+    const textBlockCount = processedData.text?.length || 0;
+    const tableCount = processedData.tables?.length || 0;
+    
+    console.log(`   Textract extracted: ${textBlockCount} text blocks, ${tableCount} tables`);
+    
+    // If Textract didn't extract much, try pdf-parse as fallback
+    if (textBlockCount < 20 && tableCount === 0) {
+      console.log('⚠️  Textract found minimal content, trying pdf-parse fallback...');
+      
+      const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+      
+      if (pdfParseData && pdfParseData.text.length > textBlockCount) {
+        console.log(`✅ pdf-parse extracted more content: ${pdfParseData.text.length} lines`);
+        
+        // Merge pdf-parse text with Textract data (keep any tables/forms from Textract)
+        processedData = {
+          ...processedData,
+          text: pdfParseData.text,
+          rawText: pdfParseData.rawText,
+          source: 'pdf-parse-fallback',
+          // Keep any key-value pairs or tables Textract found
+          keyValuePairs: processedData.keyValuePairs || [],
+          tables: processedData.tables || []
+        };
+      }
+    }
     
     console.log('✅ Complete analysis finished');
     
@@ -514,6 +580,15 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
     
   } catch (error) {
     console.error('❌ Complete document analysis failed:', error.message);
+    
+    // Last resort: try pdf-parse only
+    console.log('🔄 Attempting pdf-parse as last resort...');
+    const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+    if (pdfParseData && pdfParseData.text.length > 0) {
+      console.log('✅ pdf-parse fallback succeeded');
+      return pdfParseData;
+    }
+    
     throw error;
   }
 }

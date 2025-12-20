@@ -154,8 +154,15 @@ function parseBankStatement(textractData) {
 }
 
 function extractAccountInfo(textractData, result) {
-  const { text, keyValuePairs } = textractData;
-  const allText = text.map(t => t.text).join('\n');
+  const { text, keyValuePairs, rawText } = textractData;
+  
+  // Build allText from available sources
+  let allText = '';
+  if (rawText) {
+    allText = rawText;
+  } else if (text && Array.isArray(text)) {
+    allText = text.map(t => typeof t === 'string' ? t : t.text).join('\n');
+  }
   
   result.account_holder = extractAccountHolder(allText, keyValuePairs);
   result.account_number = extractAccountNumber(allText, keyValuePairs);
@@ -171,7 +178,14 @@ function extractAccountInfo(textractData, result) {
 }
 
 function extractAllTransactions(textractData, result) {
-  const { tables, text } = textractData;
+  const { tables, text, rawText } = textractData;
+  
+  // If we have rawText (from pdf-parse fallback), use it directly
+  if (rawText && (!tables || tables.length === 0)) {
+    console.log('📝 Using raw text from pdf-parse for extraction...');
+    extractTransactionsFromText(rawText, result);
+    return;
+  }
   
   if (!tables || tables.length === 0) {
     console.warn('⚠️  No tables found, trying text extraction...');
@@ -226,22 +240,109 @@ function isTransactionTable(columnMap, headers) {
 
 function extractTransactionsFromText(textBlocks, result) {
   if (!textBlocks || textBlocks.length === 0) return;
-  const allText = textBlocks.map(t => t.text).join('\n');
-  const txnPattern = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.+?)\s+([\d,]+\.?\d*)\s*(Dr|Cr)?/gi;
-  let match;
-  while ((match = txnPattern.exec(allText)) !== null) {
-    const date = parseDate(match[1]);
-    const description = match[2].trim();
-    const amount = parseAmount(match[3]);
-    const type = match[4]?.toLowerCase() === 'dr' ? 'debit' : 'credit';
-    if (date && amount) {
-      result.transactions.push({
-        date, description,
-        amount: type === 'debit' ? -Math.abs(amount) : Math.abs(amount),
-        type, balance: null, reference: null
-      });
+  
+  // Handle both array of text objects and raw text string
+  let allText;
+  if (typeof textBlocks === 'string') {
+    allText = textBlocks;
+  } else if (Array.isArray(textBlocks)) {
+    allText = textBlocks.map(t => typeof t === 'string' ? t : t.text).join('\n');
+  } else {
+    return;
+  }
+  
+  console.log('📝 Extracting transactions from text...');
+  
+  // Pattern 1: Standard format - Date Description Amount Dr/Cr
+  const txnPattern1 = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.+?)\s+([\d,]+\.?\d*)\s*(Dr|Cr)?/gi;
+  
+  // Pattern 2: IDBI Ledger format - Date Date TranID InstNum Description DebitAmount CreditAmount Balance
+  // Example: 02-01-2024 02-01-2024 S31720464 MOBK/0370102... 10,000.00 21,81,055.98Cr
+  const txnPattern2 = /(\d{1,2}-\d{1,2}-\d{4})\s+\d{1,2}-\d{1,2}-\d{4}\s+[A-Z]?\d+\s*\d*\s+(.+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)?\s*([\d,]+\.?\d*)(Cr|Dr)?/gi;
+  
+  // Pattern 3: Simple format with Cr/Dr suffix on balance
+  const txnPattern3 = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.{10,}?)\s+([\d,]+\.?\d*)(?:\s+([\d,]+\.?\d*))?\s*([\d,]+\.?\d*)(Cr|Dr)?$/gm;
+  
+  // Pattern 4: Lines with dates and amounts - more flexible
+  const lines = allText.split('\n');
+  let extractedCount = 0;
+  
+  for (const line of lines) {
+    // Skip header lines
+    const lineLower = line.toLowerCase();
+    if (lineLower.includes('date') && (lineLower.includes('particulars') || lineLower.includes('description'))) continue;
+    if (lineLower.includes('opening balance') || lineLower.includes('closing balance')) continue;
+    if (lineLower.includes('balance b/f') || lineLower.includes('balance c/f')) continue;
+    if (line.includes('---') || line.includes('===')) continue;
+    if (line.trim().length < 20) continue;
+    
+    // Try to match IDBI ledger format: DD-MM-YYYY DD-MM-YYYY TranID ... DebitAmt CreditAmt BalanceCr/Dr
+    const idbiMatch = line.match(/(\d{2}-\d{2}-\d{4})\s+\d{2}-\d{2}-\d{4}\s+\S+\s*\d*\s+(.+?)\s{2,}([\d,]+\.?\d*)?\s*([\d,]+\.?\d*)?\s+([\d,]+\.?\d*)(Cr|Dr)?$/i);
+    
+    if (idbiMatch) {
+      const date = parseDate(idbiMatch[1]);
+      const description = idbiMatch[2].trim();
+      const debitAmount = parseAmount(idbiMatch[3]);
+      const creditAmount = parseAmount(idbiMatch[4]);
+      const balance = parseAmount(idbiMatch[5]);
+      const balanceType = idbiMatch[6];
+      
+      if (date && (debitAmount || creditAmount)) {
+        const isDebit = debitAmount > 0;
+        const amount = isDebit ? debitAmount : creditAmount;
+        
+        // Check for duplicates
+        const isDuplicate = result.transactions.some(t => 
+          t.date === date && Math.abs(Math.abs(t.amount) - amount) < 0.01 && 
+          t.description?.substring(0, 20) === description.substring(0, 20)
+        );
+        
+        if (!isDuplicate && amount > 0) {
+          result.transactions.push({
+            date,
+            description,
+            amount: isDebit ? -Math.abs(amount) : Math.abs(amount),
+            type: isDebit ? 'debit' : 'credit',
+            balance: balance,
+            reference: null,
+            category: null
+          });
+          extractedCount++;
+        }
+      }
+      continue;
+    }
+    
+    // Try standard pattern
+    const stdMatch = line.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.+?)\s+([\d,]+\.?\d*)\s*(Dr|Cr)?$/i);
+    if (stdMatch) {
+      const date = parseDate(stdMatch[1]);
+      const description = stdMatch[2].trim();
+      const amount = parseAmount(stdMatch[3]);
+      const type = stdMatch[4]?.toLowerCase() === 'dr' ? 'debit' : 'credit';
+      
+      if (date && amount) {
+        const isDuplicate = result.transactions.some(t => 
+          t.date === date && Math.abs(Math.abs(t.amount) - amount) < 0.01
+        );
+        
+        if (!isDuplicate) {
+          result.transactions.push({
+            date,
+            description,
+            amount: type === 'debit' ? -Math.abs(amount) : Math.abs(amount),
+            type,
+            balance: null,
+            reference: null,
+            category: null
+          });
+          extractedCount++;
+        }
+      }
     }
   }
+  
+  console.log(`   Extracted ${extractedCount} transactions from text`);
 }
 
 function identifyColumns(headers) {
