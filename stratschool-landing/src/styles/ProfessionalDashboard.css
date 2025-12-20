@@ -90,40 +90,40 @@
   --color-warning-muted: rgba(255, 204, 41, 0.15);
 }
 
-/* Light Mode Theme */
+/* Light Mode Theme - Nebulaa Gravity Style */
 .professional-dashboard.light-mode {
-  --bg-primary: #faf8f5;
-  --bg-secondary: #f5f3ef;
+  --bg-primary: #f5f5f0;
+  --bg-secondary: #fafaf5;
   --bg-tertiary: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #faf8f5;
+  --bg-card-hover: #fefefe;
   
   --text-primary: #1a1a1a;
-  --text-secondary: #5a5a5a;
-  --text-tertiary: #8a8a8a;
+  --text-secondary: #4a4a4a;
+  --text-tertiary: #7a7a7a;
   
-  --color-primary: #1a1a1a;
-  --color-primary-dark: #000000;
-  --color-primary-light: #333333;
+  --color-primary: #ffcc29;
+  --color-primary-dark: #e6b800;
+  --color-primary-light: #ffd84d;
   --color-secondary: #ffcc29;
   
   --color-accent: #ffcc29;
   --color-accent-muted: rgba(255, 204, 41, 0.15);
   
-  --border-color: #e8e4de;
-  --border-color-light: #f0ece6;
+  --border-color: #e8e8e0;
+  --border-color-light: #f0f0e8;
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
   
-  --color-success: #16a34a;
-  --color-success-muted: rgba(22, 163, 74, 0.1);
-  --color-danger: #dc2626;
-  --color-danger-muted: rgba(220, 38, 38, 0.1);
-  --color-warning: #d97706;
-  --color-warning-muted: rgba(217, 119, 6, 0.1);
+  --color-success: #22c55e;
+  --color-success-muted: rgba(34, 197, 94, 0.1);
+  --color-danger: #ef4444;
+  --color-danger-muted: rgba(239, 68, 68, 0.1);
+  --color-warning: #f59e0b;
+  --color-warning-muted: rgba(245, 158, 11, 0.1);
 }
 
 /* Reset and Base Styles */
@@ -435,19 +435,76 @@
 
 /* Light mode specific sidebar styling - Golden Yellow Nebulaa Style */
 .professional-dashboard.light-mode .dashboard-sidebar {
-  background: linear-gradient(180deg, #fff9e6 0%, #fff4d6 100%);
-  border-right: 1px solid #ffe4a0;
-  box-shadow: 2px 0 12px rgba(255, 204, 41, 0.1);
+  background: linear-gradient(180deg, #ffcc29 0%, #ffc107 100%);
+  border-right: none;
+  box-shadow: 2px 0 20px rgba(255, 204, 41, 0.2);
 }
 
 .professional-dashboard.light-mode .dashboard-header {
-  background: linear-gradient(90deg, #fff9e6 0%, #fffef8 100%);
-  border-bottom: 1px solid #ffe4a0;
-  box-shadow: 0 2px 8px rgba(255, 204, 41, 0.08);
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .professional-dashboard.light-mode .main-content {
-  background: #fffef8;
+  background: #f5f5f0;
+}
+
+/* Light mode nav buttons */
+.professional-dashboard.light-mode .nav-button {
+  color: #1a1a1a;
+}
+
+.professional-dashboard.light-mode .nav-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.professional-dashboard.light-mode .nav-button.active {
+  background: #ffffff;
+  color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Light mode cards */
+.professional-dashboard.light-mode .metric-card {
+  background: #ffffff;
+  border: 1px solid #f0f0e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.professional-dashboard.light-mode .metric-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Light mode buttons */
+.professional-dashboard.light-mode .primary-button {
+  background: linear-gradient(135deg, #ffcc29 0%, #ffc107 100%);
+  color: #1a1a1a;
+  border: none;
+}
+
+.professional-dashboard.light-mode .secondary-button {
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #e0e0d8;
+}
+
+.professional-dashboard.light-mode .secondary-button:hover {
+  background: #fafaf5;
+  border-color: #ffcc29;
+}
+
+/* Light mode sidebar footer */
+.professional-dashboard.light-mode .sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.professional-dashboard.light-mode .sidebar-footer button {
+  color: #1a1a1a;
+}
+
+.professional-dashboard.light-mode .sidebar-footer button:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .sidebar-navigation {
