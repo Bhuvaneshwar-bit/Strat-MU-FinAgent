@@ -38,7 +38,8 @@ import {
   Sun,
   Menu,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Loader2
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -133,6 +134,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
   // Sidebar collapsed state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Synopsis modal state for 'd' button AI explanations
+  const [synopsisModal, setSynopsisModal] = useState({ show: false, type: null, content: '', loading: false });
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -1206,6 +1210,57 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     }).format(amount);
   };
 
+  // Generate AI Synopsis for metric cards ('d' button)
+  const generateSynopsis = async (metricType) => {
+    setSynopsisModal({ show: true, type: metricType, content: '', loading: true });
+    
+    try {
+      const metricData = {
+        revenue: { value: metrics.totalRevenue, label: 'Total Revenue' },
+        expenses: { value: metrics.totalExpenses, label: 'Total Expenses' },
+        netprofit: { value: metrics.netProfit, label: metrics.netProfit >= 0 ? 'Net Profit' : 'Net Loss' },
+        margin: { value: metrics.profitMargin, label: 'Profit Margin' },
+        cash: { value: financialHealth.cashAvailable, label: 'Cash Available' },
+        burn: { value: financialHealth.monthlyBurnRate, label: 'Monthly Burn Rate' },
+        runway: { value: financialHealth.runway, label: 'Runway' },
+        healthscore: { value: financialHealth.healthScore, label: 'Health Score' }
+      };
+      
+      const current = metricData[metricType];
+      let prompt = `Provide a brief 2-3 sentence synopsis about this financial metric for an Indian business:
+
+Metric: ${current.label}
+Value: ${metricType === 'margin' ? current.value.toFixed(2) + '%' : metricType === 'runway' ? current.value.toFixed(1) + ' months' : metricType === 'healthscore' ? current.value + '/100' : '₹' + current.value?.toLocaleString('en-IN')}
+
+Context:
+- Total Revenue: ₹${metrics.totalRevenue?.toLocaleString('en-IN')}
+- Total Expenses: ₹${metrics.totalExpenses?.toLocaleString('en-IN')}
+- Net ${metrics.netProfit >= 0 ? 'Profit' : 'Loss'}: ₹${Math.abs(metrics.netProfit)?.toLocaleString('en-IN')}
+
+Give actionable insight specific to this metric. Keep response under 50 words. Use ₹ for currency.`;
+
+      const response = await fetch(buildApiUrl('/api/chat/message'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt, conversationHistory: [] })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSynopsisModal(prev => ({ ...prev, content: data.response, loading: false }));
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error('Synopsis generation failed:', error);
+      setSynopsisModal(prev => ({ 
+        ...prev, 
+        content: 'Unable to generate synopsis at this time. Please try again later.', 
+        loading: false 
+      }));
+    }
+  };
+
   // Get available categories based on type
   const getAvailableCategories = (type) => {
     if (type === 'credit') {
@@ -1831,6 +1886,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             >
                               <Info size={14} />
                             </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('revenue');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
+                            </button>
                             {activeTooltip === 'revenue' && (
                               <div className="info-tooltip">
                                 <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
@@ -1885,6 +1951,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}
                             >
                               <Info size={14} />
+                            </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('expenses');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
                             </button>
                             {activeTooltip === 'expenses' && (
                               <div className="info-tooltip">
@@ -2017,6 +2094,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             >
                               <Info size={14} />
                             </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('netprofit');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
+                            </button>
                             {activeTooltip === 'netprofit' && (
                               <div className="info-tooltip">
                                 <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
@@ -2064,6 +2152,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}
                             >
                               <Info size={14} />
+                            </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('margin');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
                             </button>
                             {activeTooltip === 'margin' && (
                               <div className="info-tooltip">
@@ -2116,6 +2215,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                             >
                               <Info size={14} />
                             </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('cash');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
+                            </button>
                             {activeTooltip === 'cash' && (
                               <div className="info-tooltip">
                                 <button className="tooltip-close" onClick={() => setActiveTooltip(null)}>
@@ -2163,6 +2273,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}
                             >
                               <Info size={14} />
+                            </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('burn');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
                             </button>
                             {activeTooltip === 'burn' && (
                               <div className="info-tooltip">
@@ -2214,6 +2335,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}
                             >
                               <Info size={14} />
+                            </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('runway');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
                             </button>
                             {activeTooltip === 'runway' && (
                               <div className="info-tooltip">
@@ -2273,6 +2405,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                               }}
                             >
                               <Info size={14} />
+                            </button>
+                            <button 
+                              className="info-btn synopsis-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateSynopsis('healthscore');
+                              }}
+                              title="Get AI Synopsis"
+                              style={{ marginLeft: '4px', background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#d97706' }}
+                            >
+                              <span style={{ fontSize: '11px', fontWeight: '700' }}>d</span>
                             </button>
                           </h4>
                           <div className="metric-value" style={{ 
@@ -4627,6 +4770,96 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
               >
                 Got it, Thanks!
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Synopsis Modal */}
+      {synopsisModal.show && (
+        <div 
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={() => setSynopsisModal({ show: false, type: null, content: '', loading: false })}
+        >
+          <div 
+            style={{
+              background: darkMode ? '#1e293b' : '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '90%',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+              border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: darkMode ? '#f1f5f9' : '#1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ 
+                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  color: '#d97706'
+                }}>d</span>
+                AI Synopsis
+              </h3>
+              <button 
+                onClick={() => setSynopsisModal({ show: false, type: null, content: '', loading: false })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: darkMode ? '#94a3b8' : '#64748b'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{
+              padding: '16px',
+              background: darkMode ? '#0f172a' : '#f8fafc',
+              borderRadius: '12px',
+              minHeight: '80px'
+            }}>
+              {synopsisModal.loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: darkMode ? '#94a3b8' : '#64748b' }}>
+                  <Loader2 className="animate-spin" size={20} />
+                  <span>Generating synopsis...</span>
+                </div>
+              ) : (
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '14px', 
+                  lineHeight: '1.6',
+                  color: darkMode ? '#e2e8f0' : '#334155'
+                }}>
+                  {synopsisModal.content}
+                </p>
+              )}
             </div>
           </div>
         </div>

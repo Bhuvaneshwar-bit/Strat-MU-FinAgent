@@ -20,7 +20,7 @@ class GroqAIService {
       let messages = [];
       
       // Add system message for context
-      let systemMessage = `You are a helpful AI financial advisor for StratSchool, a financial analysis platform. You help users understand their P&L statements, analyze uploaded financial data, and provide actionable business insights. Be friendly, professional, and give specific, data-driven recommendations.`;
+      let systemMessage = `You are a helpful AI financial advisor for StratSchool, a financial analysis platform for Indian businesses. You help users understand their P&L statements, analyze uploaded financial data, and provide actionable business insights. Be friendly, professional, and give specific, data-driven recommendations. IMPORTANT: All amounts are in Indian Rupees (INR/₹). Always display currency as ₹ (Rupees), never use $ (dollars).`;
       
       if (plData) {
         systemMessage += `\n\n=== CURRENT FINANCIAL DATA CONTEXT ===`;
@@ -28,9 +28,9 @@ class GroqAIService {
         // Basic P&L Information
         if (plData.totalRevenue || plData.totalExpenses) {
           systemMessage += `\n\n📊 P&L Summary:
-- Total Revenue: $${plData.totalRevenue?.toLocaleString() || 'N/A'}
-- Total Expenses: $${plData.totalExpenses?.toLocaleString() || 'N/A'}  
-- Net Income: $${plData.netIncome?.toLocaleString() || 'N/A'}
+- Total Revenue: ₹${plData.totalRevenue?.toLocaleString('en-IN') || 'N/A'}
+- Total Expenses: ₹${plData.totalExpenses?.toLocaleString('en-IN') || 'N/A'}  
+- Net Income: ₹${plData.netIncome?.toLocaleString('en-IN') || 'N/A'}
 - Profit Margin: ${plData.profitMargin || 'N/A'}%
 - Period: ${plData.period || 'Current Period'}
 - Transaction Count: ${plData.transactionCount || 'N/A'}`;
@@ -40,7 +40,7 @@ class GroqAIService {
         if (plData.revenueBreakdown && plData.revenueBreakdown.length > 0) {
           systemMessage += `\n\n💰 Revenue Categories:`;
           plData.revenueBreakdown.forEach(rev => {
-            systemMessage += `\n- ${rev.category}: $${rev.amount?.toLocaleString()} (${rev.transactionCount} transactions)`;
+            systemMessage += `\n- ${rev.category}: ₹${rev.amount?.toLocaleString('en-IN')} (${rev.transactionCount} transactions)`;
             if (rev.sampleTransactions && rev.sampleTransactions.length > 0) {
               systemMessage += `\n  Sample: ${rev.sampleTransactions.map(t => t.description || t.particulars || 'Transaction').join(', ')}`;
             }
@@ -51,7 +51,7 @@ class GroqAIService {
         if (plData.expenseBreakdown && plData.expenseBreakdown.length > 0) {
           systemMessage += `\n\n💸 Expense Categories:`;
           plData.expenseBreakdown.forEach(exp => {
-            systemMessage += `\n- ${exp.category}: $${exp.amount?.toLocaleString()} (${exp.transactionCount} transactions)`;
+            systemMessage += `\n- ${exp.category}: ₹${exp.amount?.toLocaleString('en-IN')} (${exp.transactionCount} transactions)`;
             if (exp.sampleTransactions && exp.sampleTransactions.length > 0) {
               systemMessage += `\n  Sample: ${exp.sampleTransactions.map(t => t.description || t.particulars || 'Transaction').join(', ')}`;
             }
