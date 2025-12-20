@@ -1123,3 +1123,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Light Mode Invoice Form Fixes */
+.light-mode .invoice-generation .form-group input,
+.light-mode .invoice-generation .form-group textarea,
+.light-mode .invoice-generation .form-group select {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: #d0d0d0 !important;
+}
+
+.light-mode .invoice-generation .form-section {
+  background: #ffffff;
+  border-color: #e0e0e0;
+}
+
+.light-mode .invoice-generation .items-table input,
+.light-mode .invoice-generation .items-table select {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+}
