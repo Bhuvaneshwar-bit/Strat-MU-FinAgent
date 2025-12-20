@@ -14,6 +14,173 @@ const {
 } = require('@aws-sdk/client-textract');
 const { PDFDocument } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
+const path = require('path');
+const fs = require('fs').promises;
+
+/**
+ * Convert PDF to images using pdf-poppler (for Textract fallback)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Buffer[]>} - Array of image buffers (PNG)
+ */
+async function convertPdfToImages(pdfBuffer) {
+  try {
+    console.log('🖼️  Converting PDF to images for Textract...');
+    
+    // Try pdf-poppler first (better quality)
+    try {
+      const { Poppler } = require('pdf-poppler');
+      const tempDir = path.join(__dirname, '../../../temp');
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      const tempPdfPath = path.join(tempDir, `temp_${Date.now()}.pdf`);
+      await fs.writeFile(tempPdfPath, pdfBuffer);
+      
+      const opts = {
+        format: 'png',
+        out_dir: tempDir,
+        out_prefix: `page_${Date.now()}`,
+        scale: 2048 // High resolution for better OCR
+      };
+      
+      await Poppler.convert(tempPdfPath, opts);
+      
+      // Read generated images
+      const files = await fs.readdir(tempDir);
+      const imageFiles = files.filter(f => f.startsWith(opts.out_prefix) && f.endsWith('.png'));
+      imageFiles.sort();
+      
+      const imageBuffers = [];
+      for (const file of imageFiles) {
+        const imgPath = path.join(tempDir, file);
+        const imgBuffer = await fs.readFile(imgPath);
+        imageBuffers.push(imgBuffer);
+        await fs.unlink(imgPath); // Cleanup
+      }
+      
+      await fs.unlink(tempPdfPath); // Cleanup temp PDF
+      
+      console.log(`   ✅ Converted ${imageBuffers.length} pages to images`);
+      return imageBuffers;
+      
+    } catch (popplerError) {
+      console.log('   pdf-poppler not available, trying pdf2pic...');
+      
+      // Fallback to pdf2pic
+      const { fromBuffer } = require('pdf2pic');
+      const tempDir = path.join(__dirname, '../../../temp');
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      const options = {
+        density: 300,
+        saveFilename: `page_${Date.now()}`,
+        savePath: tempDir,
+        format: 'png',
+        width: 2048,
+        height: 2048
+      };
+      
+      const convert = fromBuffer(pdfBuffer, options);
+      
+      // Get page count
+      const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+      const pageCount = pdfDoc.getPageCount();
+      
+      const imageBuffers = [];
+      for (let i = 1; i <= pageCount; i++) {
+        try {
+          const result = await convert(i);
+          if (result && result.path) {
+            const imgBuffer = await fs.readFile(result.path);
+            imageBuffers.push(imgBuffer);
+            await fs.unlink(result.path); // Cleanup
+          }
+        } catch (pageError) {
+          console.warn(`   ⚠️ Failed to convert page ${i}: ${pageError.message}`);
+        }
+      }
+      
+      console.log(`   ✅ Converted ${imageBuffers.length} pages to images`);
+      return imageBuffers;
+    }
+    
+  } catch (error) {
+    console.error('❌ PDF to image conversion failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Analyze image buffer with Textract
+ * @param {Buffer} imageBuffer - PNG/JPEG image buffer
+ * @returns {Promise<Object>} - Textract response
+ */
+async function analyzeImageWithTextract(imageBuffer) {
+  try {
+    const params = {
+      Document: {
+        Bytes: imageBuffer
+      },
+      FeatureTypes: ['TABLES', 'FORMS', 'LAYOUT']
+    };
+    
+    const command = new AnalyzeDocumentCommand(params);
+    const response = await textractClient.send(command);
+    
+    return response;
+  } catch (error) {
+    console.error('   ❌ Image analysis failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Analyze PDF by converting to images first (fallback method)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} - Combined Textract response
+ */
+async function analyzePdfAsImages(pdfBuffer) {
+  console.log('🔄 Using image conversion fallback for Textract...');
+  
+  const imageBuffers = await convertPdfToImages(pdfBuffer);
+  
+  if (!imageBuffers || imageBuffers.length === 0) {
+    console.log('   ❌ Image conversion failed, falling back to pdf-parse');
+    return null;
+  }
+  
+  console.log(`📑 Analyzing ${imageBuffers.length} images with Textract...`);
+  
+  const allBlocks = [];
+  
+  for (let i = 0; i < imageBuffers.length; i++) {
+    console.log(`   Processing image ${i + 1}/${imageBuffers.length}...`);
+    
+    const response = await analyzeImageWithTextract(imageBuffers[i]);
+    
+    if (response && response.Blocks) {
+      response.Blocks.forEach(block => {
+        block.Page = i + 1;
+        allBlocks.push(block);
+      });
+      console.log(`   ✅ Page ${i + 1}: Found ${response.Blocks.length} blocks`);
+    }
+    
+    // Small delay to avoid rate limiting
+    if (i < imageBuffers.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
+  
+  console.log(`✅ Image analysis complete. Total blocks: ${allBlocks.length}`);
+  
+  return {
+    Blocks: allBlocks,
+    DocumentMetadata: {
+      Pages: imageBuffers.length
+    },
+    source: 'image-conversion'
+  };
+}
 
 /**
  * Extract text directly from PDF using pdf-parse (fallback for text-based PDFs)
@@ -532,7 +699,7 @@ function getBlockText(block, blockMap) {
 /**
  * Main function: Analyze document from buffer (RECOMMENDED)
  * Automatically handles multi-page PDFs by splitting them
- * Falls back to pdf-parse if Textract doesn't extract enough text
+ * Falls back to image conversion if Textract doesn't extract enough from PDF
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Processed Textract results
  */
@@ -540,42 +707,63 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
   try {
     console.log('📄 Starting complete Textract analysis from buffer...');
     
-    // Use multi-page handler which automatically splits if needed
+    // STEP 1: Try direct PDF analysis (works for most bank statements)
     const textractResponse = await analyzeMultiPagePdfFromBuffer(pdfBuffer);
-    
-    // Process and structure the response
     let processedData = processTextractResponse(textractResponse);
     
-    // Check if Textract extracted enough text (fallback threshold)
+    // Check if Textract extracted enough content
     const textBlockCount = processedData.text?.length || 0;
     const tableCount = processedData.tables?.length || 0;
     
     console.log(`   Textract extracted: ${textBlockCount} text blocks, ${tableCount} tables`);
     
-    // If Textract didn't extract much, try pdf-parse as fallback
-    if (textBlockCount < 20 && tableCount === 0) {
-      console.log('⚠️  Textract found minimal content, trying pdf-parse fallback...');
+    // If we have tables, use existing flow (works for HDFC, SBI, etc.)
+    if (tableCount > 0) {
+      console.log('✅ Tables found - using standard table extraction flow');
+      return processedData;
+    }
+    
+    // If we have enough text, use it
+    if (textBlockCount >= 50) {
+      console.log('✅ Sufficient text extracted - using standard flow');
+      return processedData;
+    }
+    
+    // STEP 2: Textract failed to get enough data - try image conversion
+    console.log('⚠️  Textract found minimal content from PDF, trying image conversion...');
+    
+    const imageTextractResponse = await analyzePdfAsImages(pdfBuffer);
+    
+    if (imageTextractResponse && imageTextractResponse.Blocks) {
+      const imageProcessedData = processTextractResponse(imageTextractResponse);
+      const imageTextCount = imageProcessedData.text?.length || 0;
+      const imageTableCount = imageProcessedData.tables?.length || 0;
       
-      const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+      console.log(`   Image Textract extracted: ${imageTextCount} text blocks, ${imageTableCount} tables`);
       
-      if (pdfParseData && pdfParseData.text.length > textBlockCount) {
-        console.log(`✅ pdf-parse extracted more content: ${pdfParseData.text.length} lines`);
-        
-        // Merge pdf-parse text with Textract data (keep any tables/forms from Textract)
-        processedData = {
-          ...processedData,
-          text: pdfParseData.text,
-          rawText: pdfParseData.rawText,
-          source: 'pdf-parse-fallback',
-          // Keep any key-value pairs or tables Textract found
-          keyValuePairs: processedData.keyValuePairs || [],
-          tables: processedData.tables || []
-        };
+      // If image conversion got better results, use it
+      if (imageTextCount > textBlockCount || imageTableCount > 0) {
+        console.log('✅ Image conversion extracted more content - using image-based results');
+        imageProcessedData.source = 'image-conversion';
+        return imageProcessedData;
       }
     }
     
-    console.log('✅ Complete analysis finished');
+    // STEP 3: Image conversion also failed - fall back to pdf-parse
+    console.log('⚠️  Image conversion did not improve results, trying pdf-parse fallback...');
     
+    const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+    
+    if (pdfParseData && pdfParseData.text.length > textBlockCount) {
+      console.log(`✅ pdf-parse extracted more content: ${pdfParseData.text.length} lines`);
+      return {
+        ...pdfParseData,
+        source: 'pdf-parse-fallback'
+      };
+    }
+    
+    // Return whatever we got from direct Textract
+    console.log('✅ Using original Textract results');
     return processedData;
     
   } catch (error) {
@@ -629,11 +817,14 @@ module.exports = {
   analyzeDocumentFromBuffer,
   analyzeDocumentFromBufferComplete,
   analyzeMultiPagePdfFromBuffer,
+  analyzePdfAsImages,
+  convertPdfToImages,
   splitPdfPages,
   startDocumentAnalysis,
   getDocumentAnalysis,
   processTextractResponse,
   analyzeDocumentComplete,
+  extractTextWithPdfParse,
   textractClient,
   createTextractClient
 };
