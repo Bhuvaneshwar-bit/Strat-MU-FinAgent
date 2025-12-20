@@ -1,13 +1,13 @@
 /**
  * Azure Document Intelligence Handler
  * Fallback for when AWS Textract cannot extract data from PDFs
- * Uses Azure's Layout API for document analysis
+ * Uses Azure's Layout API for document analysis via REST API
  */
 
-const { DocumentAnalysisClient, AzureKeyCredential } = require('@azure/ai-form-recognizer');
+const axios = require('axios');
 
 /**
- * Analyze document using Azure Document Intelligence
+ * Analyze document using Azure Document Intelligence REST API
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Parsed bank statement data
  */
@@ -21,17 +21,71 @@ async function analyzeWithAzure(pdfBuffer) {
     
     if (!endpoint || !key) {
       console.error('❌ Azure Document Intelligence credentials not configured');
+      console.error(`   Endpoint: ${endpoint ? 'SET' : 'MISSING'}`);
+      console.error(`   Key: ${key ? 'SET' : 'MISSING'}`);
       return null;
     }
     
-    const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+    // Use REST API directly for better control
+    const analyzeUrl = `${endpoint}documentintelligence/documentModels/prebuilt-layout:analyze?api-version=2024-11-30`;
     
-    // Use prebuilt-layout model for table extraction
-    console.log('   Starting Azure Layout analysis...');
-    const poller = await client.beginAnalyzeDocument('prebuilt-layout', pdfBuffer);
+    console.log('   Starting Azure Layout analysis via REST API...');
+    console.log(`   Endpoint: ${endpoint}`);
     
-    console.log('   Waiting for analysis to complete...');
-    const result = await poller.pollUntilDone();
+    // Start the analysis
+    const startResponse = await axios.post(analyzeUrl, pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Ocp-Apim-Subscription-Key': key
+      }
+    });
+    
+    // Get the operation location to poll for results
+    const operationLocation = startResponse.headers['operation-location'];
+    
+    if (!operationLocation) {
+      console.error('❌ No operation-location header in response');
+      console.log('   Response status:', startResponse.status);
+      console.log('   Response headers:', JSON.stringify(startResponse.headers, null, 2));
+      return null;
+    }
+    
+    console.log('   Analysis started, polling for results...');
+    
+    // Poll for results
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = 60; // Max 60 seconds
+    
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      
+      const pollResponse = await axios.get(operationLocation, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': key
+        }
+      });
+      
+      const status = pollResponse.data.status;
+      
+      if (status === 'succeeded') {
+        result = pollResponse.data.analyzeResult;
+        break;
+      } else if (status === 'failed') {
+        console.error('❌ Azure analysis failed:', pollResponse.data.error?.message || 'Unknown error');
+        return null;
+      }
+      
+      attempts++;
+      if (attempts % 5 === 0) {
+        console.log(`   Still processing... (${attempts}s)`);
+      }
+    }
+    
+    if (!result) {
+      console.error('❌ Azure analysis timed out');
+      return null;
+    }
     
     console.log(`   ✅ Azure analysis complete`);
     console.log(`   Pages: ${result.pages?.length || 0}`);
@@ -203,6 +257,13 @@ async function analyzeWithAzure(pdfBuffer) {
     
   } catch (error) {
     console.error('❌ Azure Document Intelligence failed:', error.message);
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Data:', JSON.stringify(error.response.data, null, 2));
+    }
+    if (error.code) {
+      console.error('   Error code:', error.code);
+    }
     return null;
   }
 }
