@@ -24,7 +24,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
  */
 async function parseTransactionsWithGemini(rawText) {
   try {
-    console.log('🤖 Using Gemini 3 Pro to parse bank statement text...');
+    console.log('🤖 Using Gemini 2.5 Flash to parse bank statement text...');
     
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -33,7 +33,7 @@ async function parseTransactionsWithGemini(rawText) {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     const prompt = `You are a bank statement parser. Extract ALL transactions from this bank statement text.
 
@@ -104,14 +104,15 @@ Return ONLY the JSON object, nothing else.`;
 }
 
 /**
- * Parse bank statement PDF directly using Gemini 3 Pro Vision
+ * Parse bank statement PDF directly using Gemini 2.5 Pro Vision
  * Used when pdf-parse fails to extract text from corrupted/encoded PDFs
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Structured transaction data
  */
 async function parsePdfWithGeminiVision(pdfBuffer) {
   try {
-    console.log('🤖 Using Gemini 3 Pro to parse PDF directly (vision mode)...');
+    console.log('🤖 Using Gemini 2.5 Pro to parse PDF directly (vision mode)...');
+    console.log(`   PDF buffer size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
     
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -120,12 +121,20 @@ async function parsePdfWithGeminiVision(pdfBuffer) {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
     
-    // Convert PDF buffer to base64
-    const pdfBase64 = pdfBuffer.toString('base64');
+    // Try different models in order of capability
+    const modelsToTry = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'];
     
-    const prompt = `You are analyzing an Indian bank statement PDF. Extract ALL transactions from this document.
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`   Trying model: ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        
+        // Convert PDF buffer to base64
+        const pdfBase64 = pdfBuffer.toString('base64');
+        console.log(`   Base64 size: ${(pdfBase64.length / 1024).toFixed(2)} KB`);
+        
+        const prompt = `You are analyzing an Indian bank statement PDF. Extract ALL transactions from this document.
 
 IMPORTANT RULES:
 1. This is an Indian bank statement - look for INR/Rs amounts
@@ -162,31 +171,43 @@ Return a JSON object with this EXACT structure:
 
 Return ONLY the JSON object, nothing else.`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: 'application/pdf',
-          data: pdfBase64
+        const result = await model.generateContent([
+          prompt,
+          {
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: pdfBase64
+            }
+          }
+        ]);
+        
+        const response = await result.response;
+        let text = response.text();
+        
+        // Clean up the response - remove markdown code blocks if present
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.transactions && parsed.transactions.length > 0) {
+            console.log(`✅ ${modelName} extracted ${parsed.transactions.length} transactions from PDF`);
+            return parsed;
+          } else {
+            console.log(`⚠️ ${modelName} returned 0 transactions, trying next model...`);
+          }
+        } catch (parseError) {
+          console.error(`❌ Failed to parse ${modelName} response as JSON:`, parseError.message);
+          console.log('   Raw response:', text.substring(0, 300));
         }
+        
+      } catch (modelError) {
+        console.log(`⚠️ ${modelName} failed: ${modelError.message}`);
+        // Continue to next model
       }
-    ]);
-    
-    const response = await result.response;
-    let text = response.text();
-    
-    // Clean up the response - remove markdown code blocks if present
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    try {
-      const parsed = JSON.parse(text);
-      console.log(`✅ Gemini Vision extracted ${parsed.transactions?.length || 0} transactions from PDF`);
-      return parsed;
-    } catch (parseError) {
-      console.error('❌ Failed to parse Gemini Vision response as JSON:', parseError.message);
-      console.log('   Raw response:', text.substring(0, 500));
-      return null;
     }
+    
+    console.error('❌ All Gemini models failed to parse PDF');
+    return null;
     
   } catch (error) {
     console.error('❌ Gemini Vision PDF parsing failed:', error.message);
