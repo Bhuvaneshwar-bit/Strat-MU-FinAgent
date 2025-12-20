@@ -11,24 +11,33 @@ const { PDFDocument } = require('pdf-lib');
 const { execSync } = require('child_process');
 
 /**
- * Check if a PDF is password protected
+ * Check if a PDF is password protected (requires user password to open)
+ * Note: PDFs with only "owner password" (edit restrictions) are NOT considered password protected
  * @param {Buffer} pdfBuffer - The PDF file buffer
- * @returns {Promise<boolean>} - True if password protected
+ * @returns {Promise<{isProtected: boolean, canBypass: boolean}>} - Protection status
  */
 async function isPdfPasswordProtected(pdfBuffer) {
   try {
-    // Try to load the PDF without a password
+    // First try: Load WITHOUT ignoring encryption - strict check
     await PDFDocument.load(pdfBuffer, { ignoreEncryption: false });
-    return false;
-  } catch (error) {
-    // If error message contains encryption keywords, it's password protected
-    if (error.message.includes('encrypted') || 
-        error.message.includes('password') ||
-        error.message.includes('Encrypted')) {
-      return true;
+    return { isProtected: false, canBypass: false };
+  } catch (strictError) {
+    // If strict loading fails, try with ignoreEncryption: true
+    // This handles PDFs with "owner password" only (edit restrictions, but viewable)
+    try {
+      await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+      console.log('🔓 PDF has owner password (edit restrictions) but can be read without user password');
+      return { isProtected: false, canBypass: true };
+    } catch (bypassError) {
+      // Even ignoring encryption failed - this is truly password protected
+      if (strictError.message.includes('encrypted') || 
+          strictError.message.includes('password') ||
+          strictError.message.includes('Encrypted')) {
+        return { isProtected: true, canBypass: false };
+      }
+      // Re-throw if it's a different error (corrupt PDF, etc.)
+      throw strictError;
     }
-    // Re-throw if it's a different error
-    throw error;
   }
 }
 
@@ -135,10 +144,10 @@ async function processPdf(pdfBuffer, password, originalFilename) {
     console.log('📄 Processing PDF:', originalFilename);
     
     // Check if PDF is password protected
-    const isProtected = await isPdfPasswordProtected(pdfBuffer);
+    const { isProtected, canBypass } = await isPdfPasswordProtected(pdfBuffer);
     
     if (isProtected) {
-      console.log('🔒 PDF is password protected');
+      console.log('🔒 PDF is password protected (requires user password)');
       
       if (!password) {
         throw new Error('PASSWORD_REQUIRED: This PDF is password protected but no password was provided');
@@ -156,16 +165,44 @@ async function processPdf(pdfBuffer, password, originalFilename) {
         wasEncrypted: true
       };
     } else {
-      console.log('🔓 PDF is not password protected');
-      
-      // Save to temp file anyway for uniform processing
-      const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
-      
-      return {
-        buffer: pdfBuffer,
-        tempPath: tempPath,
-        wasEncrypted: false
-      };
+      // PDF is either unprotected OR has only owner-password (can bypass)
+      if (canBypass) {
+        console.log('🔓 PDF has edit restrictions but is viewable - bypassing encryption');
+        // Load with ignoreEncryption and save as unencrypted
+        try {
+          const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+          const unlockedBytes = await pdfDoc.save();
+          const unlockedBuffer = Buffer.from(unlockedBytes);
+          
+          const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
+          
+          return {
+            buffer: unlockedBuffer,
+            tempPath: tempPath,
+            wasEncrypted: false // Treat as not encrypted since no password was needed
+          };
+        } catch (bypassError) {
+          console.warn('⚠️ Bypass failed, using original buffer:', bypassError.message);
+          // Fallback to original buffer
+          const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
+          return {
+            buffer: pdfBuffer,
+            tempPath: tempPath,
+            wasEncrypted: false
+          };
+        }
+      } else {
+        console.log('🔓 PDF is not password protected');
+        
+        // Save to temp file anyway for uniform processing
+        const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
+        
+        return {
+          buffer: pdfBuffer,
+          tempPath: tempPath,
+          wasEncrypted: false
+        };
+      }
     }
     
   } catch (error) {
