@@ -182,6 +182,38 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
         };
         
         console.log(`✅ Azure Document Intelligence parsed ${bankStatement.transactions.length} transactions`);
+      } else if (textractData.source === 'gemini-ai' && 
+          textractData.parsedTransactions && textractData.parsedTransactions.length > 0) {
+        // Gemini AI parsed the transactions
+        console.log('   Using Gemini AI parsed transactions...');
+        const geminiData = textractData.geminiParsed;
+        
+        // Convert Gemini format to standard format
+        bankStatement = {
+          account_number: geminiData.account_number || 'Unknown',
+          account_holder: geminiData.account_holder || 'Unknown',
+          bank_name: geminiData.bank_name || 'Unknown Bank',
+          opening_balance: geminiData.opening_balance || 0,
+          closing_balance: geminiData.closing_balance || 0,
+          transactions: textractData.parsedTransactions.map(tx => ({
+            date: tx.date,
+            description: tx.description,
+            amount: tx.debit > 0 ? -tx.debit : tx.credit,
+            type: tx.debit > 0 ? 'debit' : 'credit',
+            debit: tx.debit,
+            credit: tx.credit,
+            balance: tx.balance,
+            category: 'Uncategorized'
+          })),
+          summary: textractData.summary || {
+            total_credits: textractData.parsedTransactions.reduce((sum, tx) => sum + (tx.credit || 0), 0),
+            total_debits: textractData.parsedTransactions.reduce((sum, tx) => sum + (tx.debit || 0), 0),
+            transaction_count: textractData.parsedTransactions.length
+          },
+          source: 'gemini-ai'
+        };
+        
+        console.log(`✅ Gemini AI parsed ${bankStatement.transactions.length} transactions`);
       } else {
         // Use traditional Textract parsing
         bankStatement = parseBankStatement(textractData);

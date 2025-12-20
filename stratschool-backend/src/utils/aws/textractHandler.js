@@ -2,7 +2,7 @@
  * AWS Textract Handler
  * Manages document analysis using AWS Textract
  * Extracts text, key-value pairs, tables, and forms from documents
- * Falls back to Azure Document Intelligence when Textract fails
+ * Falls back to Gemini AI when Textract fails
  * 
  * @module textractHandler
  */
@@ -14,7 +14,116 @@ const {
   GetDocumentAnalysisCommand
 } = require('@aws-sdk/client-textract');
 const { PDFDocument } = require('pdf-lib');
-const { analyzeWithAzure } = require('../azure/azureDocumentIntelligence');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+/**
+ * Parse bank statement PDF directly using Gemini 1.5 Flash (supports PDF natively)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} - Structured transaction data
+ */
+async function parsePdfWithGemini(pdfBuffer) {
+  try {
+    console.log('🤖 Using Gemini 1.5 Flash to parse PDF directly...');
+    console.log(`   PDF buffer size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY not configured');
+      return null;
+    }
+    
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Use gemini-1.5-flash which has stable PDF support
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    // Convert PDF buffer to base64
+    const pdfBase64 = pdfBuffer.toString('base64');
+    console.log(`   Base64 size: ${(pdfBase64.length / 1024).toFixed(2)} KB`);
+    
+    const prompt = `You are analyzing an Indian bank statement PDF. Extract ALL transactions from this document.
+
+CRITICAL INSTRUCTIONS:
+1. This is an Indian bank statement - amounts are in INR (₹)
+2. Extract EVERY single transaction - do not skip any
+3. For dates, use format DD-MM-YYYY
+4. Identify transaction type: DEBIT (withdrawal/Dr) or CREDIT (deposit/Cr)
+5. Extract the exact transaction amount
+6. Return ONLY valid JSON, no markdown code blocks, no explanation
+
+LOOK FOR:
+- Account Number
+- Account Holder Name  
+- Bank Name (IDBI, HDFC, SBI, etc.)
+- Transaction Date
+- Description/Narration/Particulars
+- Debit Amount (money going out)
+- Credit Amount (money coming in)
+- Balance after transaction
+
+Return this EXACT JSON structure:
+{
+  "account_number": "account number or null",
+  "account_holder": "name or null",
+  "bank_name": "bank name or null",
+  "transactions": [
+    {
+      "date": "DD-MM-YYYY",
+      "description": "transaction description",
+      "amount": 12345.67,
+      "type": "debit" or "credit",
+      "balance": balance after transaction or null
+    }
+  ],
+  "summary": {
+    "total_credits": sum of all credit amounts,
+    "total_debits": sum of all debit amounts,
+    "transaction_count": number of transactions
+  }
+}
+
+Return ONLY the JSON, nothing else.`;
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: pdfBase64
+        }
+      },
+      prompt
+    ]);
+    
+    const response = await result.response;
+    let text = response.text();
+    
+    console.log(`   Gemini response length: ${text.length} chars`);
+    
+    // Clean up the response - remove markdown code blocks if present
+    text = text.replace(/```json\n?/gi, '').replace(/```\n?/gi, '').trim();
+    
+    try {
+      const parsed = JSON.parse(text);
+      const txCount = parsed.transactions?.length || 0;
+      console.log(`✅ Gemini extracted ${txCount} transactions from PDF`);
+      
+      if (txCount > 0) {
+        return parsed;
+      } else {
+        console.log('⚠️ Gemini returned 0 transactions');
+        return null;
+      }
+    } catch (parseError) {
+      console.error('❌ Failed to parse Gemini response as JSON:', parseError.message);
+      console.log('   Raw response (first 500 chars):', text.substring(0, 500));
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Gemini PDF parsing failed:', error.message);
+    return null;
+  }
+}
 
 /**
  * Parse bank statement transactions using Gemini AI
@@ -732,7 +841,7 @@ function getBlockText(block, blockMap) {
 /**
  * Main function: Analyze document from buffer (RECOMMENDED)
  * Automatically handles multi-page PDFs by splitting them
- * Falls back to Azure Document Intelligence if Textract doesn't extract enough
+ * Falls back to Gemini AI if Textract doesn't extract enough
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Processed Textract results
  */
@@ -762,62 +871,62 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
       return processedData;
     }
     
-    // STEP 2: Textract failed to extract data - use Azure Document Intelligence as fallback
-    console.log('⚠️  Textract found minimal content, using Azure Document Intelligence as fallback...');
+    // STEP 2: Textract failed to extract data - use Gemini AI as fallback
+    console.log('⚠️  Textract found minimal content, using Gemini AI as fallback...');
     
-    const azureResult = await analyzeWithAzure(pdfBuffer);
+    const geminiResult = await parsePdfWithGemini(pdfBuffer);
     
-    if (azureResult && azureResult.transactions && azureResult.transactions.length > 0) {
-      console.log(`✅ Azure Document Intelligence extracted ${azureResult.transactions.length} transactions`);
+    if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
+      console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions`);
       
       return {
         text: [],
         keyValuePairs: [],
         tables: [],
-        rawText: azureResult.rawContent || '',
+        rawText: '',
         pageCount: 0,
-        source: 'azure-document-intelligence',
-        azureParsed: azureResult,
-        parsedTransactions: azureResult.transactions.map(tx => ({
+        source: 'gemini-ai',
+        geminiParsed: geminiResult,
+        parsedTransactions: geminiResult.transactions.map(tx => ({
           date: tx.date,
           description: tx.description,
-          debit: tx.debit || 0,
-          credit: tx.credit || 0,
+          debit: tx.type === 'debit' ? tx.amount : 0,
+          credit: tx.type === 'credit' ? tx.amount : 0,
           balance: tx.balance || 0
         })),
-        summary: azureResult.summary
+        summary: geminiResult.summary
       };
     }
     
     // Return whatever we got from Textract as last fallback
-    console.log('⚠️  Azure also found no transactions, returning original Textract results');
+    console.log('⚠️  Gemini also found no transactions, returning original Textract results');
     return processedData;
     
   } catch (error) {
     console.error('❌ Complete document analysis failed:', error.message);
     
-    // Last resort: try Azure directly
-    console.log('🔄 Attempting Azure Document Intelligence as last resort...');
+    // Last resort: try Gemini directly
+    console.log('🔄 Attempting Gemini AI as last resort...');
     try {
-      const azureResult = await analyzeWithAzure(pdfBuffer);
-      if (azureResult && azureResult.transactions?.length > 0) {
-        console.log('✅ Last resort Azure analysis succeeded');
+      const geminiResult = await parsePdfWithGemini(pdfBuffer);
+      if (geminiResult && geminiResult.transactions?.length > 0) {
+        console.log('✅ Last resort Gemini analysis succeeded');
         return {
           text: [],
-          source: 'azure-document-intelligence',
-          azureParsed: azureResult,
-          parsedTransactions: azureResult.transactions.map(tx => ({
+          source: 'gemini-ai',
+          geminiParsed: geminiResult,
+          parsedTransactions: geminiResult.transactions.map(tx => ({
             date: tx.date,
             description: tx.description,
-            debit: tx.debit || 0,
-            credit: tx.credit || 0,
+            debit: tx.type === 'debit' ? tx.amount : 0,
+            credit: tx.type === 'credit' ? tx.amount : 0,
             balance: tx.balance || 0
           })),
-          summary: azureResult.summary
+          summary: geminiResult.summary
         };
       }
     } catch (fallbackError) {
-      console.error('❌ Azure fallback also failed:', fallbackError.message);
+      console.error('❌ Gemini fallback also failed:', fallbackError.message);
     }
     
     throw error;
