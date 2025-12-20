@@ -50,7 +50,7 @@ import { buildApiUrl } from '../config/api';
 
 // Logo imports
 import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
-import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.jpg';
+import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.png';
 
 // Default categories for revenue and expenses
 const DEFAULT_REVENUE_CATEGORIES = [
