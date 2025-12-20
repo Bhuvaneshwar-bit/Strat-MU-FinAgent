@@ -24,7 +24,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
  */
 async function parseTransactionsWithGemini(rawText) {
   try {
-    console.log('🤖 Using Gemini AI to parse bank statement text...');
+    console.log('🤖 Using Gemini 3 Pro to parse bank statement text...');
     
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -33,7 +33,7 @@ async function parseTransactionsWithGemini(rawText) {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
     
     const prompt = `You are a bank statement parser. Extract ALL transactions from this bank statement text.
 
@@ -99,6 +99,97 @@ Return ONLY the JSON object, nothing else.`;
     
   } catch (error) {
     console.error('❌ Gemini parsing failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Parse bank statement PDF directly using Gemini 3 Pro Vision
+ * Used when pdf-parse fails to extract text from corrupted/encoded PDFs
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} - Structured transaction data
+ */
+async function parsePdfWithGeminiVision(pdfBuffer) {
+  try {
+    console.log('🤖 Using Gemini 3 Pro to parse PDF directly (vision mode)...');
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY not configured');
+      return null;
+    }
+    
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    
+    // Convert PDF buffer to base64
+    const pdfBase64 = pdfBuffer.toString('base64');
+    
+    const prompt = `You are analyzing an Indian bank statement PDF. Extract ALL transactions from this document.
+
+IMPORTANT RULES:
+1. This is an Indian bank statement - look for INR/Rs amounts
+2. Extract EVERY transaction - do not skip any
+3. Identify the date (DD-MM-YYYY or DD/MM/YYYY format, or DD MMM YYYY)
+4. Identify the description/narration/particulars
+5. Identify if it's a DEBIT (Dr, withdrawal, money out) or CREDIT (Cr, deposit, money in)
+6. Extract the transaction amount
+7. Look for account number, account holder name, bank name
+8. Return ONLY valid JSON, no markdown, no explanation
+
+Return a JSON object with this EXACT structure:
+{
+  "account_number": "extracted account number or null",
+  "account_holder": "extracted name or null",
+  "bank_name": "extracted bank name or null",
+  "opening_balance": number or null,
+  "closing_balance": number or null,
+  "transactions": [
+    {
+      "date": "DD-MM-YYYY",
+      "description": "transaction description",
+      "amount": 12345.67,
+      "type": "debit" or "credit",
+      "balance": number or null
+    }
+  ],
+  "summary": {
+    "total_credits": total of all credit amounts,
+    "total_debits": total of all debit amounts,
+    "transaction_count": number of transactions
+  }
+}
+
+Return ONLY the JSON object, nothing else.`;
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: pdfBase64
+        }
+      }
+    ]);
+    
+    const response = await result.response;
+    let text = response.text();
+    
+    // Clean up the response - remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      const parsed = JSON.parse(text);
+      console.log(`✅ Gemini Vision extracted ${parsed.transactions?.length || 0} transactions from PDF`);
+      return parsed;
+    } catch (parseError) {
+      console.error('❌ Failed to parse Gemini Vision response as JSON:', parseError.message);
+      console.log('   Raw response:', text.substring(0, 500));
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Gemini Vision PDF parsing failed:', error.message);
     return null;
   }
 }
@@ -650,21 +741,25 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
       return processedData;
     }
     
-    // STEP 2: Textract failed to get enough data - use pdf-parse + Gemini
-    console.log('⚠️  Textract found minimal content from PDF, trying pdf-parse + Gemini AI...');
+    // STEP 2: Textract failed - try pdf-parse first
+    console.log('⚠️  Textract found minimal content from PDF, trying pdf-parse...');
     
-    const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+    let pdfParseData = null;
+    try {
+      pdfParseData = await extractTextWithPdfParse(pdfBuffer);
+    } catch (pdfParseError) {
+      console.log('⚠️  pdf-parse failed:', pdfParseError.message);
+    }
     
     if (pdfParseData && pdfParseData.rawText && pdfParseData.rawText.length > 100) {
       console.log(`   pdf-parse extracted ${pdfParseData.rawText.length} characters`);
       
-      // STEP 3: Use Gemini AI to parse the raw text into structured transactions
+      // Use Gemini AI to parse the raw text into structured transactions
       const geminiResult = await parseTransactionsWithGemini(pdfParseData.rawText);
       
       if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
-        console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions`);
+        console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions from text`);
         
-        // Return structured data in a format compatible with the existing flow
         return {
           text: pdfParseData.text,
           keyValuePairs: [],
@@ -673,7 +768,6 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
           pageCount: pdfParseData.pageCount,
           source: 'gemini-ai',
           geminiParsed: geminiResult,
-          // Include parsed transactions for direct use
           parsedTransactions: geminiResult.transactions.map(tx => ({
             date: tx.date,
             description: tx.description,
@@ -683,52 +777,65 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
           })),
           summary: geminiResult.summary
         };
-      } else {
-        console.log('⚠️  Gemini AI parsing failed or returned no transactions');
       }
+    }
+    
+    // STEP 3: pdf-parse failed or returned no useful text - use Gemini Vision directly on PDF
+    console.log('🔄 pdf-parse failed or returned no text, using Gemini 3 Pro Vision on PDF directly...');
+    
+    const geminiVisionResult = await parsePdfWithGeminiVision(pdfBuffer);
+    
+    if (geminiVisionResult && geminiVisionResult.transactions && geminiVisionResult.transactions.length > 0) {
+      console.log(`✅ Gemini Vision extracted ${geminiVisionResult.transactions.length} transactions directly from PDF`);
       
-      // Return pdf-parse data with raw text for regex fallback
-      console.log('✅ Using pdf-parse text with regex parsing fallback');
       return {
-        ...pdfParseData,
-        source: 'pdf-parse-fallback'
+        text: [],
+        keyValuePairs: [],
+        tables: [],
+        rawText: '',
+        pageCount: 0,
+        source: 'gemini-vision',
+        geminiParsed: geminiVisionResult,
+        parsedTransactions: geminiVisionResult.transactions.map(tx => ({
+          date: tx.date,
+          description: tx.description,
+          debit: tx.type === 'debit' ? tx.amount : 0,
+          credit: tx.type === 'credit' ? tx.amount : 0,
+          balance: tx.balance || 0
+        })),
+        summary: geminiVisionResult.summary
       };
     }
     
-    // Return whatever we got from direct Textract
-    console.log('✅ Using original Textract results');
+    // Return whatever we got from direct Textract as last fallback
+    console.log('⚠️  All parsing methods failed, returning original Textract results');
     return processedData;
     
   } catch (error) {
     console.error('❌ Complete document analysis failed:', error.message);
     
-    // Last resort: try pdf-parse + Gemini
-    console.log('🔄 Attempting pdf-parse + Gemini as last resort...');
+    // Last resort: try Gemini Vision directly
+    console.log('🔄 Attempting Gemini Vision as last resort...');
     try {
-      const pdfParseData = await extractTextWithPdfParse(pdfBuffer);
-      if (pdfParseData && pdfParseData.rawText) {
-        const geminiResult = await parseTransactionsWithGemini(pdfParseData.rawText);
-        if (geminiResult && geminiResult.transactions?.length > 0) {
-          console.log('✅ Last resort Gemini parsing succeeded');
-          return {
-            text: pdfParseData.text,
-            rawText: pdfParseData.rawText,
-            source: 'gemini-ai',
-            geminiParsed: geminiResult,
-            parsedTransactions: geminiResult.transactions.map(tx => ({
-              date: tx.date,
-              description: tx.description,
-              debit: tx.type === 'debit' ? tx.amount : 0,
-              credit: tx.type === 'credit' ? tx.amount : 0,
-              balance: tx.balance || 0
-            })),
-            summary: geminiResult.summary
-          };
-        }
-        return pdfParseData;
+      const geminiVisionResult = await parsePdfWithGeminiVision(pdfBuffer);
+      if (geminiVisionResult && geminiVisionResult.transactions?.length > 0) {
+        console.log('✅ Last resort Gemini Vision succeeded');
+        return {
+          text: [],
+          source: 'gemini-vision',
+          geminiParsed: geminiVisionResult,
+          parsedTransactions: geminiVisionResult.transactions.map(tx => ({
+            date: tx.date,
+            description: tx.description,
+            debit: tx.type === 'debit' ? tx.amount : 0,
+            credit: tx.type === 'credit' ? tx.amount : 0,
+            balance: tx.balance || 0
+          })),
+          summary: geminiVisionResult.summary
+        };
       }
     } catch (fallbackError) {
-      console.error('❌ Fallback also failed:', fallbackError.message);
+      console.error('❌ Gemini Vision fallback also failed:', fallbackError.message);
     }
     
     throw error;
@@ -778,6 +885,7 @@ module.exports = {
   analyzeDocumentComplete,
   extractTextWithPdfParse,
   parseTransactionsWithGemini,
+  parsePdfWithGeminiVision,
   textractClient,
   createTextractClient
 };

@@ -150,9 +150,10 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
     console.log('-'.repeat(60));
     let bankStatement;
     try {
-      // Check if Gemini already parsed the transactions
-      if (textractData.source === 'gemini-ai' && textractData.parsedTransactions && textractData.parsedTransactions.length > 0) {
-        console.log('   Using Gemini AI parsed transactions...');
+      // Check if Gemini already parsed the transactions (either from text or vision)
+      if ((textractData.source === 'gemini-ai' || textractData.source === 'gemini-vision') && 
+          textractData.parsedTransactions && textractData.parsedTransactions.length > 0) {
+        console.log(`   Using ${textractData.source === 'gemini-vision' ? 'Gemini Vision' : 'Gemini AI'} parsed transactions...`);
         const geminiData = textractData.geminiParsed;
         
         // Convert Gemini format to standard format
@@ -177,10 +178,10 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
             total_debits: textractData.parsedTransactions.reduce((sum, tx) => sum + (tx.debit || 0), 0),
             transaction_count: textractData.parsedTransactions.length
           },
-          source: 'gemini-ai'
+          source: textractData.source
         };
         
-        console.log(`✅ Gemini AI parsed ${bankStatement.transactions.length} transactions`);
+        console.log(`✅ ${textractData.source === 'gemini-vision' ? 'Gemini Vision' : 'Gemini AI'} parsed ${bankStatement.transactions.length} transactions`);
       } else {
         // Use traditional Textract parsing
         bankStatement = parseBankStatement(textractData);
