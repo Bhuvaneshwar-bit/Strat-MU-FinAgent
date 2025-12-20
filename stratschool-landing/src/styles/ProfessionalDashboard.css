@@ -441,9 +441,31 @@
 }
 
 .professional-dashboard.light-mode .dashboard-header {
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0e8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(90deg, #ffcc29 0%, #ffc107 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 12px rgba(255, 204, 41, 0.2);
+}
+
+/* Light mode header text colors */
+.professional-dashboard.light-mode .brand-text h1 {
+  color: #1a1a1a;
+}
+
+.professional-dashboard.light-mode .brand-text span {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.professional-dashboard.light-mode .header-brand {
+  color: #1a1a1a;
+}
+
+.professional-dashboard.light-mode .user-info .user-name {
+  color: #1a1a1a;
+}
+
+.professional-dashboard.light-mode .user-info .user-role {
+  color: rgba(26, 26, 26, 0.7);
 }
 
 .professional-dashboard.light-mode .main-content {
