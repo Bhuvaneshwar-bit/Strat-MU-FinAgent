@@ -23,7 +23,12 @@ import {
   ChevronLeft,
   RefreshCw,
   Search,
-  Filter
+  Filter,
+  Send,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Loader
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import '../styles/InvoiceGeneration.css';
@@ -199,6 +204,16 @@ const InvoiceGeneration = ({ user }) => {
   const [ifscLoading, setIfscLoading] = useState(false);
   const [ifscError, setIfscError] = useState('');
 
+  // Email Modal State
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailData, setEmailData] = useState({
+    recipientEmail: '',
+    customMessage: ''
+  });
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailStatus, setEmailStatus] = useState({ type: '', message: '' });
+  const [lastGeneratedPdf, setLastGeneratedPdf] = useState(null);
+  const [lastInvoiceData, setLastInvoiceData] = useState(null);
   // Fetch invoice history on component mount and when switching to history tab
   useEffect(() => {
     if (activeTab === 'history') {
@@ -504,13 +519,25 @@ const InvoiceGeneration = ({ user }) => {
       // Save to database
       const saveResult = await saveInvoiceToDatabase(invoicePayload);
       
-      // Generate and download PDF
-      await generateGSTPDF(invoiceData);
+      // Generate PDF and get base64 for email
+      const pdfBase64 = await generateGSTPDFWithReturn(invoiceData);
       
-      if (saveResult.success) {
-        alert('GST Invoice generated, downloaded, and saved successfully!');
-      } else {
-        alert('GST Invoice generated and downloaded! (Note: Could not save to history)');
+      // Store for email modal
+      setLastGeneratedPdf(pdfBase64);
+      setLastInvoiceData(invoicePayload);
+      
+      // Pre-fill email with buyer email if available
+      setEmailData({
+        recipientEmail: invoiceData.buyerEmail || '',
+        customMessage: ''
+      });
+      
+      // Show email modal
+      setEmailModalOpen(true);
+      setEmailStatus({ type: '', message: '' });
+      
+      if (!saveResult.success) {
+        console.warn('Could not save invoice to history');
       }
     } catch (error) {
       console.error('Error generating invoice:', error);
@@ -518,6 +545,65 @@ const InvoiceGeneration = ({ user }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Send invoice via email
+  const sendInvoiceEmail = async () => {
+    if (!emailData.recipientEmail) {
+      setEmailStatus({ type: 'error', message: 'Please enter recipient email' });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailData.recipientEmail)) {
+      setEmailStatus({ type: 'error', message: 'Please enter a valid email address' });
+      return;
+    }
+
+    setEmailSending(true);
+    setEmailStatus({ type: '', message: '' });
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/email/send-invoice`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recipientEmail: emailData.recipientEmail,
+          invoiceData: lastInvoiceData,
+          pdfBase64: lastGeneratedPdf,
+          customMessage: emailData.customMessage
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setEmailStatus({ type: 'success', message: `Invoice sent successfully to ${emailData.recipientEmail}!` });
+        // Auto-close after 3 seconds on success
+        setTimeout(() => {
+          setEmailModalOpen(false);
+          setEmailStatus({ type: '', message: '' });
+        }, 3000);
+      } else {
+        setEmailStatus({ type: 'error', message: data.message || 'Failed to send email' });
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setEmailStatus({ type: 'error', message: 'Failed to send email. Please try again.' });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // Close email modal
+  const closeEmailModal = () => {
+    setEmailModalOpen(false);
+    setEmailData({ recipientEmail: '', customMessage: '' });
+    setEmailStatus({ type: '', message: '' });
   };
 
   // View invoice details from history
@@ -833,6 +919,220 @@ const InvoiceGeneration = ({ user }) => {
 
     // Download
     doc.save('GST-Invoice-' + invoice.invoiceNumber + '.pdf');
+  };
+
+  // Generate GST PDF and return as base64 (for email attachment)
+  const generateGSTPDFWithReturn = async (invoice) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const interState = invoice.supplierState !== invoice.placeOfSupply;
+
+    // Border
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, margin, pageWidth - 2 * margin, 277);
+
+    // Header - TAX INVOICE
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TAX INVOICE', pageWidth / 2, 20, { align: 'center' });
+    
+    // Horizontal line
+    doc.line(margin, 25, pageWidth - margin, 25);
+
+    // Supplier Details (Left)
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Supplier Details:', margin + 2, 32);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    let y = 38;
+    doc.text(invoice.supplierName || 'N/A', margin + 2, y);
+    y += 5;
+    doc.text('GSTIN: ' + (invoice.supplierGSTIN || 'N/A'), margin + 2, y);
+    if (invoice.supplierPAN) {
+      y += 5;
+      doc.text('PAN: ' + invoice.supplierPAN, margin + 2, y);
+    }
+    y += 5;
+    doc.text((invoice.supplierAddress || '') + ', ' + (invoice.supplierCity || ''), margin + 2, y);
+    y += 5;
+    doc.text(getStateName(invoice.supplierState) + ' - ' + (invoice.supplierPincode || ''), margin + 2, y);
+
+    // Invoice Details (Right)
+    const rightColX = pageWidth / 2 + 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Invoice Details:', rightColX, 32);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    doc.text('Invoice No: ' + invoice.invoiceNumber, rightColX, 38);
+    doc.text('Invoice Date: ' + new Date(invoice.invoiceDate).toLocaleDateString('en-IN'), rightColX, 43);
+    doc.text('Due Date: ' + new Date(invoice.dueDate).toLocaleDateString('en-IN'), rightColX, 48);
+    doc.text('Place of Supply: ' + getStateName(invoice.placeOfSupply) + ' (' + invoice.placeOfSupply + ')', rightColX, 53);
+
+    // Vertical line between supplier and invoice details
+    doc.line(pageWidth / 2, 25, pageWidth / 2, 75);
+    doc.line(margin, 75, pageWidth - margin, 75);
+
+    // Buyer Details
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Buyer Details (Bill To):', margin + 2, 82);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    y = 88;
+    doc.text(invoice.buyerName || 'N/A', margin + 2, y);
+    if (invoice.buyerGSTIN) {
+      y += 5;
+      doc.text('GSTIN: ' + invoice.buyerGSTIN, margin + 2, y);
+    }
+    y += 5;
+    doc.text((invoice.buyerAddress || '') + ', ' + (invoice.buyerCity || ''), margin + 2, y);
+    y += 5;
+    doc.text(getStateName(invoice.buyerState) + ' - ' + (invoice.buyerPincode || ''), margin + 2, y);
+
+    doc.line(margin, 110, pageWidth - margin, 110);
+
+    // Helper function for PDF
+    const formatNumForPDF = (num) => {
+      const x = num.toFixed(2);
+      const parts = x.split('.');
+      let lastThree = parts[0].substring(parts[0].length - 3);
+      const otherNumbers = parts[0].substring(0, parts[0].length - 3);
+      if (otherNumbers !== '') {
+        lastThree = ',' + lastThree;
+      }
+      const formatted = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + lastThree;
+      return formatted + '.' + parts[1];
+    };
+
+    // Items Table
+    const tableColumns = interState ? 
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate (₹)', 'Taxable (₹)', 'IGST %', 'IGST (₹)', 'Total (₹)']] :
+      [['S.No', 'Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate (₹)', 'Taxable (₹)', 'CGST %', 'CGST (₹)', 'SGST %', 'SGST (₹)', 'Total (₹)']];
+
+    const tableData = invoice.items.map((item, index) => {
+      if (interState) {
+        return [
+          (index + 1).toString(),
+          item.description,
+          item.hsnSac,
+          item.quantity.toString(),
+          item.unit,
+          formatNumForPDF(item.rate),
+          formatNumForPDF(item.taxableValue),
+          item.igstRate + '%',
+          formatNumForPDF(item.igstAmount),
+          formatNumForPDF(item.totalAmount)
+        ];
+      } else {
+        return [
+          (index + 1).toString(),
+          item.description,
+          item.hsnSac,
+          item.quantity.toString(),
+          item.unit,
+          formatNumForPDF(item.rate),
+          formatNumForPDF(item.taxableValue),
+          item.cgstRate + '%',
+          formatNumForPDF(item.cgstAmount),
+          item.sgstRate + '%',
+          formatNumForPDF(item.sgstAmount),
+          formatNumForPDF(item.totalAmount)
+        ];
+      }
+    });
+
+    autoTable(doc, {
+      startY: 115,
+      head: tableColumns,
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 204, 41],
+        textColor: [7, 10, 18],
+        fontSize: 6.5,
+        fontStyle: 'bold',
+        halign: 'center',
+        cellPadding: 2
+      },
+      bodyStyles: {
+        fontSize: 6.5,
+        textColor: [31, 41, 55],
+        cellPadding: 2
+      },
+      margin: { left: margin, right: margin },
+      tableWidth: 'auto'
+    });
+
+    // Totals Section
+    const finalY = doc.lastAutoTable.finalY + 5;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Tax Summary:', margin + 2, finalY);
+    
+    doc.setFont('helvetica', 'normal');
+    const totalsX = pageWidth - margin - 75;
+    let totalsY = finalY;
+    
+    doc.text('Total Taxable Value:', totalsX, totalsY);
+    doc.text('Rs. ' + formatNumForPDF(invoice.totalTaxableValue), pageWidth - margin - 2, totalsY, { align: 'right' });
+    
+    if (interState) {
+      totalsY += 6;
+      doc.text('Total IGST:', totalsX, totalsY);
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalIGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+    } else {
+      totalsY += 6;
+      doc.text('Total CGST:', totalsX, totalsY);
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalCGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+      totalsY += 6;
+      doc.text('Total SGST:', totalsX, totalsY);
+      doc.text('Rs. ' + formatNumForPDF(invoice.totalSGST), pageWidth - margin - 2, totalsY, { align: 'right' });
+    }
+    
+    totalsY += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Grand Total:', totalsX, totalsY);
+    doc.text('Rs. ' + formatNumForPDF(invoice.grandTotal), pageWidth - margin - 2, totalsY, { align: 'right' });
+
+    // Amount in Words
+    totalsY += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Amount in Words:', margin + 2, totalsY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const wordsLines = doc.splitTextToSize(invoice.amountInWords || numberToIndianWords(invoice.grandTotal), pageWidth - 2 * margin - 4);
+    doc.text(wordsLines, margin + 2, totalsY + 5);
+
+    // Signature Area
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('For ' + (invoice.supplierName || 'Supplier'), pageWidth - margin - 50, 260);
+    doc.line(pageWidth - margin - 60, 275, pageWidth - margin - 5, 275);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Authorised Signatory', pageWidth - margin - 45, 280);
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setTextColor(128);
+    doc.text('This is a computer-generated invoice and does not require a physical signature.', pageWidth / 2, 285, { align: 'center' });
+
+    // Download the PDF
+    doc.save('GST-Invoice-' + invoice.invoiceNumber + '.pdf');
+
+    // Return as base64 for email
+    const pdfBase64 = doc.output('datauristring').split(',')[1];
+    return pdfBase64;
   };
 
   return (
@@ -1553,6 +1853,110 @@ const InvoiceGeneration = ({ user }) => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Email Invoice Modal */}
+      {emailModalOpen && (
+        <div className="email-modal-overlay">
+          <div className="email-modal">
+            <div className="email-modal-header">
+              <div className="email-modal-title">
+                <Mail className="email-modal-icon" />
+                <div>
+                  <h3>Send Invoice via Email</h3>
+                  <p>Invoice #{lastInvoiceData?.invoiceNumber} has been downloaded</p>
+                </div>
+              </div>
+              <button className="email-modal-close" onClick={closeEmailModal}>
+                <X />
+              </button>
+            </div>
+
+            <div className="email-modal-body">
+              {emailStatus.type === 'success' ? (
+                <div className="email-success-message">
+                  <CheckCircle className="success-icon" />
+                  <p>{emailStatus.message}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="email-form-group">
+                    <label>
+                      <Mail className="label-icon" />
+                      Recipient Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={emailData.recipientEmail}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                      placeholder="customer@example.com"
+                      disabled={emailSending}
+                    />
+                  </div>
+
+                  <div className="email-form-group">
+                    <label>
+                      <FileText className="label-icon" />
+                      Custom Message (Optional)
+                    </label>
+                    <textarea
+                      value={emailData.customMessage}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, customMessage: e.target.value }))}
+                      placeholder="Add a personal message to your customer..."
+                      rows="3"
+                      disabled={emailSending}
+                    ></textarea>
+                  </div>
+
+                  {emailStatus.type === 'error' && (
+                    <div className="email-error-message">
+                      <AlertCircle className="error-icon" />
+                      <p>{emailStatus.message}</p>
+                    </div>
+                  )}
+
+                  <div className="email-preview">
+                    <h4>Email Preview</h4>
+                    <div className="preview-content">
+                      <p><strong>To:</strong> {emailData.recipientEmail || 'customer@example.com'}</p>
+                      <p><strong>Subject:</strong> Invoice #{lastInvoiceData?.invoiceNumber} from {lastInvoiceData?.supplierName || 'Your Company'}</p>
+                      <p><strong>Attachment:</strong> Invoice-{lastInvoiceData?.invoiceNumber}.pdf</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="email-modal-footer">
+              <button 
+                className="email-btn-secondary" 
+                onClick={closeEmailModal}
+                disabled={emailSending}
+              >
+                {emailStatus.type === 'success' ? 'Close' : 'Skip'}
+              </button>
+              {emailStatus.type !== 'success' && (
+                <button 
+                  className="email-btn-primary"
+                  onClick={sendInvoiceEmail}
+                  disabled={emailSending || !emailData.recipientEmail}
+                >
+                  {emailSending ? (
+                    <>
+                      <Loader className="spinning" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send />
+                      Send Invoice
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

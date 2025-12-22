@@ -61,6 +61,7 @@ app.use('/api/bookkeeping', require('./src/routes/automatedBookkeeping'));
 app.use('/api/password-protected', require('./src/routes/passwordProtectedDocuments'));
 app.use('/api/overview', require('./src/routes/overview')); // Real-time overview data
 app.use('/api/upload', require('./src/routes/uploadBankStatement')); // AWS Textract bank statement upload
+app.use('/api/email', require('./src/routes/emailRoutes')); // Email invoice delivery via AWS SES
 
 // Health check route
 app.get('/api/health', (req, res) => {

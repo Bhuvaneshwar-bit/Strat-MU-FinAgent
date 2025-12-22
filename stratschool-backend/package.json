@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.956.0",
     "@aws-sdk/client-textract": "^3.896.0",
     "@azure/ai-form-recognizer": "^5.1.0",
     "@google/generative-ai": "^0.24.1",
