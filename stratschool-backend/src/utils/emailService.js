@@ -5,12 +5,12 @@
 
 const { SESClient, SendRawEmailCommand } = require('@aws-sdk/client-ses');
 
-// Initialize SES client
+// Initialize SES client with dedicated SES credentials
 const sesClient = new SESClient({
-  region: process.env.AWS_REGION || 'ap-south-1', // Mumbai region for India
+  region: process.env.SES_AWS_REGION || process.env.AWS_REGION || 'ap-south-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    accessKeyId: process.env.SES_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.SES_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY
   }
 });
 
