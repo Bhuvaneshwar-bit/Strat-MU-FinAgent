@@ -39,13 +39,15 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeft,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
 import BookkeepingDashboard from './BookkeepingDashboard';
 import AIChatbot from './AIChatbot';
+import Foresight from './Foresight';
 import { buildApiUrl } from '../config/api';
 
 // Logo imports
@@ -1643,6 +1645,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'revenue', label: 'Revenue', icon: TrendingUp },
     { id: 'expense', label: 'Expense', icon: ArrowDownRight },
+    { id: 'foresight', label: 'Foresight', icon: Eye },
     { id: 'invoice', label: 'Invoice Generation', icon: Receipt },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -4010,6 +4013,14 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                 </>
               )}
             </div>
+          )}
+
+          {activeTab === 'foresight' && (
+            <Foresight 
+              plData={plData} 
+              darkMode={darkMode}
+              onNavigateToBookkeeping={() => setActiveTab('overview')}
+            />
           )}
 
           {activeTab === 'settings' && (
