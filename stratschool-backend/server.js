@@ -62,6 +62,7 @@ app.use('/api/password-protected', require('./src/routes/passwordProtectedDocume
 app.use('/api/overview', require('./src/routes/overview')); // Real-time overview data
 app.use('/api/upload', require('./src/routes/uploadBankStatement')); // AWS Textract bank statement upload
 app.use('/api/email', require('./src/routes/emailRoutes')); // Email invoice delivery via AWS SES
+app.use('/api/stats', require('./src/routes/statsApi')); // Stats API for Singularity
 
 // Health check route
 app.get('/api/health', (req, res) => {
