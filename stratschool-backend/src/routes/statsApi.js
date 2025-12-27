@@ -1,7 +1,61 @@
 const express = require('express');
 const router = express.Router();
 const PLStatement = require('../models/PLStatement');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
+
+/**
+ * Helper function to extract metrics from PLStatement
+ * Checks ALL possible field locations in the schema
+ */
+const extractMetrics = (plStatement) => {
+  if (!plStatement) return null;
+
+  // Check multiple possible locations for revenue (schema has different structures)
+  const totalRevenue = 
+    plStatement.analysis?.totalRevenue ||                           // Direct analysis object
+    plStatement.profitLossStatement?.revenue?.totalRevenue ||       // Nested in profitLossStatement
+    plStatement.analysisMetrics?.totalRevenue ||                    // Legacy field
+    plStatement.plStatement?.revenue?.totalRevenue ||               // Another legacy format
+    0;
+
+  // Check multiple possible locations for expenses
+  const totalExpenses = 
+    plStatement.analysis?.totalExpenses ||
+    plStatement.profitLossStatement?.expenses?.totalExpenses ||
+    plStatement.analysisMetrics?.totalExpenses ||
+    plStatement.plStatement?.expenses?.totalExpenses ||
+    0;
+
+  // Net income
+  const netIncome = 
+    plStatement.analysis?.netIncome ||
+    plStatement.profitLossStatement?.profitability?.netIncome ||
+    plStatement.analysisMetrics?.netIncome ||
+    (totalRevenue - totalExpenses);
+
+  // Profit margin
+  const profitMargin = 
+    plStatement.profitLossStatement?.profitability?.profitMargin ||
+    plStatement.profitLossStatement?.profitability?.netProfitMargin ||
+    plStatement.analysisMetrics?.profitMargin ||
+    (totalRevenue > 0 ? ((netIncome / totalRevenue) * 100) : 0);
+
+  // Transaction count
+  const transactionCount = 
+    plStatement.analysis?.transactionCount ||
+    plStatement.rawBankData?.transactionCount ||
+    0;
+
+  return {
+    totalRevenue,
+    totalExpenses,
+    netIncome,
+    profitMargin,
+    transactionCount,
+    lastUpdated: plStatement.createdAt || plStatement.updatedAt
+  };
+};
 
 /**
  * @route   GET /api/stats/summary
@@ -17,7 +71,9 @@ router.get('/summary', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!plStatement) {
+    const metrics = extractMetrics(plStatement);
+
+    if (!metrics) {
       return res.json({
         success: true,
         data: {
@@ -36,29 +92,20 @@ router.get('/summary', auth, async (req, res) => {
       });
     }
 
-    // Extract metrics
-    const totalRevenue = plStatement.analysisMetrics?.totalRevenue || 
-                         plStatement.plStatement?.revenue?.totalRevenue || 0;
-    const totalExpenses = plStatement.analysisMetrics?.totalExpenses || 
-                          plStatement.plStatement?.expenses?.totalExpenses || 0;
-    const netIncome = plStatement.analysisMetrics?.netIncome || 
-                      (totalRevenue - totalExpenses);
-    const profitMargin = plStatement.analysisMetrics?.profitMargin || 
-                         (totalRevenue > 0 ? ((netIncome / totalRevenue) * 100) : 0);
+    const { totalRevenue, totalExpenses, netIncome, profitMargin } = metrics;
 
-    // Calculate monthly metrics (assuming data is for one month)
+    // Calculate monthly metrics
     const monthlyRevenue = totalRevenue;
     const monthlyBurn = totalExpenses;
 
-    // Calculate runway (months of operation with current burn rate)
-    // Assuming available cash/investment - this can be customized
-    const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2; // Estimate
+    // Calculate runway
+    const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
     const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
 
     // Determine status
     const status = netIncome > 0 ? 'Profitable' : 'Burning';
 
-    // Revenue growth (compare with previous statement if available)
+    // Revenue growth (compare with previous statement)
     let revenueGrowth = 0;
     const previousStatement = await PLStatement.findOne({ 
       userId,
@@ -66,10 +113,9 @@ router.get('/summary', auth, async (req, res) => {
     }).sort({ createdAt: -1 }).lean();
 
     if (previousStatement) {
-      const prevRevenue = previousStatement.analysisMetrics?.totalRevenue || 
-                          previousStatement.plStatement?.revenue?.totalRevenue || 0;
-      if (prevRevenue > 0) {
-        revenueGrowth = ((totalRevenue - prevRevenue) / prevRevenue) * 100;
+      const prevMetrics = extractMetrics(previousStatement);
+      if (prevMetrics && prevMetrics.totalRevenue > 0) {
+        revenueGrowth = ((totalRevenue - prevMetrics.totalRevenue) / prevMetrics.totalRevenue) * 100;
       }
     }
 
@@ -78,7 +124,7 @@ router.get('/summary', auth, async (req, res) => {
       data: {
         totalRevenue,
         totalExpenses,
-        totalInvestment: availableCash, // Can be updated with actual investment data
+        totalInvestment: availableCash,
         monthlyRevenue,
         monthlyBurn,
         netIncome,
@@ -86,7 +132,7 @@ router.get('/summary', auth, async (req, res) => {
         runway,
         status,
         revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
-        lastUpdated: plStatement.createdAt,
+        lastUpdated: metrics.lastUpdated,
         statementId: plStatement._id
       }
     });
@@ -102,16 +148,17 @@ router.get('/summary', auth, async (req, res) => {
 });
 
 /**
- * @route   GET /api/stats/summary/public/:userId
+ * @route   GET /api/stats/summary/public/:identifier
  * @desc    Get financial summary stats (for internal service-to-service calls)
+ * @desc    Supports both userId (ObjectId) and email as identifier
  * @access  Internal (use API key in production)
  */
-router.get('/summary/public/:userId', async (req, res) => {
+router.get('/summary/public/:identifier', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { identifier } = req.params;
     const apiKey = req.headers['x-api-key'];
 
-    // Simple API key validation (set this in your .env)
+    // Simple API key validation
     const validApiKey = process.env.INTERNAL_API_KEY || 'nebulaa-internal-key';
     if (apiKey !== validApiKey) {
       return res.status(401).json({
@@ -120,11 +167,38 @@ router.get('/summary/public/:userId', async (req, res) => {
       });
     }
 
+    let userId = identifier;
+
+    // Check if identifier is an email (contains @)
+    if (identifier.includes('@')) {
+      // Lookup user by email to get their _id
+      const user = await User.findOne({ email: identifier.toLowerCase() }).lean();
+      if (!user) {
+        return res.json({
+          success: true,
+          data: {
+            totalRevenue: 0,
+            totalExpenses: 0,
+            monthlyRevenue: 0,
+            monthlyBurn: 0,
+            runway: 0,
+            status: 'No Data',
+            revenueGrowth: 0,
+            message: 'User not found with this email'
+          }
+        });
+      }
+      userId = user._id.toString();
+    }
+
+    // Find P&L statement by userId
     const plStatement = await PLStatement.findOne({ userId })
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!plStatement) {
+    const metrics = extractMetrics(plStatement);
+
+    if (!metrics) {
       return res.json({
         success: true,
         data: {
@@ -139,11 +213,7 @@ router.get('/summary/public/:userId', async (req, res) => {
       });
     }
 
-    const totalRevenue = plStatement.analysisMetrics?.totalRevenue || 
-                         plStatement.plStatement?.revenue?.totalRevenue || 0;
-    const totalExpenses = plStatement.analysisMetrics?.totalExpenses || 
-                          plStatement.plStatement?.expenses?.totalExpenses || 0;
-    const netIncome = totalRevenue - totalExpenses;
+    const { totalRevenue, totalExpenses, netIncome, profitMargin } = metrics;
     const monthlyBurn = totalExpenses;
     const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
     const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
@@ -157,11 +227,11 @@ router.get('/summary/public/:userId', async (req, res) => {
         monthlyRevenue: totalRevenue,
         monthlyBurn,
         netIncome,
-        profitMargin: totalRevenue > 0 ? parseFloat(((netIncome / totalRevenue) * 100).toFixed(1)) : 0,
+        profitMargin: parseFloat(profitMargin.toFixed(1)),
         runway,
         status: netIncome > 0 ? 'Profitable' : 'Burning',
         revenueGrowth: 0,
-        lastUpdated: plStatement.createdAt
+        lastUpdated: metrics.lastUpdated
       }
     });
 
@@ -183,7 +253,7 @@ router.get('/health', (req, res) => {
   res.json({
     success: true,
     service: 'InFINity Stats API',
-    version: '1.0.0',
+    version: '1.1.0',
     timestamp: new Date().toISOString()
   });
 });
