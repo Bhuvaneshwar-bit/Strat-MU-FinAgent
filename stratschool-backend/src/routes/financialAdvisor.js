@@ -3,18 +3,17 @@ const router = express.Router();
 const ChatSession = require('../models/ChatSession');
 const PLStatement = require('../models/PLStatement');
 const auth = require('../middleware/auth');
-const Groq = require('groq-sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-});
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 /**
  * ELITE FINANCIAL ADVISOR SYSTEM PROMPT
- * Designed for surgical precision in financial guidance
  */
 const getFinancialAdvisorPrompt = (userContext) => {
-  return `You are an ELITE Financial Advisor AI for Indian entrepreneurs and businesses. You provide SURGICAL PRECISION answers that are:
+  return `You are an ELITE Financial Advisor AI for Indian entrepreneurs and businesses. You provide SURGICAL PRECISION answers.
 
 ## YOUR EXPERTISE:
 - Indian Tax Laws (Income Tax, GST, TDS, Advance Tax)
@@ -28,7 +27,7 @@ const getFinancialAdvisorPrompt = (userContext) => {
 ## YOUR RESPONSE STYLE:
 1. **Be PRECISE** - No fluff, every word matters
 2. **Be ACTIONABLE** - Give specific steps, not vague advice
-3. **Be CURRENT** - Use 2024-25 tax rates and latest regulations
+3. **Be CURRENT** - Use FY 2024-25 tax rates and latest regulations
 4. **Be CONTEXTUAL** - Consider user's business data if available
 5. **Use NUMBERS** - Always include calculations, percentages, amounts
 6. **Cite SECTIONS** - Reference specific tax sections, rules, acts
@@ -38,20 +37,17 @@ const getFinancialAdvisorPrompt = (userContext) => {
 - Follow with **detailed explanation** with bullet points
 - Include **specific numbers/calculations** when relevant
 - End with **actionable next steps**
-- Add **⚠️ Important** callouts for critical info
 - Use ₹ for Indian Rupees
 
 ## USER'S FINANCIAL CONTEXT:
-${userContext || 'No financial data available yet. Ask user for details if needed.'}
+${userContext || 'No financial data available yet.'}
 
 ## CRITICAL RULES:
 - NEVER give generic advice - be specific to Indian context
 - ALWAYS mention if user should consult a CA for complex matters
 - For tax questions, specify FY and AY
 - For compliance, mention deadlines and penalties
-- If unsure, say so clearly - don't guess on legal/tax matters
-
-You are NOT a general chatbot. You are an EXPERT financial advisor. Every response should demonstrate deep expertise.`;
+- If unsure, say so clearly - don't guess on legal/tax matters`;
 };
 
 /**
@@ -63,9 +59,7 @@ const buildUserContext = async (userId) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!plStatement) {
-      return null;
-    }
+    if (!plStatement) return null;
 
     const totalRevenue = 
       plStatement.analysis?.totalRevenue ||
@@ -81,13 +75,11 @@ const buildUserContext = async (userId) => {
     const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(1) : 0;
 
     return `
-**User's Business Financials (Latest Statement):**
+**User's Business Financials:**
 - Total Revenue: ₹${totalRevenue.toLocaleString('en-IN')}
 - Total Expenses: ₹${totalExpenses.toLocaleString('en-IN')}
 - Net Income: ₹${netIncome.toLocaleString('en-IN')}
 - Profit Margin: ${profitMargin}%
-- Statement Period: ${plStatement.period || 'Monthly'}
-- Last Updated: ${plStatement.createdAt ? new Date(plStatement.createdAt).toLocaleDateString('en-IN') : 'N/A'}
 `;
   } catch (error) {
     console.error('Error building user context:', error);
@@ -96,36 +88,19 @@ const buildUserContext = async (userId) => {
 };
 
 /**
- * Generate chat title using AI
+ * Generate chat title
  */
 const generateChatTitle = async (message) => {
   try {
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        {
-          role: 'system',
-          content: 'Generate a very short title (3-5 words max) for this financial query. Just return the title, nothing else.'
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      max_tokens: 20,
-      temperature: 0.3
-    });
-    return response.choices[0]?.message?.content?.trim() || 'Financial Query';
+    const result = await model.generateContent(`Generate a very short title (3-5 words max) for this financial query. Just return the title, nothing else: "${message}"`);
+    return result.response.text().trim().replace(/"/g, '') || 'Financial Query';
   } catch (error) {
-    // Fallback: use first few words
     return message.substring(0, 30) + (message.length > 30 ? '...' : '');
   }
 };
 
 /**
  * @route   GET /api/financial-advisor/sessions
- * @desc    Get all chat sessions for user
- * @access  Private
  */
 router.get('/sessions', auth, async (req, res) => {
   try {
@@ -138,23 +113,15 @@ router.get('/sessions', auth, async (req, res) => {
     .limit(50)
     .lean();
 
-    res.json({
-      success: true,
-      sessions
-    });
+    res.json({ success: true, sessions });
   } catch (error) {
     console.error('Get sessions error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch sessions'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch sessions' });
   }
 });
 
 /**
  * @route   GET /api/financial-advisor/sessions/:id
- * @desc    Get a specific chat session with messages
- * @access  Private
  */
 router.get('/sessions/:id', auth, async (req, res) => {
   try {
@@ -164,29 +131,18 @@ router.get('/sessions/:id', auth, async (req, res) => {
     }).lean();
 
     if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session not found'
-      });
+      return res.status(404).json({ success: false, message: 'Session not found' });
     }
 
-    res.json({
-      success: true,
-      session
-    });
+    res.json({ success: true, session });
   } catch (error) {
     console.error('Get session error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch session'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch session' });
   }
 });
 
 /**
  * @route   POST /api/financial-advisor/sessions
- * @desc    Create a new chat session
- * @access  Private
  */
 router.post('/sessions', auth, async (req, res) => {
   try {
@@ -210,36 +166,25 @@ router.post('/sessions', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Create session error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create session'
-    });
+    res.status(500).json({ success: false, message: 'Failed to create session' });
   }
 });
 
 /**
  * @route   POST /api/financial-advisor/chat
- * @desc    Send message and get AI response
- * @access  Private
  */
 router.post('/chat', auth, async (req, res) => {
   try {
     const { sessionId, message } = req.body;
 
     if (!message || !message.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message is required'
-      });
+      return res.status(400).json({ success: false, message: 'Message is required' });
     }
 
     // Find or create session
     let session;
     if (sessionId) {
-      session = await ChatSession.findOne({
-        _id: sessionId,
-        userId: req.user.id
-      });
+      session = await ChatSession.findOne({ _id: sessionId, userId: req.user.id });
     }
 
     if (!session) {
@@ -251,74 +196,51 @@ router.post('/chat', auth, async (req, res) => {
     }
 
     // Add user message
-    session.messages.push({
-      role: 'user',
-      content: message.trim()
-    });
+    session.messages.push({ role: 'user', content: message.trim() });
 
     // Generate title if first message
     if (session.messages.length === 1) {
       session.title = await generateChatTitle(message);
     }
 
-    // Build user context from their financial data
+    // Build user context
     const userContext = await buildUserContext(req.user.id);
 
-    // Prepare conversation history (last 10 messages for context)
-    const conversationHistory = session.messages.slice(-10).map(m => ({
-      role: m.role,
-      content: m.content
-    }));
+    // Prepare conversation for Gemini
+    const conversationHistory = session.messages.slice(-10).map(m => 
+      `${m.role === 'user' ? 'User' : 'Advisor'}: ${m.content}`
+    ).join('\n\n');
 
-    // Call Groq with elite financial advisor prompt
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile', // Best model for accuracy
-      messages: [
-        {
-          role: 'system',
-          content: getFinancialAdvisorPrompt(userContext)
-        },
-        ...conversationHistory
-      ],
-      max_tokens: 2000,
-      temperature: 0.2, // Low temperature for precision
-      top_p: 0.9
-    });
+    const fullPrompt = `${getFinancialAdvisorPrompt(userContext)}
 
-    const aiResponse = response.choices[0]?.message?.content || 'I apologize, but I could not generate a response. Please try again.';
+## CONVERSATION:
+${conversationHistory}
 
-    // Add AI response to session
-    session.messages.push({
-      role: 'assistant',
-      content: aiResponse
-    });
+Respond as the Elite Financial Advisor:`;
 
+    // Call Gemini
+    const result = await model.generateContent(fullPrompt);
+    const aiResponse = result.response.text() || 'I apologize, but I could not generate a response. Please try again.';
+
+    // Add AI response
+    session.messages.push({ role: 'assistant', content: aiResponse });
     session.lastMessageAt = new Date();
     await session.save();
 
     res.json({
       success: true,
       response: aiResponse,
-      session: {
-        _id: session._id,
-        title: session.title
-      }
+      session: { _id: session._id, title: session.title }
     });
 
   } catch (error) {
     console.error('Financial Advisor Chat Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get response',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to get response', error: error.message });
   }
 });
 
 /**
  * @route   DELETE /api/financial-advisor/sessions/:id
- * @desc    Delete (archive) a chat session
- * @access  Private
  */
 router.delete('/sessions/:id', auth, async (req, res) => {
   try {
@@ -329,29 +251,18 @@ router.delete('/sessions/:id', auth, async (req, res) => {
     );
 
     if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session not found'
-      });
+      return res.status(404).json({ success: false, message: 'Session not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'Session deleted'
-    });
+    res.json({ success: true, message: 'Session deleted' });
   } catch (error) {
     console.error('Delete session error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete session'
-    });
+    res.status(500).json({ success: false, message: 'Failed to delete session' });
   }
 });
 
 /**
  * @route   PUT /api/financial-advisor/sessions/:id/title
- * @desc    Update session title
- * @access  Private
  */
 router.put('/sessions/:id/title', auth, async (req, res) => {
   try {
@@ -364,25 +275,13 @@ router.put('/sessions/:id/title', auth, async (req, res) => {
     );
 
     if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session not found'
-      });
+      return res.status(404).json({ success: false, message: 'Session not found' });
     }
 
-    res.json({
-      success: true,
-      session: {
-        _id: session._id,
-        title: session.title
-      }
-    });
+    res.json({ success: true, session: { _id: session._id, title: session.title } });
   } catch (error) {
     console.error('Update title error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update title'
-    });
+    res.status(500).json({ success: false, message: 'Failed to update title' });
   }
 });
 
