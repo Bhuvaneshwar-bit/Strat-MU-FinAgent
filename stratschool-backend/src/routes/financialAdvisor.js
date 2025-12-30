@@ -5,9 +5,16 @@ const PLStatement = require('../models/PLStatement');
 const auth = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini
+// Initialize Gemini with Pro model for maximum accuracy
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ 
+  model: 'gemini-1.5-pro',
+  generationConfig: {
+    temperature: 0.3,
+    topP: 0.9,
+    maxOutputTokens: 4096
+  }
+});
 
 /**
  * ELITE FINANCIAL ADVISOR SYSTEM PROMPT
@@ -218,9 +225,11 @@ ${conversationHistory}
 
 Respond as the Elite Financial Advisor:`;
 
-    // Call Gemini
+    // Call Gemini Pro
+    console.log('Calling Gemini Pro for Financial Advisor...');
     const result = await model.generateContent(fullPrompt);
-    const aiResponse = result.response.text() || 'I apologize, but I could not generate a response. Please try again.';
+    const response = await result.response;
+    const aiResponse = response.text() || 'I apologize, but I could not generate a response. Please try again.';
 
     // Add AI response
     session.messages.push({ role: 'assistant', content: aiResponse });
