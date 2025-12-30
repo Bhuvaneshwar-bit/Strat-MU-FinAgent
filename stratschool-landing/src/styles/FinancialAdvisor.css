@@ -1,392 +1,382 @@
-/* Financial Advisor - Premium ChatGPT-like Interface */
+/* Financial Advisor - Clean Professional Design */
 
-.financial-advisor-container {
+.fa-container {
   display: flex;
   height: calc(100vh - 80px);
-  background: #0a0a0f;
+  background: #0d0d12;
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.financial-advisor-container.light {
-  background: #f8fafc;
+.fa-container.light {
+  background: #f5f7fa;
 }
 
-/* Sidebar */
-.advisor-sidebar {
+/* ==================== SIDEBAR ==================== */
+.fa-sidebar {
   width: 280px;
-  background: linear-gradient(180deg, #111118 0%, #0a0a0f 100%);
-  border-right: 1px solid #1e1e2d;
+  background: #111117;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
 }
 
-.financial-advisor-container.light .advisor-sidebar {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-  border-right: 1px solid #e2e8f0;
+.fa-container.light .fa-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
 }
 
-.advisor-sidebar.closed {
-  width: 50px;
+.fa-sidebar.closed {
+  width: 60px;
 }
 
-.sidebar-header {
+.fa-sidebar-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 16px;
-  border-bottom: 1px solid #1e1e2d;
-}
-
-.financial-advisor-container.light .sidebar-header {
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.sidebar-header h3 {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #D4AF37;
-  margin: 0;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.sidebar-header .header-icon {
-  width: 20px;
-  height: 20px;
+.fa-container.light .fa-sidebar-header {
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.toggle-sidebar {
-  background: transparent;
+.fa-new-chat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #D4AF37 0%, #c9a227 100%);
   border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 8px;
   border-radius: 8px;
+  color: #000;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.toggle-sidebar:hover {
-  background: rgba(212, 175, 55, 0.1);
-  color: #D4AF37;
+.fa-new-chat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
 }
 
-.new-chat-btn {
+.fa-sidebar.closed .fa-new-chat span {
+  display: none;
+}
+
+.fa-sidebar.closed .fa-new-chat {
+  padding: 12px;
+}
+
+.fa-toggle-sidebar {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 16px;
-  padding: 12px;
-  background: linear-gradient(135deg, #D4AF37 0%, #B8972F 100%);
-  border: none;
-  border-radius: 10px;
-  color: #000;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.new-chat-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
-}
-
-.new-chat-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.search-box {
-  position: relative;
-  margin: 0 16px 16px;
-}
-
-.search-box .search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: #64748b;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 10px 12px 10px 36px;
+  width: 40px;
+  height: 40px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid #2d2d3d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.9rem;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.financial-advisor-container.light .search-box input {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #1e293b;
+.fa-container.light .fa-toggle-sidebar {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
 }
 
-.search-box input:focus {
+.fa-toggle-sidebar:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.fa-container.light .fa-toggle-sidebar:hover {
+  background: #e5e7eb;
+  color: #111;
+}
+
+/* Search */
+.fa-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 16px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.fa-container.light .fa-search {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.fa-search svg {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.fa-search input {
+  flex: 1;
+  background: none;
+  border: none;
   outline: none;
-  border-color: #D4AF37;
+  color: #e5e7eb;
+  font-size: 14px;
 }
 
-.search-box input::placeholder {
-  color: #64748b;
+.fa-container.light .fa-search input {
+  color: #111827;
+}
+
+.fa-search input::placeholder {
+  color: #6b7280;
 }
 
 /* Sessions List */
-.sessions-list {
+.fa-sessions {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px;
+  padding: 8px;
 }
 
-.sessions-list::-webkit-scrollbar {
+.fa-sessions::-webkit-scrollbar {
   width: 4px;
 }
 
-.sessions-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sessions-list::-webkit-scrollbar-thumb {
-  background: #2d2d3d;
+.fa-sessions::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
-.loading-sessions,
-.no-sessions {
+.fa-loading,
+.fa-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  color: #64748b;
+  padding: 40px 16px;
+  color: #6b7280;
   text-align: center;
+  gap: 12px;
 }
 
-.loading-sessions svg,
-.no-sessions svg {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.no-sessions p {
+.fa-empty p {
   margin: 0;
-  font-weight: 500;
+  font-size: 14px;
 }
 
-.no-sessions span {
-  font-size: 0.85rem;
-  margin-top: 4px;
-}
-
-.session-item {
+.fa-session {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px;
-  margin: 4px 0;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
+  transition: all 0.15s;
+  margin-bottom: 4px;
 }
 
-.session-item:hover {
+.fa-session:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fa-container.light .fa-session:hover {
+  background: #f3f4f6;
+}
+
+.fa-session.active {
   background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
-.session-item.active {
-  background: rgba(212, 175, 55, 0.15);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-}
-
-.session-icon {
-  width: 18px;
-  height: 18px;
-  color: #64748b;
+.fa-session > svg {
+  color: #6b7280;
   flex-shrink: 0;
 }
 
-.session-info {
+.fa-session-info {
   flex: 1;
   min-width: 0;
 }
 
-.session-title {
+.fa-session-title {
   display: block;
-  font-size: 0.9rem;
-  color: #e2e8f0;
+  font-size: 14px;
+  color: #e5e7eb;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.financial-advisor-container.light .session-title {
-  color: #1e293b;
+.fa-container.light .fa-session-title {
+  color: #111827;
 }
 
-.session-date {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 2px;
+.fa-session-date {
+  font-size: 11px;
+  color: #6b7280;
 }
 
-.session-actions {
+.fa-session-actions {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.15s;
 }
 
-.session-item:hover .session-actions {
+.fa-session:hover .fa-session-actions {
   opacity: 1;
 }
 
-.session-actions button {
-  background: transparent;
+.fa-session-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
   border: none;
-  padding: 6px;
   border-radius: 6px;
-  color: #64748b;
+  color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
-.session-actions button:hover {
+.fa-session-actions button:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+  color: #e5e7eb;
 }
 
-.session-actions button:last-child:hover {
+.fa-session-actions button:last-child:hover {
   color: #ef4444;
 }
 
-.edit-title-form {
+.fa-edit-title {
   display: flex;
   gap: 4px;
-  width: 100%;
+  flex: 1;
 }
 
-.edit-title-form input {
+.fa-edit-title input {
   flex: 1;
   padding: 6px 10px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid #D4AF37;
   border-radius: 6px;
-  color: #e2e8f0;
-  font-size: 0.9rem;
+  color: #e5e7eb;
+  font-size: 13px;
+  outline: none;
 }
 
-.edit-title-form button {
-  background: transparent;
+.fa-edit-title button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
   border: none;
-  padding: 6px;
   border-radius: 6px;
-  color: #64748b;
   cursor: pointer;
 }
 
-.edit-title-form button:first-of-type:hover {
+.fa-edit-title button:first-of-type {
   color: #22c55e;
 }
 
-.edit-title-form button:last-of-type:hover {
+.fa-edit-title button:last-of-type {
   color: #ef4444;
 }
 
-/* Main Chat Area */
-.chat-main {
+/* ==================== MAIN CHAT ==================== */
+.fa-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.chat-header {
+.fa-header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 16px 24px;
-  background: rgba(17, 17, 24, 0.8);
+  background: rgba(17, 17, 23, 0.8);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid #1e1e2d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.financial-advisor-container.light .chat-header {
+.fa-container.light .fa-header {
   background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.toggle-sidebar-mobile {
+.fa-toggle-sidebar-mobile {
   display: none;
-  background: transparent;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
   border: none;
-  color: #64748b;
+  color: #9ca3af;
   cursor: pointer;
-  padding: 8px;
 }
 
-.chat-title {
+.fa-header-title {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.chat-title .title-icon {
-  width: 32px;
-  height: 32px;
+.fa-header-title svg {
   color: #D4AF37;
 }
 
-.chat-title h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #e2e8f0;
+.fa-header-title h1 {
   margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e5e7eb;
 }
 
-.financial-advisor-container.light .chat-title h2 {
-  color: #1e293b;
+.fa-container.light .fa-header-title h1 {
+  color: #111827;
 }
 
-.chat-title span {
-  font-size: 0.85rem;
-  color: #64748b;
+.fa-header-title span {
+  font-size: 13px;
+  color: #6b7280;
 }
 
-/* Messages Container */
-.messages-container {
+/* Messages Area */
+.fa-messages {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
 }
 
-.messages-container::-webkit-scrollbar {
+.fa-messages::-webkit-scrollbar {
   width: 6px;
 }
 
-.messages-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-  background: #2d2d3d;
-  border-radius: 4px;
+.fa-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
 }
 
 /* Welcome Screen */
-.welcome-screen {
+.fa-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -396,10 +386,10 @@
   padding: 40px;
 }
 
-.welcome-icon {
+.fa-welcome-icon {
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -407,207 +397,171 @@
   margin-bottom: 24px;
 }
 
-.welcome-icon svg {
-  width: 40px;
-  height: 40px;
+.fa-welcome-icon svg {
   color: #D4AF37;
 }
 
-.welcome-screen h2 {
-  font-size: 1.75rem;
-  color: #e2e8f0;
-  margin: 0 0 12px;
+.fa-welcome h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #e5e7eb;
 }
 
-.financial-advisor-container.light .welcome-screen h2 {
-  color: #1e293b;
+.fa-container.light .fa-welcome h2 {
+  color: #111827;
 }
 
-.welcome-screen p {
-  color: #64748b;
-  font-size: 1rem;
+.fa-welcome p {
   margin: 0 0 32px;
+  font-size: 15px;
+  color: #6b7280;
+  max-width: 400px;
 }
 
-.suggestion-chips {
-  display: flex;
-  flex-wrap: wrap;
+.fa-suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  justify-content: center;
-  max-width: 600px;
+  max-width: 500px;
 }
 
-.suggestion-chips button {
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid #2d2d3d;
-  border-radius: 12px;
-  color: #e2e8f0;
-  font-size: 0.9rem;
+.fa-suggestions button {
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #d1d5db;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
-.financial-advisor-container.light .suggestion-chips button {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #1e293b;
+.fa-container.light .fa-suggestions button {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
 }
 
-.suggestion-chips button:hover {
-  border-color: #D4AF37;
+.fa-suggestions button:hover {
   background: rgba(212, 175, 55, 0.1);
+  border-color: rgba(212, 175, 55, 0.3);
 }
 
-/* Messages */
-.messages-list {
-  max-width: 900px;
+/* Messages List */
+.fa-messages-list {
+  max-width: 800px;
   margin: 0 auto;
 }
 
-.message {
+.fa-message {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 24px;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.message-avatar {
+.fa-message-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.message.user .message-avatar {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
+.fa-message.user .fa-message-avatar {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
 }
 
-.message.assistant .message-avatar {
-  background: linear-gradient(135deg, #D4AF37 0%, #B8972F 100%);
+.fa-message.assistant .fa-message-avatar {
+  background: linear-gradient(135deg, #D4AF37 0%, #b8972f 100%);
   color: #000;
 }
 
-.message-avatar svg {
-  width: 18px;
-  height: 18px;
+.fa-message.error .fa-message-avatar {
+  background: #ef4444;
+  color: #fff;
 }
 
-.message-content {
+.fa-message-content {
   flex: 1;
   min-width: 0;
 }
 
-.message-header {
+.fa-message-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
 }
 
-.message-role {
+.fa-message-role {
+  font-size: 14px;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #e2e8f0;
+  color: #e5e7eb;
 }
 
-.financial-advisor-container.light .message-role {
-  color: #1e293b;
+.fa-container.light .fa-message-role {
+  color: #111827;
 }
 
-.message-time {
-  font-size: 0.75rem;
-  color: #64748b;
+.fa-message-time {
+  font-size: 12px;
+  color: #6b7280;
 }
 
-.message-text {
-  color: #cbd5e1;
+.fa-message-text {
+  font-size: 15px;
   line-height: 1.7;
-  font-size: 0.95rem;
+  color: #d1d5db;
+  word-wrap: break-word;
 }
 
-.financial-advisor-container.light .message-text {
-  color: #475569;
+.fa-container.light .fa-message-text {
+  color: #374151;
 }
 
-.message-text h3, .message-text h4 {
-  color: #D4AF37;
-  margin: 16px 0 8px;
-}
-
-.message-text strong {
-  color: #e2e8f0;
-}
-
-.financial-advisor-container.light .message-text strong {
-  color: #1e293b;
-}
-
-.message-text li {
-  margin: 8px 0;
-  margin-left: 20px;
-}
-
-.message-text .code-block {
-  background: #1a1a2e;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 12px 0;
-  font-family: 'Fira Code', monospace;
-  font-size: 0.85rem;
-}
-
-.financial-advisor-container.light .message-text .code-block {
-  background: #f1f5f9;
-}
-
-.message.error .message-text {
+.fa-message.error .fa-message-text {
   color: #ef4444;
 }
 
-.copy-btn {
+.fa-copy-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-top: 12px;
   padding: 6px 12px;
-  background: transparent;
-  border: 1px solid #2d2d3d;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  color: #64748b;
-  font-size: 0.8rem;
+  color: #6b7280;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
-.copy-btn:hover {
+.fa-copy-btn:hover {
   border-color: #D4AF37;
   color: #D4AF37;
 }
 
 /* Typing Indicator */
-.message.loading .message-content {
-  display: flex;
-  align-items: center;
-}
-
-.typing-indicator {
+.fa-typing {
   display: flex;
   gap: 4px;
-  padding: 12px;
+  padding: 12px 0;
 }
 
-.typing-indicator span {
+.fa-typing span {
   width: 8px;
   height: 8px;
   background: #D4AF37;
@@ -615,112 +569,99 @@
   animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.fa-typing span:nth-child(2) { animation-delay: 0.2s; }
+.fa-typing span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes typing {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-8px); opacity: 1; }
+  30% { transform: translateY(-6px); opacity: 1; }
 }
 
 /* Input Area */
-.input-container {
+.fa-input-area {
   padding: 16px 24px 24px;
-  background: linear-gradient(180deg, transparent 0%, rgba(17, 17, 24, 0.9) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(13, 13, 18, 0.95) 30%);
 }
 
-.financial-advisor-container.light .input-container {
-  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.95) 100%);
+.fa-container.light .fa-input-area {
+  background: linear-gradient(180deg, transparent 0%, rgba(245, 247, 250, 0.98) 30%);
 }
 
-.input-wrapper {
+.fa-input-wrapper {
   display: flex;
   gap: 12px;
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 12px 16px;
-  background: rgba(30, 30, 45, 0.8);
-  border: 1px solid #2d2d3d;
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
+  background: rgba(30, 30, 40, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
 }
 
-.financial-advisor-container.light .input-wrapper {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+.fa-container.light .fa-input-wrapper {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.input-wrapper:focus-within {
-  border-color: #D4AF37;
+.fa-input-wrapper:focus-within {
+  border-color: rgba(212, 175, 55, 0.5);
 }
 
-.input-wrapper textarea {
+.fa-input-wrapper textarea {
   flex: 1;
-  background: transparent;
+  background: none;
   border: none;
-  color: #e2e8f0;
-  font-size: 1rem;
-  resize: none;
-  max-height: 150px;
-  line-height: 1.5;
-}
-
-.financial-advisor-container.light .input-wrapper textarea {
-  color: #1e293b;
-}
-
-.input-wrapper textarea:focus {
   outline: none;
+  resize: none;
+  color: #e5e7eb;
+  font-size: 15px;
+  line-height: 1.5;
+  max-height: 120px;
+  font-family: inherit;
 }
 
-.input-wrapper textarea::placeholder {
-  color: #64748b;
+.fa-container.light .fa-input-wrapper textarea {
+  color: #111827;
 }
 
-.send-btn {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, #D4AF37 0%, #B8972F 100%);
-  border: none;
-  border-radius: 12px;
-  color: #000;
-  cursor: pointer;
+.fa-input-wrapper textarea::placeholder {
+  color: #6b7280;
+}
+
+.fa-send-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #D4AF37 0%, #b8972f 100%);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s;
   flex-shrink: 0;
 }
 
-.send-btn:hover:not(:disabled) {
+.fa-send-btn:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
 }
 
-.send-btn:disabled {
-  opacity: 0.5;
+.fa-send-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.send-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.input-hint {
+.fa-disclaimer {
   text-align: center;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin: 8px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 10px 0 0;
 }
 
-/* Spin animation */
+/* Spin Animation */
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -732,38 +673,35 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .advisor-sidebar {
-    position: absolute;
+  .fa-sidebar {
+    position: fixed;
     left: 0;
-    top: 0;
+    top: 80px;
     bottom: 0;
     z-index: 100;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   }
 
-  .advisor-sidebar.closed {
+  .fa-sidebar.closed {
     width: 0;
     padding: 0;
+    overflow: hidden;
     border: none;
   }
 
-  .toggle-sidebar-mobile {
-    display: block;
+  .fa-toggle-sidebar-mobile {
+    display: flex;
   }
 
-  .messages-container {
+  .fa-suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .fa-messages {
     padding: 16px;
   }
 
-  .input-container {
+  .fa-input-area {
     padding: 12px 16px 16px;
-  }
-
-  .suggestion-chips {
-    flex-direction: column;
-  }
-
-  .suggestion-chips button {
-    width: 100%;
   }
 }
