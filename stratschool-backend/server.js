@@ -63,6 +63,7 @@ app.use('/api/overview', require('./src/routes/overview')); // Real-time overvie
 app.use('/api/upload', require('./src/routes/uploadBankStatement')); // AWS Textract bank statement upload
 app.use('/api/email', require('./src/routes/emailRoutes')); // Email invoice delivery via AWS SES
 app.use('/api/stats', require('./src/routes/statsApi')); // Stats API for Singularity
+app.use('/api/financial-advisor', require('./src/routes/financialAdvisor')); // Elite Financial Advisor AI
 
 // Health check route
 app.get('/api/health', (req, res) => {
