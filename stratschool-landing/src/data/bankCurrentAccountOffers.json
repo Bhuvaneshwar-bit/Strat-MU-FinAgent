@@ -1,0 +1,1227 @@
+{
+  "lastUpdated": "2026-01-03",
+  "disclaimer": "Data compiled from official bank websites. Users should verify current offers directly with banks before making decisions. Terms, conditions, and charges may change without notice.",
+  "banks": {
+    "privateBanks": [
+      {
+        "bankName": "HDFC Bank",
+        "bankLogo": "hdfc-bank-logo.png",
+        "officialUrl": "https://www.hdfc.bank.in/current-accounts",
+        "applyUrl": "https://www.hdfc.bank.in/current-accounts",
+        "customerCare": "1800-1600",
+        "accountTypes": [
+          {
+            "name": "Biz Lite+ Account",
+            "minBalance": {
+              "amount": "Not specified",
+              "type": "MAB",
+              "note": "Balance waiver available with ₹3 Lakh+ quarterly volumes via Soundbox/PoS"
+            },
+            "features": [
+              "Free Cash Deposit up to ₹2 lakh per month or 6 times Current Month AMB",
+              "Balance Commitment Waiver basis ₹3 Lakh or more Quarterly Volumes via Soundbox/PoS",
+              "Tax Saving up to ₹9,000 with Business Debit Card",
+              "Complimentary Business & Payment Protection Insurance up to ₹3,00,000",
+              "Monthly Rental Reversal on PoS/Soundbox basis business volume"
+            ],
+            "charges": {
+              "chequeBook": "Subject to account terms",
+              "neftRtgs": "Free digital transactions",
+              "cashDeposit": "Free up to ₹2 lakh/month"
+            },
+            "specialOffers": [
+              "Insurance coverage up to ₹3 Lakhs",
+              "PoS rental reversal based on volume"
+            ],
+            "bestFor": "Small retailers and merchants"
+          },
+          {
+            "name": "Biz Pro+ Account",
+            "minBalance": {
+              "amount": "Not specified",
+              "type": "MAB",
+              "note": "Balance waiver available with ₹5 Lakh+ quarterly volumes via Soundbox/PoS"
+            },
+            "features": [
+              "Free Cash deposit up to ₹6 lakh per month or 10 times Current Month AMB",
+              "Balance Commitment Waiver basis ₹5 Lakh or more Quarterly Volumes via Soundbox/PoS",
+              "Tax Saving up to ₹9,000 with Free Business Debit Card",
+              "Complimentary Business & Payment Protection Insurance up to ₹5,00,000",
+              "Monthly Rental Reversal on PoS/Soundbox basis business volume"
+            ],
+            "charges": {
+              "chequeBook": "Subject to account terms",
+              "neftRtgs": "Free digital transactions",
+              "cashDeposit": "Free up to ₹6 lakh/month"
+            },
+            "specialOffers": [
+              "Insurance coverage up to ₹5 Lakhs",
+              "Free Business Debit Card"
+            ],
+            "bestFor": "Growing SMEs and retailers"
+          },
+          {
+            "name": "Biz Ultra+ Account",
+            "minBalance": {
+              "amount": "Not specified",
+              "type": "MAB",
+              "note": "Balance waiver available with ₹7 Lakh+ quarterly volumes via Soundbox/PoS"
+            },
+            "features": [
+              "Free Cash deposit up to ₹25 lakh per month or 12 times Current Month AMB",
+              "Balance Commitment Waiver basis ₹7 Lakh or more Quarterly Volumes via Soundbox/PoS",
+              "Tax Saving up to ₹9,000 with Free Business Debit Card",
+              "Complimentary Business & Payment Protection Insurance up to ₹7,50,000",
+              "Monthly Rental Reversal on PoS/Soundbox basis business volume"
+            ],
+            "charges": {
+              "chequeBook": "Subject to account terms",
+              "neftRtgs": "Free digital transactions",
+              "cashDeposit": "Free up to ₹25 lakh/month"
+            },
+            "specialOffers": [
+              "Insurance coverage up to ₹7.5 Lakhs",
+              "Highest cash deposit limits"
+            ],
+            "bestFor": "Large businesses with high transaction volumes"
+          }
+        ],
+        "discontinuedAccounts": [
+          "SmartUp Current Account",
+          "Apex Current Account",
+          "Regular Current Account",
+          "Plus Current Account",
+          "Premium Current Account",
+          "Max Advantage Current Account"
+        ],
+        "note": "Several account types discontinued for new sourcing w.e.f 01/05/2025. Biz+ series is the new primary offering."
+      },
+      {
+        "bankName": "ICICI Bank",
+        "bankLogo": "icici-bank-logo.png",
+        "officialUrl": "https://www.icici.bank.in/business-banking/accounts/current-account",
+        "applyUrl": "https://cadigital.icicibank.com/CaOnline/",
+        "customerCare": "1800-1080",
+        "accountTypes": [
+          {
+            "name": "Roaming Current Account",
+            "minBalance": {
+              "amount": "Varies by variant",
+              "type": "MAB",
+              "note": "Multiple variants available for different business needs"
+            },
+            "features": [
+              "For daily business banking needs",
+              "Working capital and loans for business growth",
+              "Embedded trade features",
+              "Settlement all 365 days with smart POS and QR solutions",
+              "Multiple GST challan payments with a single click",
+              "Access to digital solutions: InstaBIZ and Trade Online"
+            ],
+            "charges": {
+              "chequeBook": "As per schedule",
+              "neftRtgs": "Digital transactions supported 24x7",
+              "cashDeposit": "As per variant"
+            },
+            "specialOffers": [
+              "Dedicated relationship manager for select programs",
+              "Trade Online platform access"
+            ],
+            "bestFor": "Daily business banking needs"
+          },
+          {
+            "name": "Escrow Account",
+            "minBalance": {
+              "amount": "Subject to agreement",
+              "type": "Transaction-based"
+            },
+            "features": [
+              "For property sale and purchase",
+              "Mergers and acquisitions",
+              "Secure fund holding mechanism"
+            ],
+            "bestFor": "Property transactions and M&A deals"
+          },
+          {
+            "name": "RERA Account",
+            "minBalance": {
+              "amount": "As per RERA guidelines",
+              "type": "Project-based"
+            },
+            "features": [
+              "For RERA registered residential/commercial projects",
+              "Plot development projects",
+              "Compliance with RERA norms"
+            ],
+            "bestFor": "Real estate developers"
+          },
+          {
+            "name": "GEM Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "MAB"
+            },
+            "features": [
+              "For government suppliers, vendors and contractors",
+              "GeM portal integration",
+              "Government business focused"
+            ],
+            "bestFor": "Government contractors and suppliers"
+          }
+        ],
+        "programs": [
+          {
+            "name": "Private Banking for Business",
+            "relationshipValue": "High",
+            "features": ["Dedicated relationship team", "Tailored solutions"]
+          },
+          {
+            "name": "Wealth Management for Business",
+            "features": ["Trade solutions", "Priority services"]
+          },
+          {
+            "name": "Select Banking for Business",
+            "features": ["Easy payments", "Digital solutions"]
+          }
+        ]
+      },
+      {
+        "bankName": "Axis Bank",
+        "bankLogo": "axis-bank-logo.png",
+        "officialUrl": "https://www.axis.bank.in/business-banking/current-account",
+        "applyUrl": "https://supernova.axis.bank.in/current-account",
+        "customerCare": "1860-419-5555 / 1860-500-5555",
+        "tollFree": "1800-103-5577",
+        "accountTypes": [
+          {
+            "name": "Liberty Digital Current Account",
+            "minBalance": {
+              "amount": 15000,
+              "type": "MAB",
+              "currency": "INR"
+            },
+            "features": [
+              "Zero document upload required - open with just PAN, Aadhaar, GST & Udyam",
+              "20-minute account allocation",
+              "No physical document check",
+              "Unlimited cash withdrawal on Axis Bank ATMs",
+              "Cash deposit limit: ₹10 Lakhs/month",
+              "Unlimited Cheque & DD/PO issuance"
+            ],
+            "charges": {
+              "chequeBook": "Unlimited free",
+              "ddPo": "Unlimited free",
+              "cashWithdrawal": "Unlimited on Axis ATMs"
+            },
+            "specialOffers": [
+              "Digital-first account opening",
+              "No branch visit required"
+            ],
+            "bestFor": "Sole proprietorship firms seeking quick digital account opening"
+          },
+          {
+            "name": "Current Account - Normal",
+            "minBalance": {
+              "amount": 15000,
+              "type": "MAB",
+              "currency": "INR",
+              "note": "₹15,000 (Metro/Urban), ₹7,500 (Semi-urban/Rural)"
+            },
+            "features": [
+              "Monthly cash deposit limit: ₹2 Lakhs",
+              "Unlimited NEFT/RTGS transactions digitally",
+              "Unlimited cash withdrawal at home branch",
+              "₹50,000/day withdrawal at non-home branch",
+              "Business Classic Debit Card",
+              "Free Cheque Book, DD/PO, Alerts, Standing Instructions"
+            ],
+            "charges": {
+              "chequeBook": "Free",
+              "ddPo": "Free",
+              "alerts": "Free",
+              "standingInstructions": "Free",
+              "certificateOfBalance": "Free"
+            },
+            "bestFor": "Retailers and SMEs"
+          },
+          {
+            "name": "Current Account - Advantage",
+            "minBalance": {
+              "amount": 25000,
+              "type": "MAB",
+              "currency": "INR",
+              "note": "₹25,000 (Metro/Urban), ₹12,500 (Semi-urban/Rural)"
+            },
+            "features": [
+              "Monthly cash deposit limit @ 10 times MAB up to max ₹25 Lakhs",
+              "Unlimited cash withdrawal at home branch",
+              "₹50,000/day at non-home branch"
+            ],
+            "bestFor": "Medium-sized businesses"
+          },
+          {
+            "name": "Current Account - Select",
+            "minBalance": {
+              "amount": 50000,
+              "type": "MAB",
+              "currency": "INR",
+              "note": "₹50,000 (Metro/Urban), ₹25,000 (Semi-urban/Rural)"
+            },
+            "features": [
+              "Monthly cash deposit limit @ 10 times MAB up to max ₹50 Lakhs",
+              "Unlimited cash withdrawal at home branch",
+              "₹50,000/day at non-home branch"
+            ],
+            "bestFor": "Established businesses"
+          },
+          {
+            "name": "Current Account - Classic",
+            "minBalance": {
+              "amount": 100000,
+              "type": "MAB",
+              "currency": "INR",
+              "note": "₹1,00,000 (Metro/Urban), ₹50,000 (Semi-urban/Rural)"
+            },
+            "features": [
+              "Monthly cash deposit limit @ 10 times MAB up to max ₹1 Crore",
+              "Unlimited cash withdrawal at home branch",
+              "₹1,00,000/day at non-home branch"
+            ],
+            "bestFor": "Large businesses with high cash handling"
+          },
+          {
+            "name": "Current Account - Privilege",
+            "minBalance": {
+              "amount": 500000,
+              "type": "MAB",
+              "currency": "INR",
+              "note": "₹5,00,000 (Metro/Urban), ₹2,50,000 (Semi-urban/Rural)"
+            },
+            "features": [
+              "Monthly cash deposit limit @ 10 times MAB up to max ₹3 Crore",
+              "Unlimited cash withdrawal at home branch",
+              "₹1,00,000/day at non-home branch"
+            ],
+            "bestFor": "Premium businesses with very high transaction volumes"
+          }
+        ],
+        "additionalBenefits": [
+          "Access to overdraft facilities",
+          "Zero charge on cash withdrawals at home branch",
+          "Complimentary access to NEO for Business",
+          "User-friendly Internet & Mobile Banking",
+          "Online NEFT/RTGS 24x7",
+          "Prompt SMS alerts"
+        ]
+      },
+      {
+        "bankName": "Kotak Mahindra Bank",
+        "bankLogo": "kotak-bank-logo.png",
+        "officialUrl": "https://www.kotak.bank.in/en/business/accounts/current-accounts.html",
+        "applyUrl": "https://www.kotak.bank.in/en/business/accounts/current-accounts/call-back.html",
+        "customerCare": "1800-209-5600",
+        "accountTypes": [
+          {
+            "name": "Neo Current Account",
+            "minBalance": {
+              "amount": 10000,
+              "type": "AQB",
+              "currency": "INR",
+              "note": "Average Quarterly Balance"
+            },
+            "features": [
+              "Multi-city at par cheque book (first one free)",
+              "Kotak ActivMoney - converts idle balance into Term Deposits",
+              "Best for small businesses starting up"
+            ],
+            "bestFor": "Small businesses and startups"
+          },
+          {
+            "name": "Edge Current Account",
+            "minBalance": {
+              "amount": 25000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "Multi-city at par cheque book (50 leaves/month)",
+              "Kotak ActivMoney auto-sweep facility"
+            ],
+            "bestFor": "Small and medium businesses"
+          },
+          {
+            "name": "Pro Current Account",
+            "minBalance": {
+              "amount": 50000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "No cash deposit charges up to 10x previous month's average credit balance, max ₹1 Cr/month",
+              "Kotak ActivMoney auto-sweep"
+            ],
+            "bestFor": "Professionals managing small-medium businesses"
+          },
+          {
+            "name": "Pro Business Current Account",
+            "minBalance": {
+              "amount": 50000,
+              "type": "AQB",
+              "currency": "INR",
+              "note": "At entity level"
+            },
+            "features": [
+              "Free QR",
+              "Same-day POS settlements",
+              "Unsecured loans based on bank statement",
+              "Track POS and QR transactions in real time on Kotak Bank App"
+            ],
+            "bestFor": "Merchants and retailers"
+          },
+          {
+            "name": "Elite Current Account",
+            "minBalance": {
+              "amount": 100000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "3 free home-banking services per month (cheque pickup/delivery)",
+              "Free daily beat service for cheque pick up and deposit"
+            ],
+            "bestFor": "Medium to large businesses"
+          },
+          {
+            "name": "Ace Current Account",
+            "minBalance": {
+              "amount": 250000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "No cash deposit charges up to 10x previous month's avg credit balance, max ₹4 Cr/month",
+              "Daily free beat service for cheque pickup and deposit"
+            ],
+            "bestFor": "Large businesses"
+          },
+          {
+            "name": "Astra 05 Current Account",
+            "minBalance": {
+              "amount": 500000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "No cash deposit charges up to 10x previous month's avg credit balance, max ₹10 Cr/month",
+              "Daily free beat service for cheque pickup and deposit"
+            ],
+            "bestFor": "Large enterprises"
+          },
+          {
+            "name": "Astra 15 Current Account",
+            "minBalance": {
+              "amount": 1500000,
+              "type": "AQB",
+              "currency": "INR"
+            },
+            "features": [
+              "Free Home Banking service - cash/cheque pickup and delivery",
+              "Waiver of outward cheque return charges (up to 10 instruments/month)"
+            ],
+            "bestFor": "Large enterprises with high volumes"
+          },
+          {
+            "name": "Privy Business",
+            "minBalance": {
+              "amount": 1000000,
+              "type": "Relationship Value",
+              "currency": "INR"
+            },
+            "features": [
+              "10% cashback (up to ₹600/month) on tax payment via Kotak Debit Card",
+              "Zero setup charges on Kotak Cash Management Services",
+              "Zero rental and installation charges on POS terminals"
+            ],
+            "bestFor": "Premium business relationships"
+          },
+          {
+            "name": "Privy+ Business",
+            "minBalance": {
+              "amount": 3000000,
+              "type": "Relationship Value",
+              "currency": "INR"
+            },
+            "features": [
+              "CGTMSE-backed Working Capital up to ₹5 Crore",
+              "50% fee waiver on processing fees",
+              "Preferential Trade and Forex pricing"
+            ],
+            "bestFor": "Large premium business relationships"
+          },
+          {
+            "name": "Startup Regular Current Account",
+            "minBalance": {
+              "amount": "Flexible",
+              "type": "Startup-friendly",
+              "note": "Non-maintenance charges waived for 1 year"
+            },
+            "features": [
+              "No non-maintenance charges for 1 year from account opening",
+              "Kotak ActivMoney auto-sweep"
+            ],
+            "bestFor": "Early-stage startups"
+          },
+          {
+            "name": "Startup Premium Current Account",
+            "minBalance": {
+              "amount": "Flexible",
+              "type": "Startup-friendly",
+              "note": "Non-maintenance charges waived for 1 year"
+            },
+            "features": [
+              "Non-maintenance charges waived for 1 year from account opening",
+              "3 free home-banking services per month (cash/cheque pickup or delivery)"
+            ],
+            "bestFor": "Growing startups in transition stage"
+          },
+          {
+            "name": "Global Trade Current Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "Trade-based"
+            },
+            "features": [
+              "Transparent and competitive service charges",
+              "Dedicated Relationship Manager",
+              "For importers and exporters"
+            ],
+            "bestFor": "Import/Export businesses"
+          },
+          {
+            "name": "Global Service Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "Service export focused"
+            },
+            "features": [
+              "Powerful banking solutions for Service Exporters",
+              "Preferential Trade and Forex pricing"
+            ],
+            "bestFor": "IT and service export companies"
+          }
+        ],
+        "specialFeatures": [
+          "ActivMoney - Earn interest on idle funds through auto-sweep",
+          "Cash Management Services (CMS)",
+          "Trade and Forex solutions",
+          "POS/QR/UPI solutions",
+          "Connected banking with ERP integration"
+        ]
+      },
+      {
+        "bankName": "Yes Bank",
+        "bankLogo": "yes-bank-logo.png",
+        "officialUrl": "https://www.yesbank.in/business-banking/accounts/current-accounts",
+        "applyUrl": "https://www.yesbank.in/business-banking",
+        "customerCare": "1800-1200",
+        "note": "RazorpayX and Open partnered for current accounts. Please visit website for latest offerings.",
+        "accountTypes": [
+          {
+            "name": "Business Current Account",
+            "minBalance": {
+              "amount": "Contact bank for variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Multiple variants available",
+              "Digital banking solutions",
+              "Trade and forex services"
+            ],
+            "bestFor": "Various business types"
+          }
+        ]
+      },
+      {
+        "bankName": "IndusInd Bank",
+        "bankLogo": "indusind-bank-logo.png",
+        "officialUrl": "https://www.indusind.com/in/en/business-banking/accounts/current-accounts.html",
+        "applyUrl": "https://www.indusind.com/in/en/business-banking.html",
+        "customerCare": "1860-500-5004",
+        "accountTypes": [
+          {
+            "name": "Indus Business Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB/AQB"
+            },
+            "features": [
+              "Digital banking platform",
+              "Trade services",
+              "Cash management solutions"
+            ],
+            "bestFor": "SMEs and Corporates"
+          }
+        ],
+        "note": "Visit official website for detailed variant-wise information"
+      },
+      {
+        "bankName": "IDFC First Bank",
+        "bankLogo": "idfc-first-bank-logo.png",
+        "officialUrl": "https://www.idfcfirstbank.com/business-banking/accounts/current-account",
+        "applyUrl": "https://www.idfcfirstbank.com/business-banking",
+        "customerCare": "1800-419-4332",
+        "accountTypes": [
+          {
+            "name": "Business Current Account",
+            "minBalance": {
+              "amount": "Multiple variants available",
+              "type": "MAB"
+            },
+            "features": [
+              "Digital-first banking",
+              "Competitive pricing",
+              "Modern banking platform"
+            ],
+            "bestFor": "Digital-savvy businesses"
+          }
+        ],
+        "note": "Visit official website for latest offerings"
+      },
+      {
+        "bankName": "RBL Bank",
+        "bankLogo": "rbl-bank-logo.png",
+        "officialUrl": "https://www.rblbank.com/business-banking/current-accounts",
+        "applyUrl": "https://www.rblbank.com/business-banking",
+        "customerCare": "1800-121-9050",
+        "accountTypes": [
+          {
+            "name": "Business Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "RazorpayX partnership for digital banking",
+              "API-powered solutions",
+              "Modern cash management"
+            ],
+            "bestFor": "Tech-enabled businesses"
+          }
+        ],
+        "note": "RazorpayX powered current accounts available"
+      },
+      {
+        "bankName": "Federal Bank",
+        "bankLogo": "federal-bank-logo.png",
+        "officialUrl": "https://www.federalbank.co.in/current-account",
+        "applyUrl": "https://www.federalbank.co.in/business-banking-current-account",
+        "customerCare": "1800-425-1199",
+        "accountTypes": [
+          {
+            "name": "Federal Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB/AQB"
+            },
+            "features": [
+              "Kerala and South India focused presence",
+              "NRI-friendly services",
+              "Digital banking platform"
+            ],
+            "bestFor": "South India businesses, NRI entrepreneurs"
+          }
+        ]
+      },
+      {
+        "bankName": "Bandhan Bank",
+        "bankLogo": "bandhan-bank-logo.png",
+        "officialUrl": "https://www.bandhanbank.com/current-account",
+        "applyUrl": "https://www.bandhanbank.com/current-account",
+        "customerCare": "1800-258-8181",
+        "accountTypes": [
+          {
+            "name": "Business Current Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "MAB"
+            },
+            "features": [
+              "MSME focused",
+              "Microfinance background expertise",
+              "Wide rural reach"
+            ],
+            "bestFor": "MSMEs and small businesses"
+          }
+        ]
+      }
+    ],
+    "psuBanks": [
+      {
+        "bankName": "State Bank of India (SBI)",
+        "bankLogo": "sbi-logo.png",
+        "officialUrl": "https://sbi.co.in/web/business/current-accounts",
+        "applyUrl": "https://sbi.co.in/web/business",
+        "customerCare": "1800-11-2211 / 1800-425-3800",
+        "accountTypes": [
+          {
+            "name": "Regular Current Account",
+            "minBalance": {
+              "amount": "₹5,000 - ₹25,000",
+              "type": "QAB",
+              "note": "Varies by branch location"
+            },
+            "features": [
+              "Largest branch network in India",
+              "NEFT/RTGS/IMPS support",
+              "Internet and mobile banking"
+            ],
+            "bestFor": "Businesses needing wide branch access"
+          },
+          {
+            "name": "Power Jyoti Current Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "MAB"
+            },
+            "features": [
+              "For high-value businesses",
+              "Premium services"
+            ],
+            "bestFor": "Large businesses"
+          }
+        ],
+        "note": "SBI offers various current account products. Visit nearest branch for detailed information."
+      },
+      {
+        "bankName": "Punjab National Bank (PNB)",
+        "bankLogo": "pnb-logo.png",
+        "officialUrl": "https://www.pnbindia.in/current-account.html",
+        "applyUrl": "https://www.pnbindia.in/",
+        "customerCare": "1800-180-2222",
+        "accountTypes": [
+          {
+            "name": "PNB Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Second largest PSU bank",
+              "Pan-India presence",
+              "Digital banking services"
+            ],
+            "bestFor": "Traditional businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "Bank of Baroda",
+        "bankLogo": "bob-logo.png",
+        "officialUrl": "https://www.bankofbaroda.in/business-banking/accounts/current-accounts",
+        "applyUrl": "https://www.bankofbaroda.in/business-banking",
+        "customerCare": "1800-102-4455",
+        "accountTypes": [
+          {
+            "name": "Baroda Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB/QAB"
+            },
+            "features": [
+              "Strong international presence",
+              "Trade finance services",
+              "Digital banking platform"
+            ],
+            "bestFor": "Export-import businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "Canara Bank",
+        "bankLogo": "canara-bank-logo.png",
+        "officialUrl": "https://www.canarabank.com/current-account",
+        "applyUrl": "https://www.canarabank.com",
+        "customerCare": "1800-425-0018",
+        "accountTypes": [
+          {
+            "name": "Canara Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong South India presence",
+              "Government banking services",
+              "MSME focus"
+            ],
+            "bestFor": "South India businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "Union Bank of India",
+        "bankLogo": "union-bank-logo.png",
+        "officialUrl": "https://www.unionbankofindia.co.in/english/current-deposit-account.aspx",
+        "applyUrl": "https://www.unionbankofindia.co.in",
+        "customerCare": "1800-22-2244",
+        "accountTypes": [
+          {
+            "name": "Union Current Account",
+            "minBalance": {
+              "amount": "As per variant",
+              "type": "MAB"
+            },
+            "features": [
+              "Pan-India branch network",
+              "Government business expertise",
+              "Digital banking services"
+            ],
+            "bestFor": "Government contractors"
+          }
+        ]
+      },
+      {
+        "bankName": "Indian Bank",
+        "bankLogo": "indian-bank-logo.png",
+        "officialUrl": "https://www.indianbank.in/departments/current-account/",
+        "applyUrl": "https://apps.indianbank.bank.in/ibapps/index.html",
+        "customerCare": "1800-1700",
+        "accountTypes": [
+          {
+            "name": "Ordinary Current Account",
+            "minBalance": {
+              "amount": 5000,
+              "type": "QAB",
+              "currency": "INR",
+              "note": "₹5,000 (Metro/Urban), ₹2,500 (Semi-Urban/Rural)"
+            },
+            "features": [
+              "Suitable for all types of customers",
+              "ECS/RTGS/NEFT facilities available",
+              "Nomination facility for individuals and sole proprietors",
+              "Internet Banking free for Individuals and Proprietors",
+              "Partnership firms, Public/Private Ltd companies, Trust, HUF society also eligible",
+              "Monthly statement available online and free at branch",
+              "Rupay Debit Card issued based on eligibility",
+              "All digital transactions in computation of Account Keeping Charges waived from 21.12.2023"
+            ],
+            "charges": {
+              "internetBanking": "Free",
+              "monthlyStatement": "Free (online and first copy at branch)",
+              "digitalTransactions": "Waived for account keeping charges calculation"
+            },
+            "bestFor": "All types of business customers"
+          }
+        ]
+      },
+      {
+        "bankName": "Central Bank of India",
+        "bankLogo": "central-bank-logo.png",
+        "officialUrl": "https://www.centralbankofindia.co.in/en/current-account",
+        "applyUrl": "https://centralbank.bank.in",
+        "customerCare": "1800-200-1911",
+        "accountTypes": [
+          {
+            "name": "Central Current Account",
+            "minBalance": {
+              "amount": "As per variant",
+              "type": "MAB"
+            },
+            "features": [
+              "Wide branch network",
+              "Government banking",
+              "MSME services"
+            ],
+            "bestFor": "Traditional businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "Bank of Maharashtra",
+        "bankLogo": "bom-logo.png",
+        "officialUrl": "https://www.mahabank.co.in/current-account",
+        "applyUrl": "https://www.mahabank.co.in",
+        "customerCare": "1800-233-4526",
+        "accountTypes": [
+          {
+            "name": "Mahabank Current Account",
+            "minBalance": {
+              "amount": "As per variant",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong Maharashtra presence",
+              "Government and PSU services",
+              "Digital banking"
+            ],
+            "bestFor": "Maharashtra-based businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "Indian Overseas Bank",
+        "bankLogo": "iob-logo.png",
+        "officialUrl": "https://www.iob.in/current-account",
+        "applyUrl": "https://www.iob.in",
+        "customerCare": "1800-425-4445",
+        "accountTypes": [
+          {
+            "name": "IOB Current Account",
+            "minBalance": {
+              "amount": "As per variant",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong South India and NRI focus",
+              "International banking services",
+              "Trade finance"
+            ],
+            "bestFor": "NRI businesses and exporters"
+          }
+        ]
+      }
+    ],
+    "smallFinanceBanks": [
+      {
+        "bankName": "AU Small Finance Bank",
+        "bankLogo": "au-sfb-logo.png",
+        "officialUrl": "https://www.aubank.in/current-accounts",
+        "applyUrl": "https://www.aubank.in/business-banking",
+        "customerCare": "1800-1200-1200",
+        "accountTypes": [
+          {
+            "name": "AU Business Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Digital-first approach",
+              "Video KYC for account opening",
+              "Modern mobile banking",
+              "MSME focused lending"
+            ],
+            "bestFor": "MSMEs and small businesses"
+          }
+        ],
+        "note": "AU Bank offers competitive current account products. Visit website for latest offerings."
+      },
+      {
+        "bankName": "Equitas Small Finance Bank",
+        "bankLogo": "equitas-sfb-logo.png",
+        "officialUrl": "https://www.equitasbank.com/business-banking/current-accounts",
+        "applyUrl": "https://www.equitasbank.com",
+        "customerCare": "1800-103-1222",
+        "accountTypes": [
+          {
+            "name": "Equitas Business Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "MSME focused",
+              "Microfinance expertise",
+              "Tamil Nadu strong presence"
+            ],
+            "bestFor": "Small businesses and MSMEs"
+          }
+        ]
+      },
+      {
+        "bankName": "Ujjivan Small Finance Bank",
+        "bankLogo": "ujjivan-sfb-logo.png",
+        "officialUrl": "https://www.ujjivansfb.in/current-account",
+        "applyUrl": "https://www.ujjivansfb.in",
+        "customerCare": "1800-208-2121",
+        "accountTypes": [
+          {
+            "name": "Ujjivan Business Current Account",
+            "minBalance": {
+              "amount": "Contact bank",
+              "type": "MAB"
+            },
+            "features": [
+              "Microfinance heritage",
+              "Financial inclusion focus",
+              "MSME lending expertise"
+            ],
+            "bestFor": "Micro and small enterprises"
+          }
+        ]
+      }
+    ],
+    "neoBanks": [
+      {
+        "bankName": "RazorpayX (Neo Bank)",
+        "bankLogo": "razorpayx-logo.png",
+        "officialUrl": "https://razorpay.com/x/current-accounts/",
+        "applyUrl": "https://x.razorpay.com/auth/signup/?intent=current_account",
+        "customerCare": "Contact via dashboard",
+        "partnerBanks": ["ICICI Bank", "Yes Bank", "Axis Bank", "RBL Bank"],
+        "accountTypes": [
+          {
+            "name": "RazorpayX Business Banking+ (Core Plan)",
+            "minBalance": {
+              "amount": "Varies by partner bank",
+              "type": "As per partner bank requirements"
+            },
+            "features": [
+              "Instant beneficiary addition (no cooling-off period)",
+              "Beneficiary payout views",
+              "Mobile app access",
+              "Seamless starter package for new businesses",
+              "High-tech dashboard with superior payouts experience"
+            ],
+            "bestFor": "Businesses just starting up"
+          },
+          {
+            "name": "RazorpayX Business Banking+ (Pro Plan)",
+            "minBalance": {
+              "amount": "Varies by partner bank",
+              "type": "As per partner bank requirements"
+            },
+            "features": [
+              "Smart bulk payouts & API payouts",
+              "Payout links & bulk payout links",
+              "Multi-user experience",
+              "Custom access control",
+              "Department-wise access",
+              "50,000 payouts in one OTP"
+            ],
+            "bestFor": "Mid-sized businesses"
+          },
+          {
+            "name": "RazorpayX Business Banking+ (Advanced Plan)",
+            "minBalance": {
+              "amount": "Varies by partner bank",
+              "type": "As per partner bank requirements"
+            },
+            "features": [
+              "Invoice payments with best-in-class OCR",
+              "Email-based approvals",
+              "Accounting integration (ZohoBooks, Tally, ERP software)",
+              "Custom report downloads",
+              "Vendor payments automation",
+              "Tax payments (TDS, Advance Tax, GST in 30 seconds)"
+            ],
+            "bestFor": "Scaled-up businesses"
+          }
+        ],
+        "keyFeatures": [
+          "50,000 payouts in a single OTP",
+          "99.9% payout success rates",
+          "No cooling-off period for beneficiary addition",
+          "Granular access controls with unlimited users",
+          "Self-serve reports (transactions, invoices, challans)",
+          "Mobile app for approvals on the go",
+          "API-powered payouts",
+          "Accounting integrations (Tally, ZohoBooks, Shopify, Slack)",
+          "Auto-spend categorization",
+          "Dedicated relationship manager for premium support"
+        ],
+        "additionalServices": [
+          "Cheque leaves and Debit Card",
+          "Cash deposits at partner bank branches",
+          "Walk-in branch facility",
+          "Overdraft facility",
+          "Payroll management with RazorpayX Payroll",
+          "Vendor payments automation",
+          "Tax payments automation"
+        ],
+        "charges": {
+          "setup": "Paperless processing in less than 24 hours",
+          "neftRtgs": "NEFT/RTGS/IMPS supported",
+          "chequeCollection": "Free local cheque collection",
+          "atmTransactions": "Free domestic ATM transactions"
+        },
+        "disclaimer": "RazorpayX is not a bank. Current accounts are provided by partner banks (ICICI, RBL, Yes Bank) in accordance with RBI regulations."
+      },
+      {
+        "bankName": "Open (Neo Bank)",
+        "bankLogo": "open-money-logo.png",
+        "officialUrl": "https://open.money/current-account",
+        "applyUrl": "https://app.open.money/register",
+        "partnerBanks": ["ICICI Bank", "State Bank of India", "Axis Bank", "Yes Bank"],
+        "accountTypes": [
+          {
+            "name": "Open Business Current Account",
+            "minBalance": {
+              "amount": "Varies by partner bank",
+              "type": "As per partner bank"
+            },
+            "features": [
+              "Fully digital account opening process",
+              "Powerful automation for accounts payable/receivable",
+              "Invoice management and GST filing",
+              "e-Invoicing and payroll management",
+              "Connected banking experience",
+              "Single dashboard for all current accounts"
+            ],
+            "bestFor": "Startups and SMEs"
+          }
+        ],
+        "keyFeatures": [
+          "Connect all current accounts to unified dashboard",
+          "Direct account-to-account payments",
+          "Vendor payments with bulk and recurring options",
+          "Beneficiary management with instant addition",
+          "Real-time expense tracking with spending limits",
+          "Receipt upload and expense reporting on the go",
+          "Accounting software integration (Tally, Zoho Books, Oracle NetSuite, Microsoft Dynamics)",
+          "Automated reconciliation"
+        ],
+        "integratedTools": [
+          "OPEN Payroll - Salary, tax deductions, benefits automation",
+          "OPEN Accounting - Invoices, expenses, reconciliation",
+          "GST Returns - GST-compliant invoices, e-file returns, pay challans",
+          "E-invoicing integration for e-invoices and e-way bills"
+        ],
+        "connectedBanking": [
+          "ICICI Connected Banking",
+          "SBI Connected Banking",
+          "Axis Bank Connected Banking",
+          "Yes Bank Connected Banking"
+        ],
+        "disclaimer": "Open is a connected banking platform. Actual current accounts are maintained with partner banks."
+      }
+    ],
+    "otherPrivateBanks": [
+      {
+        "bankName": "Karur Vysya Bank (KVB)",
+        "bankLogo": "kvb-logo.png",
+        "officialUrl": "https://www.kvb.co.in/current-account/",
+        "applyUrl": "https://www.kvb.co.in",
+        "customerCare": "1800-102-1916",
+        "accountTypes": [
+          {
+            "name": "KVB Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong Tamil Nadu presence",
+              "MSME focus",
+              "Trade services"
+            ],
+            "bestFor": "Tamil Nadu businesses"
+          }
+        ]
+      },
+      {
+        "bankName": "South Indian Bank",
+        "bankLogo": "sib-logo.png",
+        "officialUrl": "https://www.southindianbank.com/content/current-account",
+        "applyUrl": "https://www.southindianbank.com",
+        "customerCare": "1800-425-1809",
+        "accountTypes": [
+          {
+            "name": "SIB Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong Kerala presence",
+              "NRI services",
+              "Gold loan expertise"
+            ],
+            "bestFor": "Kerala businesses and NRIs"
+          }
+        ]
+      },
+      {
+        "bankName": "City Union Bank",
+        "bankLogo": "cub-logo.png",
+        "officialUrl": "https://www.cityunionbank.com/current-account",
+        "applyUrl": "https://www.cityunionbank.com",
+        "customerCare": "1800-120-5000",
+        "accountTypes": [
+          {
+            "name": "CUB Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "Strong Tamil Nadu presence",
+              "MSME focus",
+              "Technology-driven services"
+            ],
+            "bestFor": "Tamil Nadu SMEs"
+          }
+        ]
+      },
+      {
+        "bankName": "DCB Bank",
+        "bankLogo": "dcb-bank-logo.png",
+        "officialUrl": "https://www.dcbbank.com/current-account",
+        "applyUrl": "https://www.dcbbank.com",
+        "customerCare": "1800-209-5363",
+        "accountTypes": [
+          {
+            "name": "DCB Current Account",
+            "minBalance": {
+              "amount": "Multiple variants",
+              "type": "MAB"
+            },
+            "features": [
+              "MSME focus",
+              "Digital banking",
+              "Trade services"
+            ],
+            "bestFor": "MSMEs and traders"
+          }
+        ]
+      }
+    ]
+  },
+  "comparisonTable": {
+    "headers": ["Bank", "Account Type", "Min Balance (₹)", "Cash Deposit Limit", "Key Feature"],
+    "topRecommendations": [
+      {
+        "bank": "HDFC Bank",
+        "accountType": "Biz Lite+",
+        "minBalance": "Waiver available",
+        "cashDepositLimit": "₹2 Lakh/month",
+        "keyFeature": "Insurance up to ₹3 Lakh"
+      },
+      {
+        "bank": "Axis Bank",
+        "accountType": "Liberty Digital",
+        "minBalance": "₹15,000 MAB",
+        "cashDepositLimit": "₹10 Lakh/month",
+        "keyFeature": "20-min digital account opening"
+      },
+      {
+        "bank": "Kotak Bank",
+        "accountType": "Neo",
+        "minBalance": "₹10,000 AQB",
+        "cashDepositLimit": "As per account",
+        "keyFeature": "ActivMoney auto-sweep"
+      },
+      {
+        "bank": "ICICI Bank",
+        "accountType": "Roaming CA",
+        "minBalance": "Multiple variants",
+        "cashDepositLimit": "Variant-based",
+        "keyFeature": "365-day settlement with POS/QR"
+      },
+      {
+        "bank": "RazorpayX",
+        "accountType": "Business Banking+",
+        "minBalance": "Partner bank based",
+        "cashDepositLimit": "Unlimited via partner",
+        "keyFeature": "50K payouts in one OTP"
+      },
+      {
+        "bank": "Indian Bank",
+        "accountType": "Ordinary CA",
+        "minBalance": "₹5,000 QAB",
+        "cashDepositLimit": "Standard",
+        "keyFeature": "Free digital transactions"
+      }
+    ]
+  }
+}
