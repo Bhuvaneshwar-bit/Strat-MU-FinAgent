@@ -33,37 +33,124 @@ const processedBanks = [
   ...bankData.banks.neoBanks.map(bank => ({ ...bank, type: 'Neo Bank' }))
 ];
 
-// Bank colors for UI
-const bankColors = {
-  'HDFC Bank': '#004C8F',
-  'ICICI Bank': '#F37021',
-  'Axis Bank': '#97144D',
-  'Kotak Mahindra Bank': '#ED1C24',
-  'Yes Bank': '#00518F',
-  'IndusInd Bank': '#8B1538',
-  'IDFC First Bank': '#9C1D26',
-  'RBL Bank': '#E31837',
-  'Federal Bank': '#003366',
-  'Karur Vysya Bank (KVB)': '#006B3F',
-  'South Indian Bank': '#0066B3',
-  'City Union Bank': '#003399',
-  'DCB Bank': '#ED1C24',
-  'Bandhan Bank': '#F47920',
-  'State Bank of India': '#2D4A9D',
-  'Punjab National Bank': '#ED1C24',
-  'Bank of Baroda': '#F7931E',
-  'Canara Bank': '#FFD700',
-  'Union Bank of India': '#003F72',
-  'Bank of India': '#0066B3',
-  'Indian Bank': '#0052A4',
-  'Central Bank of India': '#E31E24',
-  'Bank of Maharashtra': '#1E4620',
-  'Indian Overseas Bank': '#8B0000',
-  'AU Small Finance Bank': '#E31E25',
-  'Equitas Small Finance Bank': '#00A859',
-  'Ujjivan Small Finance Bank': '#00AEEF',
-  'RazorpayX': '#0066FF',
-  'Open': '#5865F2'
+// Bank colors and logos
+const bankData2 = {
+  'HDFC Bank': {
+    color: '#004C8F',
+    logo: 'https://www.hdfcbank.com/content/api/contentstream-id/723fb80a-2dde-42a3-9793-7ae1be57c87f/0f5a5d51-8dcb-48a3-8f41-9b5c2825b3ba/common/logo/hdfc.svg'
+  },
+  'ICICI Bank': {
+    color: '#F37021',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/12/ICICI_Bank_Logo.svg'
+  },
+  'Axis Bank': {
+    color: '#97144D',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Axis_Bank_logo.svg'
+  },
+  'Kotak Mahindra Bank': {
+    color: '#ED1C24',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/9/9f/Kotak_Mahindra_Bank_logo.svg'
+  },
+  'Yes Bank': {
+    color: '#00518F',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Yes_Bank_logo.svg'
+  },
+  'IndusInd Bank': {
+    color: '#8B1538',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/IndusInd_Bank_logo.svg'
+  },
+  'IDFC First Bank': {
+    color: '#9C1D26',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c8/IDFC_First_Bank_logo.svg'
+  },
+  'RBL Bank': {
+    color: '#E31837',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/c/c2/RBL_Bank_Logo.svg'
+  },
+  'Federal Bank': {
+    color: '#003366',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Federal_Bank_Logo.svg'
+  },
+  'Karur Vysya Bank (KVB)': {
+    color: '#006B3F',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Karur_Vysya_Bank_logo.svg'
+  },
+  'South Indian Bank': {
+    color: '#0066B3',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/06/South_Indian_Bank_Logo.svg'
+  },
+  'City Union Bank': {
+    color: '#003399',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/6/60/City_Union_Bank_Logo.png'
+  },
+  'DCB Bank': {
+    color: '#ED1C24',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/DCB_Bank_logo.svg'
+  },
+  'Bandhan Bank': {
+    color: '#F47920',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Bandhan_Bank_logo.svg'
+  },
+  'State Bank of India': {
+    color: '#2D4A9D',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/SBI-logo.svg'
+  },
+  'Punjab National Bank': {
+    color: '#ED1C24',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Punjab_National_Bank_logo.svg'
+  },
+  'Bank of Baroda': {
+    color: '#F7931E',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Bank_of_Baroda_logo.svg'
+  },
+  'Canara Bank': {
+    color: '#FFD700',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Canara_Bank_Logo.svg'
+  },
+  'Union Bank of India': {
+    color: '#003F72',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Union_Bank_of_India_logo.svg'
+  },
+  'Bank of India': {
+    color: '#0066B3',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/5/55/Bank_of_India_logo.svg'
+  },
+  'Indian Bank': {
+    color: '#0052A4',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/7/74/Indian_Bank_logo.svg'
+  },
+  'Central Bank of India': {
+    color: '#E31E24',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fe/Central_Bank_of_India_Logo.svg'
+  },
+  'Bank of Maharashtra': {
+    color: '#1E4620',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/04/Bank_of_Maharashtra_logo.svg'
+  },
+  'Indian Overseas Bank': {
+    color: '#8B0000',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/4/47/Indian_Overseas_Bank_Logo.svg'
+  },
+  'AU Small Finance Bank': {
+    color: '#E31E25',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/43/AU_Small_Finance_Bank_logo.svg'
+  },
+  'Equitas Small Finance Bank': {
+    color: '#00A859',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/6/6a/Equitas_Holdings_Logo.png'
+  },
+  'Ujjivan Small Finance Bank': {
+    color: '#00AEEF',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/6/66/Ujjivan_Small_Finance_Bank_logo.svg'
+  },
+  'RazorpayX': {
+    color: '#0066FF',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg'
+  },
+  'Open': {
+    color: '#5865F2',
+    logo: 'https://avatars.githubusercontent.com/u/38330716'
+  }
 };
 
 const BankAccountOffers = ({ darkMode, isExpanded, onToggle }) => {
@@ -102,7 +189,11 @@ const BankAccountOffers = ({ darkMode, isExpanded, onToggle }) => {
   };
 
   const getBankColor = (bankName) => {
-    return bankColors[bankName] || '#64748b';
+    return bankData2[bankName]?.color || '#64748b';
+  };
+
+  const getBankLogo = (bankName) => {
+    return bankData2[bankName]?.logo || null;
   };
 
   const formatMinBalance = (account) => {
@@ -203,10 +294,26 @@ const BankAccountOffers = ({ darkMode, isExpanded, onToggle }) => {
                 onClick={() => handleBankSelect(bank)}
               >
                 <div className="bank-logo" style={{ background: `${getBankColor(bank.bankName)}15` }}>
-                  <Building2 size={24} style={{ color: getBankColor(bank.bankName) }} />
+                  {getBankLogo(bank.bankName) ? (
+                    <img 
+                      src={getBankLogo(bank.bankName)} 
+                      alt={bank.bankName}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <Building2 
+                    size={24} 
+                    style={{ 
+                      color: getBankColor(bank.bankName),
+                      display: getBankLogo(bank.bankName) ? 'none' : 'block'
+                    }} 
+                  />
                 </div>
                 <div className="bank-info">
-                  <h4>{bank.bankName}</h4>
+                  <h4 title={bank.bankName}>{bank.bankName}</h4>
                   <span className="bank-type" style={{ background: `${getTypeColor(bank.type)}20`, color: getTypeColor(bank.type) }}>
                     {bank.type}
                   </span>
@@ -232,8 +339,12 @@ const BankAccountOffers = ({ darkMode, isExpanded, onToggle }) => {
 
             {/* Modal Header */}
             <div className="modal-header" style={{ background: `linear-gradient(135deg, ${getBankColor(selectedBank.bankName)}20 0%, ${getBankColor(selectedBank.bankName)}10 100%)` }}>
-              <div className="modal-bank-logo" style={{ background: getBankColor(selectedBank.bankName) }}>
-                <Building2 size={32} color="white" />
+              <div className="modal-bank-logo" style={{ background: getBankLogo(selectedBank.bankName) ? '#fff' : getBankColor(selectedBank.bankName) }}>
+                {getBankLogo(selectedBank.bankName) ? (
+                  <img src={getBankLogo(selectedBank.bankName)} alt={selectedBank.bankName} />
+                ) : (
+                  <Building2 size={32} color="white" />
+                )}
               </div>
               <div className="modal-bank-info">
                 <h2>{selectedBank.bankName}</h2>
