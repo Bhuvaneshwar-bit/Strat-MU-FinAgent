@@ -5,11 +5,44 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 /**
+ * Recurring expense categories (typically monthly/regular expenses)
+ */
+const RECURRING_EXPENSE_CATEGORIES = [
+  'rent', 'salary', 'salaries', 'wages', 'utilities', 'electricity', 'water',
+  'internet', 'phone', 'mobile', 'subscription', 'insurance', 'loan', 'emi',
+  'maintenance', 'software', 'hosting', 'cloud', 'office', 'marketing',
+  'advertising', 'payroll', 'staff', 'employee', 'membership', 'recurring',
+  'monthly', 'regular', 'fixed', 'overhead', 'operational'
+];
+
+/**
+ * Non-recurring expense categories (one-time/variable expenses)
+ */
+const NON_RECURRING_EXPENSE_CATEGORIES = [
+  'equipment', 'furniture', 'asset', 'purchase', 'travel', 'one-time',
+  'repair', 'legal', 'professional', 'consulting', 'training', 'event',
+  'conference', 'miscellaneous', 'other', 'supplies', 'inventory',
+  'variable', 'seasonal', 'project', 'capital'
+];
+
+/**
+ * Helper function to classify expense as recurring or non-recurring
+ */
+const isRecurringExpense = (category) => {
+  const lowerCategory = (category || '').toLowerCase();
+  return RECURRING_EXPENSE_CATEGORIES.some(keyword => lowerCategory.includes(keyword));
+};
+
+/**
  * Helper function to extract metrics from PLStatement
  * Checks ALL possible field locations in the schema
+ * Calculates proper monthly metrics and recurring/non-recurring expenses
  */
 const extractMetrics = (plStatement) => {
   if (!plStatement) return null;
+
+  // Get the period for monthly calculations
+  const period = plStatement.period || plStatement.analysis?.period || 'Monthly';
 
   // Check multiple possible locations for revenue (schema has different structures)
   const totalRevenue = 
@@ -26,6 +59,57 @@ const extractMetrics = (plStatement) => {
     plStatement.analysisMetrics?.totalExpenses ||
     plStatement.plStatement?.expenses?.totalExpenses ||
     0;
+
+  // Calculate recurring and non-recurring expenses from expense breakdown
+  let recurringExpenses = 0;
+  let nonRecurringExpenses = 0;
+
+  // Check expenses array
+  const expensesArray = plStatement.expenses || [];
+  expensesArray.forEach(expense => {
+    const amount = expense.amount || 0;
+    if (isRecurringExpense(expense.category)) {
+      recurringExpenses += amount;
+    } else {
+      nonRecurringExpenses += amount;
+    }
+  });
+
+  // Also check profitLossStatement.expenses.expenseCategories
+  const expenseCategories = plStatement.profitLossStatement?.expenses?.expenseCategories || [];
+  expenseCategories.forEach(expense => {
+    const amount = expense.amount || 0;
+    if (isRecurringExpense(expense.category || expense.name)) {
+      recurringExpenses += amount;
+    } else {
+      nonRecurringExpenses += amount;
+    }
+  });
+
+  // If no categorized breakdown, estimate from total (70% recurring, 30% non-recurring typical split)
+  if (recurringExpenses === 0 && nonRecurringExpenses === 0 && totalExpenses > 0) {
+    recurringExpenses = totalExpenses * 0.7;
+    nonRecurringExpenses = totalExpenses * 0.3;
+  }
+
+  // Calculate monthly metrics based on period
+  let monthlyRevenue = totalRevenue;
+  let monthlyBurn = totalExpenses;
+  let monthlyRecurring = recurringExpenses;
+  let monthlyNonRecurring = nonRecurringExpenses;
+
+  if (period === 'Yearly' || period === 'yearly') {
+    monthlyRevenue = totalRevenue / 12;
+    monthlyBurn = totalExpenses / 12;
+    monthlyRecurring = recurringExpenses / 12;
+    monthlyNonRecurring = nonRecurringExpenses / 12;
+  } else if (period === 'Weekly' || period === 'weekly') {
+    monthlyRevenue = totalRevenue * 4.33; // ~4.33 weeks per month
+    monthlyBurn = totalExpenses * 4.33;
+    monthlyRecurring = recurringExpenses * 4.33;
+    monthlyNonRecurring = nonRecurringExpenses * 4.33;
+  }
+  // For 'Monthly' period, values stay as-is
 
   // Net income
   const netIncome = 
@@ -50,9 +134,16 @@ const extractMetrics = (plStatement) => {
   return {
     totalRevenue,
     totalExpenses,
+    monthlyRevenue,
+    monthlyBurn,
+    recurringExpenses,
+    nonRecurringExpenses,
+    monthlyRecurring,
+    monthlyNonRecurring,
     netIncome,
     profitMargin,
     transactionCount,
+    period,
     lastUpdated: plStatement.createdAt || plStatement.updatedAt
   };
 };
@@ -82,23 +173,32 @@ router.get('/summary', auth, async (req, res) => {
           totalInvestment: 0,
           monthlyRevenue: 0,
           monthlyBurn: 0,
+          recurringExpenses: 0,
+          nonRecurringExpenses: 0,
           netIncome: 0,
           profitMargin: 0,
           runway: 0,
           status: 'No Data',
           revenueGrowth: 0,
+          period: null,
           lastUpdated: null
         }
       });
     }
 
-    const { totalRevenue, totalExpenses, netIncome, profitMargin } = metrics;
+    const { 
+      totalRevenue, 
+      totalExpenses, 
+      monthlyRevenue, 
+      monthlyBurn, 
+      recurringExpenses,
+      nonRecurringExpenses,
+      netIncome, 
+      profitMargin,
+      period 
+    } = metrics;
 
-    // Calculate monthly metrics
-    const monthlyRevenue = totalRevenue;
-    const monthlyBurn = totalExpenses;
-
-    // Calculate runway
+    // Calculate runway based on monthly burn
     const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
     const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
 
@@ -125,13 +225,16 @@ router.get('/summary', auth, async (req, res) => {
         totalRevenue,
         totalExpenses,
         totalInvestment: availableCash,
-        monthlyRevenue,
-        monthlyBurn,
+        monthlyRevenue: parseFloat(monthlyRevenue.toFixed(2)),
+        monthlyBurn: parseFloat(monthlyBurn.toFixed(2)),
+        recurringExpenses: parseFloat(recurringExpenses.toFixed(2)),
+        nonRecurringExpenses: parseFloat(nonRecurringExpenses.toFixed(2)),
         netIncome,
         profitMargin: parseFloat(profitMargin.toFixed(1)),
         runway,
         status,
         revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
+        period,
         lastUpdated: metrics.lastUpdated,
         statementId: plStatement._id
       }
@@ -181,9 +284,12 @@ router.get('/summary/public/:identifier', async (req, res) => {
             totalExpenses: 0,
             monthlyRevenue: 0,
             monthlyBurn: 0,
+            recurringExpenses: 0,
+            nonRecurringExpenses: 0,
             runway: 0,
             status: 'No Data',
             revenueGrowth: 0,
+            period: null,
             message: 'User not found with this email'
           }
         });
@@ -206,15 +312,28 @@ router.get('/summary/public/:identifier', async (req, res) => {
           totalExpenses: 0,
           monthlyRevenue: 0,
           monthlyBurn: 0,
+          recurringExpenses: 0,
+          nonRecurringExpenses: 0,
           runway: 0,
           status: 'No Data',
-          revenueGrowth: 0
+          revenueGrowth: 0,
+          period: null
         }
       });
     }
 
-    const { totalRevenue, totalExpenses, netIncome, profitMargin } = metrics;
-    const monthlyBurn = totalExpenses;
+    const { 
+      totalRevenue, 
+      totalExpenses, 
+      monthlyRevenue,
+      monthlyBurn,
+      recurringExpenses,
+      nonRecurringExpenses,
+      netIncome, 
+      profitMargin,
+      period 
+    } = metrics;
+    
     const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
     const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
 
@@ -224,13 +343,16 @@ router.get('/summary/public/:identifier', async (req, res) => {
         totalRevenue,
         totalExpenses,
         totalInvestment: availableCash,
-        monthlyRevenue: totalRevenue,
-        monthlyBurn,
+        monthlyRevenue: parseFloat(monthlyRevenue.toFixed(2)),
+        monthlyBurn: parseFloat(monthlyBurn.toFixed(2)),
+        recurringExpenses: parseFloat(recurringExpenses.toFixed(2)),
+        nonRecurringExpenses: parseFloat(nonRecurringExpenses.toFixed(2)),
         netIncome,
         profitMargin: parseFloat(profitMargin.toFixed(1)),
         runway,
         status: netIncome > 0 ? 'Profitable' : 'Burning',
         revenueGrowth: 0,
+        period,
         lastUpdated: metrics.lastUpdated
       }
     });
