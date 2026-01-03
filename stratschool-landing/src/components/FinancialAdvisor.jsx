@@ -10,12 +10,16 @@ import {
   X, 
   User, 
   Sparkles,
-  Clock,
   Loader2,
   Copy,
   CheckCheck,
-  ChevronLeft,
-  ChevronRight
+  PanelLeftClose,
+  PanelLeft,
+  Bot,
+  TrendingUp,
+  Calculator,
+  FileText,
+  Building2
 } from 'lucide-react';
 import { buildApiUrl } from '../config/api';
 import '../styles/FinancialAdvisor.css';
@@ -34,7 +38,15 @@ const FinancialAdvisor = ({ darkMode, user }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,7 +104,7 @@ const FinancialAdvisor = ({ darkMode, user }) => {
     setActiveSession(null);
     setMessages([]);
     setInput('');
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   };
 
   const sendMessage = async () => {
@@ -100,101 +112,48 @@ const FinancialAdvisor = ({ darkMode, user }) => {
 
     const userMessage = input.trim();
     setInput('');
-    
-    // Add user message immediately
-    const newUserMessage = { role: 'user', content: userMessage, timestamp: new Date() };
-    setMessages(prev => [...prev, newUserMessage]);
     setIsLoading(true);
+
+    // Add user message immediately
+    const newMessages = [...messages, { role: 'user', content: userMessage }];
+    setMessages(newMessages);
 
     try {
       const response = await fetch(buildApiUrl('/api/financial-advisor/chat'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          sessionId: activeSession?._id,
-          message: userMessage
+          message: userMessage,
+          sessionId: activeSession?._id
         })
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
-        const aiMessage = { role: 'assistant', content: data.response, timestamp: new Date() };
-        setMessages(prev => [...prev, aiMessage]);
+        setMessages([...newMessages, { role: 'assistant', content: data.response }]);
         
-        // Update session info
         if (data.session) {
-          setActiveSession(prev => ({
-            ...prev,
-            _id: data.session._id,
-            title: data.session.title
-          }));
+          setActiveSession(data.session);
           fetchSessions();
         }
       } else {
-        setMessages(prev => [...prev, { 
-          role: 'error', 
-          content: 'Failed to get response. Please try again.',
-          timestamp: new Date()
+        setMessages([...newMessages, { 
+          role: 'assistant', 
+          content: '⚠️ Sorry, I encountered an error. Please try again.',
+          isError: true 
         }]);
       }
     } catch (error) {
       console.error('Send message error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'error', 
-        content: 'Network error. Please check your connection.',
-        timestamp: new Date()
+      setMessages([...newMessages, { 
+        role: 'assistant', 
+        content: '⚠️ Connection error. Please check your internet and try again.',
+        isError: true 
       }]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const deleteSession = async (sessionId, e) => {
-    e.stopPropagation();
-    try {
-      const response = await fetch(buildApiUrl(`/api/financial-advisor/sessions/${sessionId}`), {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        setSessions(prev => prev.filter(s => s._id !== sessionId));
-        if (activeSession?._id === sessionId) {
-          createNewChat();
-        }
-      }
-    } catch (error) {
-      console.error('Delete session error:', error);
-    }
-  };
-
-  const updateTitle = async (sessionId) => {
-    if (!editTitle.trim()) return;
-    
-    try {
-      const response = await fetch(buildApiUrl(`/api/financial-advisor/sessions/${sessionId}/title`), {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ title: editTitle.trim() })
-      });
-      
-      if (response.ok) {
-        setSessions(prev => prev.map(s => 
-          s._id === sessionId ? { ...s, title: editTitle.trim() } : s
-        ));
-        setEditingId(null);
-        setEditTitle('');
-      }
-    } catch (error) {
-      console.error('Update title error:', error);
-    }
-  };
-
-  const copyMessage = (content, id) => {
-    navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleKeyDown = (e) => {
@@ -204,12 +163,47 @@ const FinancialAdvisor = ({ darkMode, user }) => {
     }
   };
 
-  const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
+  const deleteSession = async (sessionId, e) => {
+    e.stopPropagation();
+    try {
+      await fetch(buildApiUrl(`/api/financial-advisor/sessions/${sessionId}`), {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      setSessions(sessions.filter(s => s._id !== sessionId));
+      if (activeSession?._id === sessionId) {
+        createNewChat();
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  };
+
+  const saveEditTitle = async (sessionId) => {
+    if (!editTitle.trim()) return;
+    try {
+      await fetch(buildApiUrl(`/api/financial-advisor/sessions/${sessionId}/title`), {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ title: editTitle.trim() })
+      });
+      setSessions(sessions.map(s => 
+        s._id === sessionId ? { ...s, title: editTitle.trim() } : s
+      ));
+      setEditingId(null);
+    } catch (error) {
+      console.error('Save title error:', error);
+    }
+  };
+
+  const copyToClipboard = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
   };
 
   const formatDate = (date) => {
@@ -217,114 +211,135 @@ const FinancialAdvisor = ({ darkMode, user }) => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (d.toDateString() === today.toDateString()) return 'Today';
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+
+  // Format AI response with proper styling
+  const formatResponse = (text) => {
+    if (!text) return '';
+    
+    return text
+      .replace(/^### (.*$)/gim, '<h4 class="response-h4">$1</h4>')
+      .replace(/^## (.*$)/gim, '<h3 class="response-h3">$1</h3>')
+      .replace(/^# (.*$)/gim, '<h2 class="response-h2">$1</h2>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>')
+      .replace(/`(.*?)`/g, '<code class="inline-code">$1</code>')
+      .replace(/^[-•] (.*$)/gim, '<li>$1</li>')
+      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br/>');
   };
 
   const filteredSessions = sessions.filter(s => 
     s.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const suggestions = [
-    "How can I save tax as a freelancer?",
-    "GST registration process for startups",
-    "LLP vs Pvt Ltd - which is better?",
-    "How to calculate advance tax?"
+  const suggestionChips = [
+    { icon: Calculator, text: "How to reduce my tax liability legally?", color: "#D4AF37" },
+    { icon: FileText, text: "GST registration requirements for my business", color: "#3b82f6" },
+    { icon: TrendingUp, text: "Best investment options for business surplus", color: "#10b981" },
+    { icon: Building2, text: "LLP vs Pvt Ltd - which is better for me?", color: "#8b5cf6" }
   ];
 
   return (
-    <div className={`fa-container ${darkMode ? 'dark' : 'light'}`}>
+    <div className={`financial-advisor ${darkMode ? 'dark' : 'light'}`}>
       {/* Sidebar */}
       <aside className={`fa-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-        <div className="fa-sidebar-header">
-          <button className="fa-new-chat" onClick={createNewChat}>
+        <div className="sidebar-content">
+          <button className="new-chat-btn" onClick={createNewChat}>
             <Plus size={18} />
-            <span>New Chat</span>
+            {sidebarOpen && <span>New Chat</span>}
           </button>
-          <button className="fa-toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-          </button>
+
+          {sidebarOpen && (
+            <>
+              <div className="sidebar-search">
+                <Search size={16} />
+                <input
+                  type="text"
+                  placeholder="Search chats..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="sessions-container">
+                {sessionsLoading ? (
+                  <div className="sessions-loading">
+                    <Loader2 className="spin" size={24} />
+                  </div>
+                ) : filteredSessions.length === 0 ? (
+                  <div className="no-sessions">
+                    <MessageSquare size={32} />
+                    <p>No conversations yet</p>
+                    <span>Start a new chat to get expert financial advice</span>
+                  </div>
+                ) : (
+                  <div className="sessions-list">
+                    {filteredSessions.map(session => (
+                      <div
+                        key={session._id}
+                        className={`session-item ${activeSession?._id === session._id ? 'active' : ''}`}
+                        onClick={() => loadSession(session._id)}
+                      >
+                        {editingId === session._id ? (
+                          <div className="edit-form">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveEditTitle(session._id)}
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button onClick={() => saveEditTitle(session._id)} className="save-btn">
+                              <Check size={14} />
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="cancel-btn">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <MessageSquare size={16} className="session-icon" />
+                            <div className="session-details">
+                              <span className="session-title">{session.title || 'New Chat'}</span>
+                              <span className="session-date">{formatDate(session.lastMessageAt || session.createdAt)}</span>
+                            </div>
+                            <div className="session-actions">
+                              <button onClick={(e) => { e.stopPropagation(); setEditingId(session._id); setEditTitle(session.title); }}>
+                                <Edit3 size={14} />
+                              </button>
+                              <button onClick={(e) => deleteSession(session._id, e)} className="delete-btn">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {sidebarOpen && (
-          <>
-            <div className="fa-search">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Search chats..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="fa-sessions">
-              {sessionsLoading ? (
-                <div className="fa-loading">
-                  <Loader2 size={20} className="spin" />
-                  <span>Loading...</span>
-                </div>
-              ) : filteredSessions.length === 0 ? (
-                <div className="fa-empty">
-                  <MessageSquare size={24} />
-                  <p>No conversations yet</p>
-                </div>
-              ) : (
-                filteredSessions.map(session => (
-                  <div
-                    key={session._id}
-                    className={`fa-session ${activeSession?._id === session._id ? 'active' : ''}`}
-                    onClick={() => loadSession(session._id)}
-                  >
-                    {editingId === session._id ? (
-                      <div className="fa-edit-title" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && updateTitle(session._id)}
-                        />
-                        <button onClick={() => updateTitle(session._id)}><Check size={14} /></button>
-                        <button onClick={() => { setEditingId(null); setEditTitle(''); }}><X size={14} /></button>
-                      </div>
-                    ) : (
-                      <>
-                        <MessageSquare size={16} />
-                        <div className="fa-session-info">
-                          <span className="fa-session-title">{session.title}</span>
-                          <span className="fa-session-date">{formatDate(session.lastMessageAt || session.createdAt)}</span>
-                        </div>
-                        <div className="fa-session-actions">
-                          <button onClick={(e) => { e.stopPropagation(); setEditingId(session._id); setEditTitle(session.title); }}>
-                            <Edit3 size={14} />
-                          </button>
-                          <button onClick={(e) => deleteSession(session._id, e)}>
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
+        <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+        </button>
       </aside>
 
-      {/* Main Chat */}
+      {/* Main Chat Area */}
       <main className="fa-main">
         <header className="fa-header">
-          {!sidebarOpen && (
-            <button className="fa-toggle-sidebar-mobile" onClick={() => setSidebarOpen(true)}>
-              <ChevronRight size={20} />
-            </button>
-          )}
-          <div className="fa-header-title">
-            <Sparkles size={24} />
+          <div className="header-title">
+            <Sparkles size={24} className="header-icon" />
             <div>
               <h1>Financial Advisor</h1>
               <span>Elite AI-powered guidance for Indian businesses</span>
@@ -332,104 +347,108 @@ const FinancialAdvisor = ({ darkMode, user }) => {
           </div>
         </header>
 
-        <div className="fa-messages">
+        <div className="messages-area">
           {messages.length === 0 ? (
-            <div className="fa-welcome">
-              <div className="fa-welcome-icon">
-                <Sparkles size={48} />
-              </div>
-              <h2>How can I help you today?</h2>
-              <p>Ask me anything about taxes, GST, business structuring, funding, and more.</p>
-              
-              <div className="fa-suggestions">
-                {suggestions.map((text, i) => (
-                  <button key={i} onClick={() => { setInput(text); inputRef.current?.focus(); }}>
-                    {text}
-                  </button>
-                ))}
+            <div className="welcome-container">
+              <div className="welcome-content">
+                <div className="welcome-icon">
+                  <Sparkles size={48} />
+                </div>
+                <h2>Welcome to Financial Advisor</h2>
+                <p>Get expert guidance on taxes, GST, business structure, investments, and compliance — tailored for Indian entrepreneurs.</p>
+                
+                <div className="suggestions">
+                  <p className="suggestions-label">Try asking:</p>
+                  <div className="suggestion-grid">
+                    {suggestionChips.map((chip, idx) => (
+                      <button
+                        key={idx}
+                        className="suggestion-chip"
+                        onClick={() => setInput(chip.text)}
+                        style={{ '--chip-color': chip.color }}
+                      >
+                        <chip.icon size={18} />
+                        <span>{chip.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="fa-messages-list">
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`fa-message ${msg.role}`}>
-                  <div className="fa-message-avatar">
-                    {msg.role === 'user' ? (
-                      <User size={18} />
-                    ) : (
-                      <Sparkles size={18} />
-                    )}
-                  </div>
-                  <div className="fa-message-content">
-                    <div className="fa-message-header">
-                      <span className="fa-message-role">
-                        {msg.role === 'user' ? 'You' : 'Financial Advisor'}
-                      </span>
-                      <span className="fa-message-time">
-                        {msg.timestamp && formatTime(msg.timestamp)}
-                      </span>
+            <div className="messages-wrapper">
+              <div className="messages-list">
+                {messages.map((msg, idx) => (
+                  <div key={idx} className={`message ${msg.role} ${msg.isError ? 'error' : ''}`}>
+                    <div className="message-avatar">
+                      {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
                     </div>
-                    <div className="fa-message-text">
-                      {msg.content.split('\n').map((line, i) => (
-                        <React.Fragment key={i}>
-                          {line}
-                          {i < msg.content.split('\n').length - 1 && <br />}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    {msg.role === 'assistant' && (
-                      <button 
-                        className="fa-copy-btn"
-                        onClick={() => copyMessage(msg.content, idx)}
-                      >
-                        {copiedId === idx ? <CheckCheck size={14} /> : <Copy size={14} />}
-                        {copiedId === idx ? 'Copied!' : 'Copy'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="fa-message assistant">
-                  <div className="fa-message-avatar">
-                    <Sparkles size={18} />
-                  </div>
-                  <div className="fa-message-content">
-                    <div className="fa-typing">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+                    <div className="message-body">
+                      <div className="message-header">
+                        <span className="message-sender">
+                          {msg.role === 'user' ? (user?.firstName || 'You') : 'Financial Advisor'}
+                        </span>
+                      </div>
+                      <div 
+                        className="message-content"
+                        dangerouslySetInnerHTML={{ __html: formatResponse(msg.content) }}
+                      />
+                      {msg.role === 'assistant' && !msg.isError && (
+                        <button 
+                          className="copy-btn"
+                          onClick={() => copyToClipboard(msg.content, idx)}
+                        >
+                          {copiedId === idx ? <CheckCheck size={14} /> : <Copy size={14} />}
+                          {copiedId === idx ? 'Copied!' : 'Copy'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
+                ))}
+                
+                {isLoading && (
+                  <div className="message assistant loading">
+                    <div className="message-avatar">
+                      <Bot size={18} />
+                    </div>
+                    <div className="message-body">
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
             </div>
           )}
         </div>
 
-        <div className="fa-input-area">
-          <div className="fa-input-wrapper">
+        <div className="input-area">
+          <div className="input-container">
             <textarea
-              ref={inputRef}
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about taxes, GST, business setup..."
+              placeholder="Ask about taxes, GST, compliance, investments..."
               rows={1}
               disabled={isLoading}
             />
             <button 
-              className="fa-send-btn" 
-              onClick={sendMessage} 
+              className="send-btn"
+              onClick={sendMessage}
               disabled={!input.trim() || isLoading}
             >
-              {isLoading ? <Loader2 size={20} className="spin" /> : <Send size={20} />}
+              {isLoading ? <Loader2 className="spin" size={20} /> : <Send size={20} />}
             </button>
           </div>
-          <p className="fa-disclaimer">AI can make mistakes. Verify important information with a CA.</p>
+          <p className="input-hint">
+            Press Enter to send • Shift+Enter for new line
+          </p>
         </div>
       </main>
     </div>

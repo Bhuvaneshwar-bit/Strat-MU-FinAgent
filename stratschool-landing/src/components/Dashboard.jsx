@@ -50,6 +50,7 @@ import BookkeepingDashboard from './BookkeepingDashboard';
 import AIChatbot from './AIChatbot';
 import Foresight from './Foresight';
 import FinancialAdvisor from './FinancialAdvisor';
+import BankAccountOffers from './BankAccountOffers';
 import { buildApiUrl } from '../config/api';
 
 // Logo imports
@@ -100,6 +101,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     const saved = localStorage.getItem('nebulaa-dark-mode');
     return saved ? JSON.parse(saved) : true; // Default to dark mode
   });
+
+  // Bank Account Offers state
+  const [bankOffersExpanded, setBankOffersExpanded] = useState(false);
 
   // Apply dark mode class to body
   useEffect(() => {
@@ -2554,6 +2558,13 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                       </div>
                     </section>
                   )}
+
+                  {/* Bank Account Offers Section */}
+                  <BankAccountOffers 
+                    darkMode={darkMode}
+                    isExpanded={bankOffersExpanded}
+                    onToggle={() => setBankOffersExpanded(!bankOffersExpanded)}
+                  />
                 </>
               )}
             </>
