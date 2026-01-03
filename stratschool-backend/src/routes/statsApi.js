@@ -5,128 +5,161 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 /**
- * Recurring expense categories (typically monthly/regular expenses)
+ * Keywords that indicate recurring expenses (same as Dashboard)
  */
-const RECURRING_EXPENSE_CATEGORIES = [
-  'rent', 'salary', 'salaries', 'wages', 'utilities', 'electricity', 'water',
-  'internet', 'phone', 'mobile', 'subscription', 'insurance', 'loan', 'emi',
-  'maintenance', 'software', 'hosting', 'cloud', 'office', 'marketing',
-  'advertising', 'payroll', 'staff', 'employee', 'membership', 'recurring',
-  'monthly', 'regular', 'fixed', 'overhead', 'operational'
+const RECURRING_KEYWORDS = [
+  'subscription', 'monthly', 'rent', 'salary', 'wages', 'insurance', 'emi', 'loan',
+  'internet', 'phone', 'utility', 'electric', 'water', 'gas', 'netflix', 'spotify',
+  'amazon prime', 'swiggy', 'zomato', 'uber', 'ola', 'gym', 'membership', 'premium',
+  'recurring', 'auto-debit', 'standing instruction', 'si ', 'nach', 'autopay'
 ];
 
 /**
- * Non-recurring expense categories (one-time/variable expenses)
+ * Parse date string to Date object (same logic as Dashboard)
  */
-const NON_RECURRING_EXPENSE_CATEGORIES = [
-  'equipment', 'furniture', 'asset', 'purchase', 'travel', 'one-time',
-  'repair', 'legal', 'professional', 'consulting', 'training', 'event',
-  'conference', 'miscellaneous', 'other', 'supplies', 'inventory',
-  'variable', 'seasonal', 'project', 'capital'
-];
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(/[\/\-]/);
+  if (parts.length === 3) {
+    const p0 = parseInt(parts[0]);
+    const p1 = parseInt(parts[1]);
+    const p2 = parseInt(parts[2]);
+    if (p0 > 31 || parts[0].length === 4) {
+      return new Date(p0, p1 - 1, p2);
+    } else {
+      const fullYear = p2 < 100 ? (p2 > 50 ? 1900 + p2 : 2000 + p2) : p2;
+      return new Date(fullYear, p1 - 1, p0);
+    }
+  }
+  return new Date(dateStr);
+};
 
 /**
- * Helper function to classify expense as recurring or non-recurring
+ * Calculate months of data from transactions (same as Dashboard)
  */
-const isRecurringExpense = (category) => {
-  const lowerCategory = (category || '').toLowerCase();
-  return RECURRING_EXPENSE_CATEGORIES.some(keyword => lowerCategory.includes(keyword));
+const calculateMonthsOfData = (transactions) => {
+  if (!transactions || transactions.length === 0) return 1;
+  
+  const dates = transactions
+    .map(t => parseDate(t.date))
+    .filter(d => d && !isNaN(d.getTime()))
+    .sort((a, b) => a - b);
+  
+  if (dates.length >= 2) {
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    const diffTime = Math.abs(lastDate - firstDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, diffDays / 30);
+  }
+  return 1;
+};
+
+/**
+ * Classify expenses as recurring or non-recurring (same as Dashboard)
+ */
+const classifyExpenses = (debitTransactions) => {
+  if (!debitTransactions || debitTransactions.length === 0) {
+    return { recurringTotal: 0, nonRecurringTotal: 0 };
+  }
+
+  // Count vendor occurrences for recurring detection
+  const vendorCount = new Map();
+  debitTransactions.forEach(txn => {
+    const description = (txn.description || txn.particulars || '').toLowerCase();
+    const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+    vendorCount.set(vendorKey, (vendorCount.get(vendorKey) || 0) + 1);
+  });
+
+  let recurringTotal = 0;
+  let nonRecurringTotal = 0;
+
+  debitTransactions.forEach(txn => {
+    const description = (txn.description || txn.particulars || '').toLowerCase();
+    const category = (txn.category?.category || '').toLowerCase();
+    const vendorKey = description.split('/').slice(0, 3).join('/').substring(0, 50);
+    const amount = Math.abs(txn.amount || 0);
+    
+    const hasRecurringKeyword = RECURRING_KEYWORDS.some(keyword => 
+      description.includes(keyword) || category.includes(keyword)
+    );
+    const isRepeatedVendor = (vendorCount.get(vendorKey) || 0) >= 2;
+
+    if (hasRecurringKeyword || isRepeatedVendor) {
+      recurringTotal += amount;
+    } else {
+      nonRecurringTotal += amount;
+    }
+  });
+
+  return { recurringTotal, nonRecurringTotal };
 };
 
 /**
  * Helper function to extract metrics from PLStatement
- * Checks ALL possible field locations in the schema
- * Calculates proper monthly metrics and recurring/non-recurring expenses
+ * Uses SAME logic as Dashboard for accurate values
  */
 const extractMetrics = (plStatement) => {
   if (!plStatement) return null;
 
-  // Get the period for monthly calculations
-  const period = plStatement.period || plStatement.analysis?.period || 'Monthly';
+  // Get transactions array
+  const allTransactions = plStatement.transactions || [];
+  const debitTransactions = allTransactions.filter(t => t.amount < 0 || t.category?.type === 'expenses');
+
+  // Calculate months of data from transaction dates
+  const monthsOfData = calculateMonthsOfData(allTransactions);
 
   // Check multiple possible locations for revenue (schema has different structures)
   const totalRevenue = 
-    plStatement.analysis?.totalRevenue ||                           // Direct analysis object
-    plStatement.profitLossStatement?.revenue?.totalRevenue ||       // Nested in profitLossStatement
-    plStatement.analysisMetrics?.totalRevenue ||                    // Legacy field
-    plStatement.plStatement?.revenue?.totalRevenue ||               // Another legacy format
+    plStatement.analysisMetrics?.totalRevenue ||
+    plStatement.plStatement?.revenue?.totalRevenue ||
+    plStatement.analysis?.totalRevenue ||
+    plStatement.profitLossStatement?.revenue?.totalRevenue ||
     0;
 
   // Check multiple possible locations for expenses
   const totalExpenses = 
-    plStatement.analysis?.totalExpenses ||
-    plStatement.profitLossStatement?.expenses?.totalExpenses ||
     plStatement.analysisMetrics?.totalExpenses ||
     plStatement.plStatement?.expenses?.totalExpenses ||
+    plStatement.analysis?.totalExpenses ||
+    plStatement.profitLossStatement?.expenses?.totalExpenses ||
     0;
 
-  // Calculate recurring and non-recurring expenses from expense breakdown
-  let recurringExpenses = 0;
-  let nonRecurringExpenses = 0;
+  // Classify expenses using transaction-level analysis (same as Dashboard)
+  const { recurringTotal, nonRecurringTotal } = classifyExpenses(debitTransactions);
 
-  // Check expenses array
-  const expensesArray = plStatement.expenses || [];
-  expensesArray.forEach(expense => {
-    const amount = expense.amount || 0;
-    if (isRecurringExpense(expense.category)) {
-      recurringExpenses += amount;
-    } else {
-      nonRecurringExpenses += amount;
-    }
-  });
-
-  // Also check profitLossStatement.expenses.expenseCategories
-  const expenseCategories = plStatement.profitLossStatement?.expenses?.expenseCategories || [];
-  expenseCategories.forEach(expense => {
-    const amount = expense.amount || 0;
-    if (isRecurringExpense(expense.category || expense.name)) {
-      recurringExpenses += amount;
-    } else {
-      nonRecurringExpenses += amount;
-    }
-  });
-
-  // If no categorized breakdown, estimate from total (70% recurring, 30% non-recurring typical split)
-  if (recurringExpenses === 0 && nonRecurringExpenses === 0 && totalExpenses > 0) {
-    recurringExpenses = totalExpenses * 0.7;
-    nonRecurringExpenses = totalExpenses * 0.3;
-  }
-
-  // Calculate monthly metrics based on period
-  let monthlyRevenue = totalRevenue;
-  let monthlyBurn = totalExpenses;
-  let monthlyRecurring = recurringExpenses;
-  let monthlyNonRecurring = nonRecurringExpenses;
-
-  if (period === 'Yearly' || period === 'yearly') {
-    monthlyRevenue = totalRevenue / 12;
-    monthlyBurn = totalExpenses / 12;
-    monthlyRecurring = recurringExpenses / 12;
-    monthlyNonRecurring = nonRecurringExpenses / 12;
-  } else if (period === 'Weekly' || period === 'weekly') {
-    monthlyRevenue = totalRevenue * 4.33; // ~4.33 weeks per month
-    monthlyBurn = totalExpenses * 4.33;
-    monthlyRecurring = recurringExpenses * 4.33;
-    monthlyNonRecurring = nonRecurringExpenses * 4.33;
-  }
-  // For 'Monthly' period, values stay as-is
+  // Calculate monthly metrics by dividing by actual months of data (same as Dashboard)
+  const monthlyRevenue = totalRevenue / monthsOfData;
+  const monthlyBurn = totalExpenses / monthsOfData;
 
   // Net income
   const netIncome = 
-    plStatement.analysis?.netIncome ||
-    plStatement.profitLossStatement?.profitability?.netIncome ||
     plStatement.analysisMetrics?.netIncome ||
+    plStatement.analysisMetrics?.netProfit ||
+    plStatement.plStatement?.profitability?.netIncome ||
+    plStatement.analysis?.netIncome ||
     (totalRevenue - totalExpenses);
 
   // Profit margin
-  const profitMargin = 
-    plStatement.profitLossStatement?.profitability?.profitMargin ||
-    plStatement.profitLossStatement?.profitability?.netProfitMargin ||
+  let profitMargin = 
+    plStatement.plStatement?.profitability?.netProfitMargin ||
     plStatement.analysisMetrics?.profitMargin ||
-    (totalRevenue > 0 ? ((netIncome / totalRevenue) * 100) : 0);
+    null;
+  
+  if (profitMargin === null && totalRevenue > 0) {
+    profitMargin = (netIncome / totalRevenue) * 100;
+  } else if (profitMargin === null) {
+    profitMargin = 0;
+  }
+
+  // Cash available
+  const cashAvailable = Math.max(0, totalRevenue - totalExpenses);
+
+  // Runway = Cash Available / Monthly Burn Rate
+  const runway = monthlyBurn > 0 ? cashAvailable / monthlyBurn : 0;
 
   // Transaction count
-  const transactionCount = 
+  const transactionCount = allTransactions.length || 
     plStatement.analysis?.transactionCount ||
     plStatement.rawBankData?.transactionCount ||
     0;
@@ -136,14 +169,14 @@ const extractMetrics = (plStatement) => {
     totalExpenses,
     monthlyRevenue,
     monthlyBurn,
-    recurringExpenses,
-    nonRecurringExpenses,
-    monthlyRecurring,
-    monthlyNonRecurring,
+    recurringExpenses: recurringTotal,
+    nonRecurringExpenses: nonRecurringTotal,
     netIncome,
     profitMargin,
+    cashAvailable,
+    runway,
+    monthsOfData,
     transactionCount,
-    period,
     lastUpdated: plStatement.createdAt || plStatement.updatedAt
   };
 };
@@ -170,7 +203,7 @@ router.get('/summary', auth, async (req, res) => {
         data: {
           totalRevenue: 0,
           totalExpenses: 0,
-          totalInvestment: 0,
+          cashAvailable: 0,
           monthlyRevenue: 0,
           monthlyBurn: 0,
           recurringExpenses: 0,
@@ -180,30 +213,14 @@ router.get('/summary', auth, async (req, res) => {
           runway: 0,
           status: 'No Data',
           revenueGrowth: 0,
-          period: null,
+          monthsOfData: 0,
           lastUpdated: null
         }
       });
     }
 
-    const { 
-      totalRevenue, 
-      totalExpenses, 
-      monthlyRevenue, 
-      monthlyBurn, 
-      recurringExpenses,
-      nonRecurringExpenses,
-      netIncome, 
-      profitMargin,
-      period 
-    } = metrics;
-
-    // Calculate runway based on monthly burn
-    const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
-    const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
-
     // Determine status
-    const status = netIncome > 0 ? 'Profitable' : 'Burning';
+    const status = metrics.netIncome > 0 ? 'Profitable' : 'Burning';
 
     // Revenue growth (compare with previous statement)
     let revenueGrowth = 0;
@@ -215,26 +232,26 @@ router.get('/summary', auth, async (req, res) => {
     if (previousStatement) {
       const prevMetrics = extractMetrics(previousStatement);
       if (prevMetrics && prevMetrics.totalRevenue > 0) {
-        revenueGrowth = ((totalRevenue - prevMetrics.totalRevenue) / prevMetrics.totalRevenue) * 100;
+        revenueGrowth = ((metrics.totalRevenue - prevMetrics.totalRevenue) / prevMetrics.totalRevenue) * 100;
       }
     }
 
     res.json({
       success: true,
       data: {
-        totalRevenue,
-        totalExpenses,
-        totalInvestment: availableCash,
-        monthlyRevenue: parseFloat(monthlyRevenue.toFixed(2)),
-        monthlyBurn: parseFloat(monthlyBurn.toFixed(2)),
-        recurringExpenses: parseFloat(recurringExpenses.toFixed(2)),
-        nonRecurringExpenses: parseFloat(nonRecurringExpenses.toFixed(2)),
-        netIncome,
-        profitMargin: parseFloat(profitMargin.toFixed(1)),
-        runway,
+        totalRevenue: metrics.totalRevenue,
+        totalExpenses: metrics.totalExpenses,
+        cashAvailable: parseFloat(metrics.cashAvailable.toFixed(2)),
+        monthlyRevenue: parseFloat(metrics.monthlyRevenue.toFixed(2)),
+        monthlyBurn: parseFloat(metrics.monthlyBurn.toFixed(2)),
+        recurringExpenses: parseFloat(metrics.recurringExpenses.toFixed(2)),
+        nonRecurringExpenses: parseFloat(metrics.nonRecurringExpenses.toFixed(2)),
+        netIncome: metrics.netIncome,
+        profitMargin: parseFloat(metrics.profitMargin.toFixed(2)),
+        runway: parseFloat(metrics.runway.toFixed(1)),
         status,
         revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
-        period,
+        monthsOfData: parseFloat(metrics.monthsOfData.toFixed(1)),
         lastUpdated: metrics.lastUpdated,
         statementId: plStatement._id
       }
@@ -282,6 +299,7 @@ router.get('/summary/public/:identifier', async (req, res) => {
           data: {
             totalRevenue: 0,
             totalExpenses: 0,
+            cashAvailable: 0,
             monthlyRevenue: 0,
             monthlyBurn: 0,
             recurringExpenses: 0,
@@ -289,7 +307,7 @@ router.get('/summary/public/:identifier', async (req, res) => {
             runway: 0,
             status: 'No Data',
             revenueGrowth: 0,
-            period: null,
+            monthsOfData: 0,
             message: 'User not found with this email'
           }
         });
@@ -310,6 +328,7 @@ router.get('/summary/public/:identifier', async (req, res) => {
         data: {
           totalRevenue: 0,
           totalExpenses: 0,
+          cashAvailable: 0,
           monthlyRevenue: 0,
           monthlyBurn: 0,
           recurringExpenses: 0,
@@ -317,42 +336,30 @@ router.get('/summary/public/:identifier', async (req, res) => {
           runway: 0,
           status: 'No Data',
           revenueGrowth: 0,
-          period: null
+          monthsOfData: 0
         }
       });
     }
 
-    const { 
-      totalRevenue, 
-      totalExpenses, 
-      monthlyRevenue,
-      monthlyBurn,
-      recurringExpenses,
-      nonRecurringExpenses,
-      netIncome, 
-      profitMargin,
-      period 
-    } = metrics;
-    
-    const availableCash = netIncome > 0 ? netIncome * 12 : totalRevenue * 0.2;
-    const runway = monthlyBurn > 0 ? Math.round(availableCash / monthlyBurn) : 0;
+    // Determine status
+    const status = metrics.netIncome > 0 ? 'Profitable' : 'Burning';
 
     res.json({
       success: true,
       data: {
-        totalRevenue,
-        totalExpenses,
-        totalInvestment: availableCash,
-        monthlyRevenue: parseFloat(monthlyRevenue.toFixed(2)),
-        monthlyBurn: parseFloat(monthlyBurn.toFixed(2)),
-        recurringExpenses: parseFloat(recurringExpenses.toFixed(2)),
-        nonRecurringExpenses: parseFloat(nonRecurringExpenses.toFixed(2)),
-        netIncome,
-        profitMargin: parseFloat(profitMargin.toFixed(1)),
-        runway,
-        status: netIncome > 0 ? 'Profitable' : 'Burning',
+        totalRevenue: metrics.totalRevenue,
+        totalExpenses: metrics.totalExpenses,
+        cashAvailable: parseFloat(metrics.cashAvailable.toFixed(2)),
+        monthlyRevenue: parseFloat(metrics.monthlyRevenue.toFixed(2)),
+        monthlyBurn: parseFloat(metrics.monthlyBurn.toFixed(2)),
+        recurringExpenses: parseFloat(metrics.recurringExpenses.toFixed(2)),
+        nonRecurringExpenses: parseFloat(metrics.nonRecurringExpenses.toFixed(2)),
+        netIncome: metrics.netIncome,
+        profitMargin: parseFloat(metrics.profitMargin.toFixed(2)),
+        runway: parseFloat(metrics.runway.toFixed(1)),
+        status,
         revenueGrowth: 0,
-        period,
+        monthsOfData: parseFloat(metrics.monthsOfData.toFixed(1)),
         lastUpdated: metrics.lastUpdated
       }
     });
@@ -375,7 +382,7 @@ router.get('/health', (req, res) => {
   res.json({
     success: true,
     service: 'InFINity Stats API',
-    version: '1.1.0',
+    version: '2.0.0',
     timestamp: new Date().toISOString()
   });
 });
