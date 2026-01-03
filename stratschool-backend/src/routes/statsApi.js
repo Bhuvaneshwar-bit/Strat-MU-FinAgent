@@ -102,8 +102,11 @@ const classifyExpenses = (debitTransactions) => {
 const extractMetrics = (plStatement) => {
   if (!plStatement) return null;
 
-  // Get transactions array
-  const allTransactions = plStatement.transactions || [];
+  // Get transactions array - check multiple locations
+  const allTransactions = 
+    plStatement.transactions || 
+    plStatement.rawAnalysis?.transactions || 
+    [];
   const debitTransactions = allTransactions.filter(t => t.amount < 0 || t.category?.type === 'expenses');
 
   // Calculate months of data from transaction dates
