@@ -51,6 +51,7 @@ import AIChatbot from './AIChatbot';
 import Foresight from './Foresight';
 import FinancialAdvisor from './FinancialAdvisor';
 import BankAccountOffers from './BankAccountOffers';
+import GSTDashboard from './GSTDashboard';
 import { buildApiUrl } from '../config/api';
 
 // Logo imports
@@ -2564,6 +2565,13 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                     darkMode={darkMode}
                     isExpanded={bankOffersExpanded}
                     onToggle={() => setBankOffersExpanded(!bankOffersExpanded)}
+                  />
+
+                  {/* GST Dashboard Section */}
+                  <GSTDashboard 
+                    darkMode={darkMode}
+                    plData={plData}
+                    user={user}
                   />
                 </>
               )}
