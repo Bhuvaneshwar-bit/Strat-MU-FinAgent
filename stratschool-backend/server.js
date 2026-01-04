@@ -64,6 +64,7 @@ app.use('/api/upload', require('./src/routes/uploadBankStatement')); // AWS Text
 app.use('/api/email', require('./src/routes/emailRoutes')); // Email invoice delivery via AWS SES
 app.use('/api/stats', require('./src/routes/statsApi')); // Stats API for Singularity
 app.use('/api/financial-advisor', require('./src/routes/financialAdvisor')); // Elite Financial Advisor AI
+app.use('/api/gst', require('./src/routes/gstCalculator')); // GST Calculator & Filing Prep
 
 // Health check route
 app.get('/api/health', (req, res) => {
