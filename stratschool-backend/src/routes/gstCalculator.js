@@ -56,6 +56,12 @@ const CATEGORY_GST_MAP = {
   'Interest Income': GST_RATES.EXEMPT, // Interest is exempt
   'Dividend Income': GST_RATES.EXEMPT, // Dividends are exempt
   'Investment Returns': GST_RATES.EXEMPT,
+  'Investment Received': GST_RATES.EXEMPT, // Equity/VC funding - NOT subject to GST
+  'Capital Infusion': GST_RATES.EXEMPT, // Share capital - NOT subject to GST
+  'Loan Received': GST_RATES.EXEMPT, // Loans are financial transactions, not revenue
+  'Angel Investment': GST_RATES.EXEMPT, // Investment is not sale of goods/services
+  'VC Funding': GST_RATES.EXEMPT, // Venture capital is exempt
+  'Grant Received': GST_RATES.EXEMPT, // Government grants usually exempt
   'Refunds Received': GST_RATES.EXEMPT, // Refunds don't attract fresh GST
   'Other Income': GST_RATES.STANDARD,
   
@@ -96,7 +102,7 @@ Type: ${type === 'credit' ? 'Income/Receipt' : 'Expense/Payment'}
 
 Return ONLY a JSON object with:
 {
-  "category": "one of: Sales Revenue, Service Income, Professional Services, Rent & Utilities, Software & Subscriptions, Travel & Transportation, Food & Entertainment, Bank Charges, Salaries & Wages, Insurance, Marketing & Advertising, Office Supplies, Equipment & Maintenance, Inventory/Stock Purchase, Legal & Compliance, EMI/Loan Repayment, Personal Transfer, ATM Withdrawal, UPI Transfer, Interest Income, Dividend Income, Refunds Received, General Expenses, Other Income",
+  "category": "one of: Sales Revenue, Service Income, Professional Services, Rent & Utilities, Software & Subscriptions, Travel & Transportation, Food & Entertainment, Bank Charges, Salaries & Wages, Insurance, Marketing & Advertising, Office Supplies, Equipment & Maintenance, Inventory/Stock Purchase, Legal & Compliance, EMI/Loan Repayment, Personal Transfer, ATM Withdrawal, UPI Transfer, Interest Income, Dividend Income, Investment Received, Capital Infusion, Loan Received, Grant Received, Refunds Received, General Expenses, Other Income",
   "gstRate": number (0, 5, 12, 18, or 28),
   "isGSTApplicable": boolean,
   "reason": "brief explanation",
@@ -109,11 +115,16 @@ Rules:
 - ATM withdrawals = 0% (cash movement, not expense)
 - Loan EMI = 0% (financial transaction)
 - Interest received/paid = 0% (exempt)
+- INVESTMENT/FUNDING received = 0% (equity, angel, VC, seed funding - NOT subject to GST)
+- Loans received = 0% (financial transaction, not revenue)
+- Share capital/capital infusion = 0% (not sale of goods/services)
+- Government grants = 0% (usually exempt)
 - Most business services = 18%
 - Transport/travel = 5%
 - Software/IT = 18%
 - Restaurant with AC = 18%, without AC = 5%
-- If transaction looks personal, set isBusinessTransaction to false`;
+- If transaction looks personal, set isBusinessTransaction to false
+- If transaction is investment/funding, set gstRate to 0 and isGSTApplicable to false`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
