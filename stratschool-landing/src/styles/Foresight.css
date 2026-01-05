@@ -50,7 +50,8 @@
 /* Health Score Section */
 .health-score-section {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   margin-bottom: 48px;
 }
 
@@ -649,5 +650,157 @@
   
   .score-box .score-value {
     font-size: 1.5rem;
+  }
+}
+
+/* Simulation Banner */
+.simulation-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.simulation-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #D4AF37;
+}
+
+.simulation-label .sim-icon {
+  width: 18px;
+  height: 18px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.reset-simulation-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-simulation-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #D4AF37;
+  color: #D4AF37;
+}
+
+.reset-simulation-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.foresight-container.light .reset-simulation-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+}
+
+/* Simulate Button on Cards */
+.simulate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #D4AF37 0%, #B8972F 100%);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.simulate-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+}
+
+.simulate-btn .btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.simulate-btn.active {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: #fff;
+}
+
+.simulate-btn.active:hover {
+  box-shadow: 0 4px 15px rgba(100, 116, 139, 0.4);
+}
+
+/* Active Simulation Card State */
+.scenario-card.simulating {
+  border-color: #D4AF37;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.scenario-card.simulating::before {
+  opacity: 1;
+  height: 4px;
+}
+
+.scenario-card.simulating::after {
+  content: 'SIMULATING';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  background: #D4AF37;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Score number transition */
+.score-number {
+  transition: color 0.3s ease;
+}
+
+/* Responsive for simulation banner */
+@media (max-width: 480px) {
+  .simulation-banner {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
   }
 }

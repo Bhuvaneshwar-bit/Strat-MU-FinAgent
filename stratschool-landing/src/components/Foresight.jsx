@@ -35,14 +35,18 @@ import {
   Utensils,
   ShoppingBag,
   Briefcase,
-  Gift
+  Gift,
+  Play,
+  RotateCcw
 } from 'lucide-react';
 import { buildApiUrl } from '../config/api';
 import '../styles/Foresight.css';
 
 const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
   const [healthScore, setHealthScore] = useState(0);
+  const [baseHealthScore, setBaseHealthScore] = useState(0); // Original score
   const [selectedScenario, setSelectedScenario] = useState(null);
+  const [activeSimulation, setActiveSimulation] = useState(null); // Currently simulated scenario
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [animateScore, setAnimateScore] = useState(false);
@@ -176,8 +180,40 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
 
     score = Math.max(0, Math.min(100, Math.round(score)));
     setHealthScore(score);
+    setBaseHealthScore(score); // Store original score
     setScoreBreakdown(breakdown);
   }, [getMetrics]);
+
+  // Simulate scenario - updates the score
+  const simulateScenario = (scenario, e) => {
+    e.stopPropagation(); // Prevent card click
+    
+    if (activeSimulation?.id === scenario.id) {
+      // If same scenario, reset
+      resetSimulation();
+      return;
+    }
+    
+    const newScore = Math.max(0, Math.min(100, baseHealthScore + scenario.impact));
+    setActiveSimulation(scenario);
+    setAnimateScore(false);
+    
+    // Animate score change
+    setTimeout(() => {
+      setHealthScore(newScore);
+      setAnimateScore(true);
+    }, 50);
+  };
+
+  // Reset to original score
+  const resetSimulation = () => {
+    setActiveSimulation(null);
+    setAnimateScore(false);
+    setTimeout(() => {
+      setHealthScore(baseHealthScore);
+      setAnimateScore(true);
+    }, 50);
+  };
 
   // Generate dynamic scenarios based on actual data
   useEffect(() => {
@@ -651,6 +687,16 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
 
       {/* Health Score Gauge */}
       <div className="health-score-section">
+        {activeSimulation && (
+          <div className="simulation-banner">
+            <span className="simulation-label">
+              <Play className="sim-icon" /> Simulating: {activeSimulation.title}
+            </span>
+            <button className="reset-simulation-btn" onClick={resetSimulation}>
+              <RotateCcw /> Reset
+            </button>
+          </div>
+        )}
         <div className="score-gauge-container">
           <svg className="score-gauge" viewBox="0 0 200 120">
             {/* Background arc */}
@@ -710,10 +756,11 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
         <div className="scenarios-grid">
           {scenarios.map((scenario) => {
             const Icon = scenario.icon;
+            const isActive = activeSimulation?.id === scenario.id;
             return (
               <div
                 key={scenario.id}
-                className={`scenario-card ${scenario.type}`}
+                className={`scenario-card ${scenario.type} ${isActive ? 'simulating' : ''}`}
                 onClick={() => setSelectedScenario(scenario)}
                 style={{ '--card-gradient': scenario.gradient }}
               >
@@ -730,6 +777,16 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
                   )}
                   <span>points</span>
                 </div>
+                <button 
+                  className={`simulate-btn ${isActive ? 'active' : ''}`}
+                  onClick={(e) => simulateScenario(scenario, e)}
+                >
+                  {isActive ? (
+                    <><RotateCcw className="btn-icon" /> Reset</>
+                  ) : (
+                    <><Play className="btn-icon" /> Simulate</>
+                  )}
+                </button>
               </div>
             );
           })}
