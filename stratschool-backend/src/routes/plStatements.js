@@ -368,10 +368,13 @@ router.post('/update-category', authenticate, async (req, res) => {
       message: `Category rule saved! Updated ${updatedCount} matching transactions.`,
       data: {
         entityName,
+        entityNameNormalized,
         category: newCategory,
         type: categoryType,
         transactionsUpdated: updatedCount,
-        ruleCreated: !existingRule
+        ruleCreated: !existingRule,
+        // Return the updated transactions so frontend can use them directly
+        updatedTransactions: plStatement?.rawAnalysis?.transactions || []
       }
     });
 
