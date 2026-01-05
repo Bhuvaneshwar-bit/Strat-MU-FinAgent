@@ -1299,18 +1299,18 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     }
   };
 
-  // Save the updated category
-  const saveCategory = () => {
+  // Save the updated category with smart learning
+  const saveCategory = async () => {
     if (!editingCategory) return;
     
     const newCategory = showCustomInput ? customCategory.trim() : selectedCategory;
     if (!newCategory) return;
 
     const { index, type } = editingCategory;
+    const categoryType = type === 'credit' ? 'revenue' : 'expenses';
     
     // Add custom category to the list if it's new
     if (showCustomInput && customCategory.trim()) {
-      const categoryType = type === 'credit' ? 'revenue' : 'expenses';
       const existingCategories = type === 'credit' 
         ? [...DEFAULT_REVENUE_CATEGORIES, ...customCategories.revenue]
         : [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories.expenses];
@@ -1323,29 +1323,88 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
       }
     }
 
-    // Update the transaction in plData
-    const updatedPlData = { ...plData };
-    const transactions = [...(updatedPlData.transactions || [])];
-    
     // Find the transaction to update
+    const transactions = [...(plData?.transactions || [])];
     const filteredTransactions = type === 'credit'
       ? transactions.filter(t => t.amount > 0 || t.category?.type === 'revenue')
       : transactions.filter(t => t.amount < 0 || t.category?.type === 'expenses');
     
-    if (filteredTransactions[index]) {
-      const txnToUpdate = filteredTransactions[index];
-      const originalIndex = transactions.findIndex(t => t === txnToUpdate);
+    const txnToUpdate = filteredTransactions[index];
+    
+    if (txnToUpdate) {
+      const transactionDescription = txnToUpdate.description || txnToUpdate.particulars || '';
       
-      if (originalIndex !== -1) {
-        transactions[originalIndex] = {
-          ...transactions[originalIndex],
-          category: {
-            type: type === 'credit' ? 'revenue' : 'expenses',
-            category: newCategory
+      // Call backend API to save category rule and update all matching transactions
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/pl-statements/update-category`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            transactionDescription,
+            newCategory,
+            categoryType,
+            transactionAmount: txnToUpdate.amount,
+            transactionDate: txnToUpdate.date,
+            statementId: plData?.statementId
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('✅ Category rule saved:', result.data);
+          
+          // Update ALL matching transactions in local state
+          const entityNameNormalized = result.data.entityName.toLowerCase().trim();
+          const updatedTransactions = transactions.map(t => {
+            const desc = (t.description || t.particulars || '').toLowerCase();
+            if (desc.includes(entityNameNormalized)) {
+              return {
+                ...t,
+                category: {
+                  type: categoryType,
+                  category: newCategory
+                },
+                categorySource: 'user_rule'
+              };
+            }
+            return t;
+          });
+          
+          // Update plData with new transactions
+          const updatedPlData = { ...plData, transactions: updatedTransactions };
+          setPlData(updatedPlData);
+          
+          // Show feedback to user
+          if (result.data.transactionsUpdated > 1) {
+            alert(`✅ Updated ${result.data.transactionsUpdated} similar transactions to "${newCategory}". Future transactions from "${result.data.entityName}" will auto-categorize!`);
           }
-        };
-        updatedPlData.transactions = transactions;
-        setPlData(updatedPlData);
+        } else {
+          // Fallback: just update the single transaction locally
+          const originalIndex = transactions.findIndex(t => t === txnToUpdate);
+          if (originalIndex !== -1) {
+            transactions[originalIndex] = {
+              ...transactions[originalIndex],
+              category: { type: categoryType, category: newCategory }
+            };
+            setPlData({ ...plData, transactions });
+          }
+        }
+      } catch (error) {
+        console.error('Error saving category rule:', error);
+        // Fallback: update single transaction locally
+        const originalIndex = transactions.findIndex(t => t === txnToUpdate);
+        if (originalIndex !== -1) {
+          transactions[originalIndex] = {
+            ...transactions[originalIndex],
+            category: { type: categoryType, category: newCategory }
+          };
+          setPlData({ ...plData, transactions });
+        }
       }
     }
 
