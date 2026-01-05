@@ -52,7 +52,7 @@ import Foresight from './Foresight';
 import FinancialAdvisor from './FinancialAdvisor';
 import BankAccountOffers from './BankAccountOffers';
 import GSTDashboard from './GSTDashboard';
-import { buildApiUrl } from '../config/api';
+import { buildApiUrl, API_BASE_URL } from '../config/api';
 
 // Logo imports
 import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
