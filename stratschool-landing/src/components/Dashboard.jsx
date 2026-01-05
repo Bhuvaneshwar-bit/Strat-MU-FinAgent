@@ -2564,9 +2564,15 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                       {/* Pie Chart */}
                       <div 
                         style={{ position: 'relative', width: '100%', height: '280px' }}
-                        onMouseEnter={() => !revenuePieLegendLocked && setShowRevenuePieLegend(true)}
-                        onMouseLeave={() => !revenuePieLegendLocked && setShowRevenuePieLegend(false)}
-                        onClick={() => setRevenuePieLegendLocked(!revenuePieLegendLocked)}
+                        onClick={() => {
+                          if (revenuePieLegendLocked) {
+                            setRevenuePieLegendLocked(false);
+                            setShowRevenuePieLegend(false);
+                          } else {
+                            setRevenuePieLegendLocked(true);
+                            setShowRevenuePieLegend(true);
+                          }
+                        }}
                       >
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -2613,15 +2619,44 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                           <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Total Revenue</div>
                         </div>
 
-                        {/* Legend Overlay on Hover/Click */}
-                        {showRevenuePieLegend && (
+                        {/* Single Item Tooltip on Hover */}
+                        {hoveredRevenuePieIndex !== null && !revenuePieLegendLocked && (() => {
+                          const item = revenuePieData[hoveredRevenuePieIndex];
+                          const total = revenuePieData.reduce((s, i) => s + i.value, 0);
+                          const percent = ((item.value / total) * 100).toFixed(1);
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: '10px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: darkMode ? '#1e293b' : 'white',
+                              borderRadius: '12px',
+                              padding: '12px 16px',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                              zIndex: 10,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              animation: 'fadeIn 0.2s ease'
+                            }}>
+                              <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: CHART_COLORS[hoveredRevenuePieIndex % CHART_COLORS.length] }}></div>
+                              <span style={{ fontSize: '14px', fontWeight: '500', color: darkMode ? '#ededed' : '#1e293b' }}>{item.name}</span>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: darkMode ? '#ededed' : '#1e293b' }}>{formatCurrency(item.value)}</span>
+                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e', background: '#f0fdf4', padding: '3px 6px', borderRadius: '4px' }}>{percent}%</span>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Full Legend Overlay on Click/Lock */}
+                        {revenuePieLegendLocked && showRevenuePieLegend && (
                           <div style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: 'rgba(255,255,255,0.97)',
+                            background: darkMode ? 'rgba(13, 17, 23, 0.97)' : 'rgba(255,255,255,0.97)',
                             backdropFilter: 'blur(8px)',
                             borderRadius: '16px',
                             padding: '16px',
@@ -2631,7 +2666,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                           }}>
                             <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {revenuePieLegendLocked ? '🔒 Click anywhere to close' : '💡 Click to lock legend'}
+                              🔒 Click anywhere to close
                             </div>
                             {revenuePieData.map((item, index) => {
                               const total = revenuePieData.reduce((s, i) => s + i.value, 0);
@@ -2644,15 +2679,15 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                                   padding: '10px 12px',
                                   borderRadius: '10px',
                                   marginBottom: '6px',
-                                  background: hoveredRevenuePieIndex === index ? '#f1f5f9' : 'transparent',
+                                  background: hoveredRevenuePieIndex === index ? (darkMode ? '#21262d' : '#f1f5f9') : 'transparent',
                                   transition: 'background 0.2s ease'
                                 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: CHART_COLORS[index % CHART_COLORS.length], boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}></div>
-                                    <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{item.name}</span>
+                                    <span style={{ fontSize: '14px', color: darkMode ? '#ededed' : '#1e293b', fontWeight: '500' }}>{item.name}</span>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: darkMode ? '#ededed' : '#1e293b' }}>{formatCurrency(item.value)}</span>
                                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e', background: '#f0fdf4', padding: '4px 8px', borderRadius: '6px' }}>{percent}%</span>
                                   </div>
                                 </div>
@@ -2664,7 +2699,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
 
                       {/* Hint */}
                       <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '16px' }}>
-                        Hover to see breakdown • Click to lock
+                        Hover on segment to see details • Click to see all
                       </p>
                     </div>
 
@@ -3203,8 +3238,6 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                       {/* Pie Chart */}
                       <div 
                         style={{ position: 'relative', width: '100%', height: '280px' }}
-                        onMouseEnter={() => !pieLegendLocked && setShowPieLegend(true)}
-                        onMouseLeave={() => !pieLegendLocked && setShowPieLegend(false)}
                         onClick={() => setPieLegendLocked(!pieLegendLocked)}
                       >
                         <ResponsiveContainer width="100%" height="100%">
@@ -3252,15 +3285,65 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                           <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Total Expenses</div>
                         </div>
 
-                        {/* Legend Overlay on Hover/Click */}
-                        {showPieLegend && (
+                        {/* Single Item Tooltip on Hover */}
+                        {hoveredPieIndex !== null && !pieLegendLocked && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '20px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: darkMode ? 'rgba(13, 17, 23, 0.95)' : 'rgba(255,255,255,0.98)',
+                            backdropFilter: 'blur(8px)',
+                            borderRadius: '12px',
+                            padding: '14px 20px',
+                            zIndex: 10,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                            border: darkMode ? '1px solid #30363d' : '1px solid #e2e8f0',
+                            animation: 'fadeIn 0.15s ease',
+                            minWidth: '200px'
+                          }}>
+                            {(() => {
+                              const item = expensePieData[hoveredPieIndex];
+                              const total = expensePieData.reduce((s, i) => s + i.value, 0);
+                              const percent = ((item.value / total) * 100).toFixed(1);
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ 
+                                      width: '14px', 
+                                      height: '14px', 
+                                      borderRadius: '4px', 
+                                      background: CHART_COLORS[hoveredPieIndex % CHART_COLORS.length],
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)' 
+                                    }}></div>
+                                    <span style={{ fontSize: '14px', color: darkMode ? '#e6edf3' : '#1e293b', fontWeight: '600' }}>{item.name}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: '700', color: darkMode ? '#e6edf3' : '#1e293b' }}>{formatCurrency(item.value)}</span>
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      fontWeight: '700', 
+                                      color: '#ef4444', 
+                                      background: darkMode ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2', 
+                                      padding: '4px 8px', 
+                                      borderRadius: '6px' 
+                                    }}>{percent}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        {/* Full Legend Overlay on Click/Lock */}
+                        {pieLegendLocked && (
                           <div style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: 'rgba(255,255,255,0.97)',
+                            background: darkMode ? 'rgba(13, 17, 23, 0.97)' : 'rgba(255,255,255,0.97)',
                             backdropFilter: 'blur(8px)',
                             borderRadius: '16px',
                             padding: '16px',
@@ -3270,7 +3353,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                           }}>
                             <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {pieLegendLocked ? '🔒 Click anywhere to close' : '💡 Click to lock legend'}
+                              🔒 Click anywhere to close
                             </div>
                             {expensePieData.map((item, index) => {
                               const total = expensePieData.reduce((s, i) => s + i.value, 0);
@@ -3283,16 +3366,16 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                                   padding: '10px 12px',
                                   borderRadius: '10px',
                                   marginBottom: '6px',
-                                  background: hoveredPieIndex === index ? '#f1f5f9' : 'transparent',
+                                  background: hoveredPieIndex === index ? (darkMode ? '#21262d' : '#f1f5f9') : 'transparent',
                                   transition: 'background 0.2s ease'
                                 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: CHART_COLORS[index % CHART_COLORS.length], boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}></div>
-                                    <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{item.name}</span>
+                                    <span style={{ fontSize: '14px', color: darkMode ? '#e6edf3' : '#1e293b', fontWeight: '500' }}>{item.name}</span>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{formatCurrency(item.value)}</span>
-                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#ef4444', background: '#fef2f2', padding: '4px 8px', borderRadius: '6px' }}>{percent}%</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: darkMode ? '#e6edf3' : '#1e293b' }}>{formatCurrency(item.value)}</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#ef4444', background: darkMode ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2', padding: '4px 8px', borderRadius: '6px' }}>{percent}%</span>
                                   </div>
                                 </div>
                               );
@@ -3303,7 +3386,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
 
                       {/* Hint */}
                       <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '16px' }}>
-                        Hover to see breakdown • Click to lock
+                        Hover on segment to see details • Click to see all
                       </p>
                     </div>
 
