@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const PLStatement = require('../models/PLStatement');
+const CategoryRule = require('../models/CategoryRule');
 const authenticate = require('../middleware/auth');
 const geminiAI = require('../utils/geminiAI');
 
@@ -76,13 +77,58 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
 
     // Step 1: Analyze bank statement with Gemini AI
     console.log(`🤖 Starting AI analysis for user ${userId}...`);
-    const analysisData = await geminiAI.analyzeBankStatement(
+    let analysisData = await geminiAI.analyzeBankStatement(
       fileData.buffer, 
       fileData.mimeType, 
       period
     );
 
     console.log(`✅ AI analysis completed successfully`);
+
+    // Step 1.5: APPLY USER'S SAVED CATEGORY RULES
+    // This overrides AI categorization with user's preferences
+    console.log(`🧠 Applying user's saved category rules...`);
+    const userRules = await CategoryRule.find({ userId }).lean();
+    
+    if (userRules.length > 0 && analysisData.transactions) {
+      let rulesApplied = 0;
+      
+      analysisData.transactions = analysisData.transactions.map(txn => {
+        const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+        
+        for (const rule of userRules) {
+          if (desc.includes(rule.entityNameNormalized)) {
+            rulesApplied++;
+            return {
+              ...txn,
+              category: {
+                type: rule.type,
+                category: rule.category
+              },
+              categorySource: 'user_rule'
+            };
+          }
+        }
+        return txn;
+      });
+      
+      console.log(`✅ Applied ${rulesApplied} user category rules to transactions`);
+      
+      // Update the timesApplied count for rules that were used
+      for (const rule of userRules) {
+        const matchCount = analysisData.transactions.filter(txn => {
+          const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+          return desc.includes(rule.entityNameNormalized);
+        }).length;
+        
+        if (matchCount > 0) {
+          await CategoryRule.updateOne(
+            { _id: rule._id },
+            { $inc: { timesApplied: matchCount } }
+          );
+        }
+      }
+    }
 
     // Step 2: SAVE TO DATABASE WITH SURGICAL PRECISION
     console.log(`💾 Saving P&L analysis to MongoDB database...`);
@@ -186,6 +232,216 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
       success: false,
       message: 'Failed to analyze bank statement',
       error: error.message
+    });
+  }
+});
+
+/**
+ * SMART CATEGORY UPDATE ENDPOINT
+ * When user changes a transaction's category:
+ * 1. Extract entity name from the transaction
+ * 2. Save a category rule for this entity
+ * 3. Update ALL matching transactions in current P&L data
+ * 4. Return updated transactions count
+ */
+router.post('/update-category', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { 
+      transactionDescription, 
+      newCategory, 
+      categoryType, // 'revenue' or 'expenses'
+      transactionAmount,
+      transactionDate,
+      statementId
+    } = req.body;
+
+    console.log('🔄 Smart Category Update for user:', userId);
+    console.log('📝 Transaction:', transactionDescription);
+    console.log('📂 New Category:', newCategory, '| Type:', categoryType);
+
+    if (!transactionDescription || !newCategory || !categoryType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transaction description, new category, and category type are required'
+      });
+    }
+
+    // Extract entity name from the transaction description
+    const entityName = CategoryRule.extractEntityName(transactionDescription);
+    const entityNameNormalized = CategoryRule.normalizeEntityName(entityName);
+
+    console.log('🏷️ Extracted entity:', entityName);
+
+    // Create or update the category rule for this user
+    const existingRule = await CategoryRule.findOne({ 
+      userId, 
+      entityNameNormalized 
+    });
+
+    if (existingRule) {
+      // Update existing rule
+      existingRule.category = newCategory;
+      existingRule.type = categoryType;
+      existingRule.timesApplied += 1;
+      existingRule.updatedAt = new Date();
+      await existingRule.save();
+      console.log('✅ Updated existing rule');
+    } else {
+      // Create new rule
+      const newRule = new CategoryRule({
+        userId,
+        entityName,
+        entityNameNormalized,
+        category: newCategory,
+        type: categoryType,
+        sourceTransaction: {
+          description: transactionDescription,
+          amount: transactionAmount,
+          date: transactionDate ? new Date(transactionDate) : new Date()
+        }
+      });
+      await newRule.save();
+      console.log('✅ Created new category rule');
+    }
+
+    // Now update all matching transactions in the current P&L statement
+    let updatedCount = 0;
+    
+    // Find the user's latest P&L statement
+    const plStatement = statementId 
+      ? await PLStatement.findOne({ _id: statementId, userId })
+      : await PLStatement.findOne({ userId }).sort({ 'metadata.createdAt': -1 });
+
+    if (plStatement && plStatement.rawAnalysis?.transactions) {
+      const transactions = plStatement.rawAnalysis.transactions;
+      
+      // Update all transactions that contain this entity name
+      transactions.forEach(txn => {
+        const desc = (txn.description || txn.particulars || '').toLowerCase();
+        if (desc.includes(entityNameNormalized)) {
+          txn.category = {
+            type: categoryType,
+            category: newCategory
+          };
+          txn.categorySource = 'user_rule';
+          updatedCount++;
+        }
+      });
+
+      // Also update the revenue/expenses arrays
+      if (categoryType === 'revenue' && plStatement.revenue) {
+        plStatement.revenue.forEach(rev => {
+          if (rev.transactions) {
+            rev.transactions.forEach(txn => {
+              const desc = (txn.description || txn.particulars || '').toLowerCase();
+              if (desc.includes(entityNameNormalized)) {
+                txn.category = { type: 'revenue', category: newCategory };
+              }
+            });
+          }
+        });
+      }
+
+      if (categoryType === 'expenses' && plStatement.expenses) {
+        plStatement.expenses.forEach(exp => {
+          if (exp.transactions) {
+            exp.transactions.forEach(txn => {
+              const desc = (txn.description || txn.particulars || '').toLowerCase();
+              if (desc.includes(entityNameNormalized)) {
+                txn.category = { type: 'expenses', category: newCategory };
+              }
+            });
+          }
+        });
+      }
+
+      // Save the updated P&L statement
+      plStatement.rawAnalysis.transactions = transactions;
+      plStatement.metadata.updatedAt = new Date();
+      await plStatement.save();
+      console.log(`✅ Updated ${updatedCount} matching transactions in P&L statement`);
+    }
+
+    res.json({
+      success: true,
+      message: `Category rule saved! Updated ${updatedCount} matching transactions.`,
+      data: {
+        entityName,
+        category: newCategory,
+        type: categoryType,
+        transactionsUpdated: updatedCount,
+        ruleCreated: !existingRule
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating category:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update category',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * GET USER'S CATEGORY RULES
+ * Returns all the category rules/preferences the user has set
+ */
+router.get('/category-rules', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const rules = await CategoryRule.find({ userId })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      rules,
+      count: rules.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching category rules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch category rules'
+    });
+  }
+});
+
+/**
+ * DELETE A CATEGORY RULE
+ */
+router.delete('/category-rules/:ruleId', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { ruleId } = req.params;
+    
+    const result = await CategoryRule.findOneAndDelete({ 
+      _id: ruleId, 
+      userId 
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: 'Rule not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Category rule deleted'
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting category rule:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete category rule'
     });
   }
 });
