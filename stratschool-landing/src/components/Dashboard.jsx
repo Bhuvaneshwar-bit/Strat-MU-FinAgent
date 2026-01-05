@@ -3968,6 +3968,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
             <Foresight 
               plData={plData} 
               darkMode={darkMode}
+              initialHealthScore={financialHealth?.healthScore || 0}
               onNavigateToBookkeeping={() => setActiveTab('overview')}
             />
           )}

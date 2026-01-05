@@ -37,20 +37,39 @@ import {
   Briefcase,
   Gift,
   Play,
-  RotateCcw
+  RotateCcw,
+  MessageSquare,
+  Send,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { buildApiUrl } from '../config/api';
 import '../styles/Foresight.css';
 
-const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
-  const [healthScore, setHealthScore] = useState(0);
-  const [baseHealthScore, setBaseHealthScore] = useState(0); // Original score
+const Foresight = ({ plData, darkMode, initialHealthScore, onNavigateToBookkeeping }) => {
+  const [healthScore, setHealthScore] = useState(initialHealthScore || 0);
+  const [baseHealthScore, setBaseHealthScore] = useState(initialHealthScore || 0); // Original score from Dashboard
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [activeSimulation, setActiveSimulation] = useState(null); // Currently simulated scenario
   const [scenarios, setScenarios] = useState([]);
+  const [customScenarios, setCustomScenarios] = useState([]); // AI-generated custom scenarios
   const [loading, setLoading] = useState(true);
   const [animateScore, setAnimateScore] = useState(false);
   const [scoreBreakdown, setScoreBreakdown] = useState({});
+  
+  // Custom scenario chatbot state
+  const [showScenarioChat, setShowScenarioChat] = useState(false);
+  const [scenarioInput, setScenarioInput] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+
+  // Sync with Dashboard health score
+  useEffect(() => {
+    if (initialHealthScore !== undefined) {
+      setHealthScore(initialHealthScore);
+      setBaseHealthScore(initialHealthScore);
+    }
+  }, [initialHealthScore]);
 
   // Get financial metrics from plData
   const getMetrics = useMemo(() => {
@@ -140,50 +159,6 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
     };
   }, [plData]);
 
-  // Calculate health score based on actual data
-  useEffect(() => {
-    if (!getMetrics) return;
-    
-    const m = getMetrics;
-    let score = 50;
-    const breakdown = {};
-
-    // 1. Profit Margin Factor (max 25 points)
-    if (m.profitMargin >= 30) { score += 25; breakdown.profitMargin = { score: 25, label: 'Excellent Margins' }; }
-    else if (m.profitMargin >= 20) { score += 20; breakdown.profitMargin = { score: 20, label: 'Good Margins' }; }
-    else if (m.profitMargin >= 10) { score += 15; breakdown.profitMargin = { score: 15, label: 'Moderate Margins' }; }
-    else if (m.profitMargin >= 0) { score += 5; breakdown.profitMargin = { score: 5, label: 'Low Margins' }; }
-    else { score -= 10; breakdown.profitMargin = { score: -10, label: 'Negative Margins' }; }
-
-    // 2. Expense Ratio Factor (max 15 points)
-    if (m.expenseRatio < 50) { score += 15; breakdown.expenseRatio = { score: 15, label: 'Low Expenses' }; }
-    else if (m.expenseRatio < 70) { score += 10; breakdown.expenseRatio = { score: 10, label: 'Moderate Expenses' }; }
-    else if (m.expenseRatio < 90) { score += 5; breakdown.expenseRatio = { score: 5, label: 'High Expenses' }; }
-    else { score -= 5; breakdown.expenseRatio = { score: -5, label: 'Overspending' }; }
-
-    // 3. Recurring Expense Load (max 10 points)
-    const recurringRatio = (m.recurringTotal / m.totalExpenses) * 100;
-    if (recurringRatio < 30) { score += 10; breakdown.recurringLoad = { score: 10, label: 'Low Fixed Costs' }; }
-    else if (recurringRatio < 50) { score += 5; breakdown.recurringLoad = { score: 5, label: 'Moderate Fixed Costs' }; }
-    else { score -= 5; breakdown.recurringLoad = { score: -5, label: 'High Fixed Costs' }; }
-
-    // 4. Diversification (max 5 points)
-    if (m.revenueStreams.length >= 3) { score += 5; breakdown.diversification = { score: 5, label: 'Diversified' }; }
-    else if (m.revenueStreams.length >= 2) { score += 3; breakdown.diversification = { score: 3, label: 'Some Diversification' }; }
-    else { score += 0; breakdown.diversification = { score: 0, label: 'Single Source' }; }
-
-    // 5. Non-Essential Spending (max -10 to +5 points)
-    const nonEssentialRatio = (m.nonEssentialTotal / m.totalExpenses) * 100;
-    if (nonEssentialRatio < 10) { score += 5; breakdown.nonEssential = { score: 5, label: 'Minimal Discretionary' }; }
-    else if (nonEssentialRatio < 25) { score += 0; breakdown.nonEssential = { score: 0, label: 'Normal Discretionary' }; }
-    else { score -= 10; breakdown.nonEssential = { score: -10, label: 'High Discretionary' }; }
-
-    score = Math.max(0, Math.min(100, Math.round(score)));
-    setHealthScore(score);
-    setBaseHealthScore(score); // Store original score
-    setScoreBreakdown(breakdown);
-  }, [getMetrics]);
-
   // Simulate scenario - updates the score
   const simulateScenario = (scenario, e) => {
     e.stopPropagation(); // Prevent card click
@@ -213,6 +188,127 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
       setHealthScore(baseHealthScore);
       setAnimateScore(true);
     }, 50);
+  };
+
+  // Generate custom scenario using AI
+  const generateCustomScenario = async () => {
+    if (!scenarioInput.trim() || isGenerating) return;
+    
+    const userMessage = scenarioInput.trim();
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setScenarioInput('');
+    setIsGenerating(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(buildApiUrl('/api/chat'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: `Based on this financial scenario: "${userMessage}"
+          
+The user's current financial health score is ${baseHealthScore}/100.
+Their total revenue is ₹${getMetrics?.totalRevenue?.toLocaleString('en-IN') || 0}.
+Their total expenses are ₹${getMetrics?.totalExpenses?.toLocaleString('en-IN') || 0}.
+Their profit margin is ${getMetrics?.profitMargin?.toFixed(1) || 0}%.
+
+Analyze this scenario and respond in EXACTLY this JSON format (no markdown, just pure JSON):
+{
+  "title": "Short title (5 words max)",
+  "description": "One line description",
+  "type": "positive" or "negative",
+  "impact": number between -15 and +15 (points to add/subtract from health score),
+  "benefits": ["benefit 1", "benefit 2"] (if positive scenario),
+  "consequences": ["consequence 1", "consequence 2"] (if negative scenario),
+  "financialImpact": number (estimated rupees impact),
+  "recommendation": "One actionable recommendation"
+}`
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.response) {
+        // Parse the AI response
+        let scenarioData;
+        try {
+          // Try to extract JSON from the response
+          const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            scenarioData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No JSON found');
+          }
+        } catch (parseError) {
+          // Fallback: create a basic scenario
+          scenarioData = {
+            title: userMessage.substring(0, 30),
+            description: 'Custom scenario based on your input',
+            type: 'positive',
+            impact: 5,
+            benefits: ['Potential improvement in financial health'],
+            financialImpact: 10000,
+            recommendation: 'Evaluate this scenario carefully'
+          };
+        }
+        
+        // Create the scenario card
+        const newScenario = {
+          id: `custom_${Date.now()}`,
+          title: scenarioData.title || 'Custom Scenario',
+          description: scenarioData.description || userMessage,
+          icon: Sparkles,
+          type: scenarioData.type || 'positive',
+          impact: Math.max(-15, Math.min(15, scenarioData.impact || 5)),
+          color: scenarioData.type === 'negative' ? '#ef4444' : '#22c55e',
+          gradient: scenarioData.type === 'negative' 
+            ? 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)'
+            : 'linear-gradient(135deg, #14532d 0%, #166534 100%)',
+          isCustom: true,
+          details: {
+            benefits: scenarioData.benefits,
+            consequences: scenarioData.consequences,
+            financialImpact: scenarioData.financialImpact,
+            recommendation: scenarioData.recommendation
+          }
+        };
+        
+        setCustomScenarios(prev => [...prev, newScenario]);
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `✨ Created scenario: "${newScenario.title}" with ${newScenario.impact > 0 ? '+' : ''}${newScenario.impact} points impact. Click "Simulate" on the card to see how it affects your score!`
+        }]);
+        
+        // Close chat after short delay
+        setTimeout(() => {
+          setShowScenarioChat(false);
+          setChatMessages([]);
+        }, 2000);
+        
+      } else {
+        throw new Error('Failed to generate scenario');
+      }
+    } catch (error) {
+      console.error('Error generating scenario:', error);
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '❌ Sorry, I couldn\'t analyze that scenario. Please try rephrasing it.'
+      }]);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Delete custom scenario
+  const deleteCustomScenario = (scenarioId, e) => {
+    e.stopPropagation();
+    setCustomScenarios(prev => prev.filter(s => s.id !== scenarioId));
+    if (activeSimulation?.id === scenarioId) {
+      resetSimulation();
+    }
   };
 
   // Generate dynamic scenarios based on actual data
@@ -750,9 +846,72 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
 
       {/* Scenarios Section */}
       <div className="scenarios-section">
-        <h3 className="scenarios-title">What If Scenarios</h3>
-        <p className="scenarios-subtitle">Click to see how each action affects your financial health</p>
+        <div className="scenarios-header">
+          <div>
+            <h3 className="scenarios-title">What If Scenarios</h3>
+            <p className="scenarios-subtitle">Click to see how each action affects your financial health</p>
+          </div>
+          <button 
+            className="add-scenario-btn"
+            onClick={() => setShowScenarioChat(true)}
+          >
+            <Plus className="btn-icon" /> Simulate Scenario
+          </button>
+        </div>
         
+        {/* Custom Scenarios (AI Generated) */}
+        {customScenarios.length > 0 && (
+          <div className="custom-scenarios-section">
+            <h4 className="custom-title"><Sparkles /> Your Custom Scenarios</h4>
+            <div className="scenarios-grid">
+              {customScenarios.map((scenario) => {
+                const Icon = scenario.icon;
+                const isActive = activeSimulation?.id === scenario.id;
+                return (
+                  <div
+                    key={scenario.id}
+                    className={`scenario-card ${scenario.type} ${isActive ? 'simulating' : ''} custom-card`}
+                    onClick={() => setSelectedScenario(scenario)}
+                    style={{ '--card-gradient': scenario.gradient }}
+                  >
+                    <button 
+                      className="delete-scenario-btn"
+                      onClick={(e) => deleteCustomScenario(scenario.id, e)}
+                      title="Delete scenario"
+                    >
+                      <X />
+                    </button>
+                    <div className="scenario-icon-wrapper" style={{ background: scenario.gradient }}>
+                      <Icon className="scenario-icon" />
+                    </div>
+                    <h4>{scenario.title}</h4>
+                    <p>{scenario.description}</p>
+                    <div className={`scenario-impact ${scenario.type}`}>
+                      {scenario.impact > 0 ? (
+                        <><ArrowUp /> +{scenario.impact}</>
+                      ) : (
+                        <><ArrowDown /> {scenario.impact}</>
+                      )}
+                      <span>points</span>
+                    </div>
+                    <button 
+                      className={`simulate-btn ${isActive ? 'active' : ''}`}
+                      onClick={(e) => simulateScenario(scenario, e)}
+                    >
+                      {isActive ? (
+                        <><RotateCcw className="btn-icon" /> Reset</>
+                      ) : (
+                        <><Play className="btn-icon" /> Simulate</>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        {/* Default Scenarios */}
         <div className="scenarios-grid">
           {scenarios.map((scenario) => {
             const Icon = scenario.icon;
@@ -792,6 +951,74 @@ const Foresight = ({ plData, darkMode, onNavigateToBookkeeping }) => {
           })}
         </div>
       </div>
+
+      {/* Custom Scenario Chat Modal */}
+      {showScenarioChat && (
+        <div className="scenario-chat-overlay" onClick={() => setShowScenarioChat(false)}>
+          <div className="scenario-chat-modal" onClick={e => e.stopPropagation()}>
+            <div className="chat-header">
+              <div className="chat-title">
+                <Sparkles className="chat-icon" />
+                <h3>Create Custom Scenario</h3>
+              </div>
+              <button className="close-chat" onClick={() => setShowScenarioChat(false)}>
+                <X />
+              </button>
+            </div>
+            
+            <div className="chat-body">
+              <div className="chat-intro">
+                <p>Describe a financial scenario you want to simulate. For example:</p>
+                <div className="example-prompts">
+                  <button onClick={() => setScenarioInput("What if I get a ₹5 lakh investment?")}>
+                    💰 Get ₹5 lakh investment
+                  </button>
+                  <button onClick={() => setScenarioInput("What if I hire 2 new employees at ₹50,000/month each?")}>
+                    👥 Hire 2 employees
+                  </button>
+                  <button onClick={() => setScenarioInput("What if I lose my biggest client?")}>
+                    📉 Lose biggest client
+                  </button>
+                  <button onClick={() => setScenarioInput("What if I double my marketing spend?")}>
+                    📢 Double marketing
+                  </button>
+                </div>
+              </div>
+              
+              <div className="chat-messages">
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} className={`chat-message ${msg.role}`}>
+                    {msg.content}
+                  </div>
+                ))}
+                {isGenerating && (
+                  <div className="chat-message assistant generating">
+                    <Loader2 className="spin" /> Analyzing scenario...
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="chat-input-area">
+              <input
+                type="text"
+                value={scenarioInput}
+                onChange={(e) => setScenarioInput(e.target.value)}
+                placeholder="Describe your scenario..."
+                onKeyPress={(e) => e.key === 'Enter' && generateCustomScenario()}
+                disabled={isGenerating}
+              />
+              <button 
+                className="send-btn"
+                onClick={generateCustomScenario}
+                disabled={!scenarioInput.trim() || isGenerating}
+              >
+                {isGenerating ? <Loader2 className="spin" /> : <Send />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scenario Modal */}
       {selectedScenario && (
