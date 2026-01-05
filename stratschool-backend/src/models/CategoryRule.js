@@ -117,21 +117,61 @@ CategoryRuleSchema.statics.normalizeEntityName = function(name) {
 };
 
 // Extract entity name from transaction description
+// Goal: Extract the unique identifying part (person/company name) that will match across transactions
 CategoryRuleSchema.statics.extractEntityName = function(description) {
   const desc = description.trim();
   
-  // Common patterns in Indian bank statements
+  console.log('🔍 Extracting entity from:', desc);
+  
+  // Split by / and find the most meaningful segment (typically the name)
+  const segments = desc.split('/').map(s => s.trim()).filter(s => s.length > 0);
+  
+  // For NEFT/UPI/IMPS - the pattern is usually:
+  // NEFT/IOBAN.../NAME/BANK/...
+  // UPI/P2A/.../NAME/BANK/...
+  
+  if (segments.length >= 3) {
+    // Skip first segment (NEFT/UPI/IMPS) and second (reference number)
+    // Look for a segment that looks like a name (not a bank, not a number)
+    for (let i = 2; i < segments.length; i++) {
+      const segment = segments[i];
+      
+      // Skip if it's ONLY a bank name (exact match, not part of company name)
+      const bankNames = ['icici bank', 'hdfc bank', 'sbi', 'axis bank', 'kotak', 'idbi bank', 'indian overseas bank'];
+      const isJustBank = bankNames.some(bank => segment.toLowerCase() === bank || segment.toLowerCase().replace(/\s+/g, ' ').trim() === bank);
+      if (isJustBank) {
+        continue;
+      }
+      
+      // Skip if it's mostly numbers or a reference
+      if (/^\d+$/.test(segment) || /^[A-Z0-9]{10,}$/i.test(segment)) {
+        continue;
+      }
+      
+      // Skip if it starts with IOBAN (reference number)
+      if (/^IOBAN/i.test(segment)) {
+        continue;
+      }
+      
+      // Skip very short segments
+      if (segment.length < 3) {
+        continue;
+      }
+      
+      // This is likely the name/entity
+      console.log('✅ Extracted entity:', segment);
+      return segment;
+    }
+  }
+  
+  // Fallback: Try regex patterns
   const patterns = [
     // UPI patterns: "UPI/P2A/565795231191/DINESH KA/ICICI Ban/UPI/"
     /UPI\/[^\/]+\/[^\/]+\/([^\/]+)\//i,
-    // NEFT patterns: "NEFT/IOBAN.../KAMALAKANNA N J/IDBI BANK/..."
+    // NEFT patterns: "NEFT/IOBAN.../NAME/BANK/..."
     /NEFT\/[^\/]+\/([^\/]+)\//i,
     // IMPS patterns
     /IMPS\/[^\/]+\/([^\/]+)\//i,
-    // Direct company names: "Razorpay Software Pvt Ltd Fund"
-    /^([A-Za-z][A-Za-z\s]+(?:Pvt|Ltd|Private|Limited|Corp|Inc)?[A-Za-z\s]*)/i,
-    // General pattern: Take first significant name
-    /([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)/
   ];
   
   for (const pattern of patterns) {
