@@ -1357,27 +1357,39 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
         
         if (result.success) {
           console.log('✅ Category rule saved:', result.data);
+          console.log('📝 Entity extracted:', result.data.entityName);
+          console.log('📝 Entity normalized:', result.data.entityNameNormalized);
+          console.log('📊 Transactions updated in DB:', result.data.transactionsUpdated);
           
-          // Update ALL matching transactions in local state
-          const entityNameNormalized = result.data.entityName.toLowerCase().trim();
-          const updatedTransactions = transactions.map(t => {
-            const desc = (t.description || t.particulars || '').toLowerCase();
-            if (desc.includes(entityNameNormalized)) {
-              return {
-                ...t,
-                category: {
-                  type: categoryType,
-                  category: newCategory
-                },
-                categorySource: 'user_rule'
-              };
-            }
-            return t;
-          });
-          
-          // Update plData with new transactions
-          const updatedPlData = { ...plData, transactions: updatedTransactions };
-          setPlData(updatedPlData);
+          // Use the updated transactions from the backend directly
+          if (result.data.updatedTransactions && result.data.updatedTransactions.length > 0) {
+            const updatedPlData = { ...plData, transactions: result.data.updatedTransactions };
+            setPlData(updatedPlData);
+            console.log('✅ Updated plData with backend transactions');
+          } else {
+            // Fallback: Update locally using entity name
+            const entityNameNormalized = result.data.entityNameNormalized || result.data.entityName.toLowerCase().trim();
+            console.log('🔍 Fallback: Updating locally with entity:', entityNameNormalized);
+            
+            const updatedTransactions = transactions.map(t => {
+              const desc = (t.description || t.particulars || '').toLowerCase();
+              if (desc.includes(entityNameNormalized)) {
+                console.log('  ✅ Match found:', desc.substring(0, 50));
+                return {
+                  ...t,
+                  category: {
+                    type: categoryType,
+                    category: newCategory
+                  },
+                  categorySource: 'user_rule'
+                };
+              }
+              return t;
+            });
+            
+            const updatedPlData = { ...plData, transactions: updatedTransactions };
+            setPlData(updatedPlData);
+          }
           
           // Show feedback to user
           if (result.data.transactionsUpdated > 1) {
