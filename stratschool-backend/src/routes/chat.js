@@ -2,16 +2,103 @@ const express = require('express');
 const router = express.Router();
 const groqAI = require('../utils/groqAI');
 const PLStatement = require('../models/PLStatement');
+const auth = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+
+/**
+ * Helper: Extract user ID from token (optional auth)
+ */
+const getUserIdFromToken = (req) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.id || decoded.userId;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Build comprehensive user financial context
+ */
+const buildUserFinancialContext = async (userId) => {
+  if (!userId) return null;
+  
+  try {
+    const plStatement = await PLStatement.findOne({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    if (!plStatement) return null;
+
+    // Extract all revenue data
+    const revenueItems = plStatement.profitLossStatement?.revenue?.items || 
+                         plStatement.revenue || [];
+    const expenseItems = plStatement.profitLossStatement?.expenses?.items || 
+                         plStatement.expenses || [];
+
+    const totalRevenue = plStatement.analysis?.totalRevenue ||
+                         plStatement.profitLossStatement?.revenue?.totalRevenue || 0;
+    const totalExpenses = plStatement.analysis?.totalExpenses ||
+                          plStatement.profitLossStatement?.expenses?.totalExpenses || 0;
+    const netIncome = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(2) : 0;
+
+    // Build detailed revenue breakdown
+    const revenueBreakdown = revenueItems.map(item => ({
+      category: item.category || 'Uncategorized',
+      amount: item.amount || item.total || 0,
+      count: item.transactions?.length || item.count || 0,
+      percentage: totalRevenue > 0 ? (((item.amount || item.total || 0) / totalRevenue) * 100).toFixed(1) : 0
+    })).sort((a, b) => b.amount - a.amount);
+
+    // Build detailed expense breakdown
+    const expenseBreakdown = expenseItems.map(item => ({
+      category: item.category || 'Uncategorized',
+      amount: item.amount || item.total || 0,
+      count: item.transactions?.length || item.count || 0,
+      percentage: totalExpenses > 0 ? (((item.amount || item.total || 0) / totalExpenses) * 100).toFixed(1) : 0
+    })).sort((a, b) => b.amount - a.amount);
+
+    return {
+      period: plStatement.period || 'Monthly',
+      statementDate: plStatement.createdAt,
+      summary: {
+        totalRevenue,
+        totalExpenses,
+        netIncome,
+        profitMargin: parseFloat(profitMargin),
+        isProfit: netIncome >= 0,
+        transactionCount: plStatement.analysis?.transactionCount || 
+                          (revenueItems.reduce((sum, r) => sum + (r.transactions?.length || 0), 0) +
+                           expenseItems.reduce((sum, e) => sum + (e.transactions?.length || 0), 0))
+      },
+      revenueBreakdown,
+      expenseBreakdown,
+      topRevenueCategory: revenueBreakdown[0] || null,
+      topExpenseCategory: expenseBreakdown[0] || null,
+      insights: {
+        highestExpenseRatio: expenseBreakdown[0] ? parseFloat(expenseBreakdown[0].percentage) : 0,
+        revenueConcentration: revenueBreakdown[0] ? parseFloat(revenueBreakdown[0].percentage) : 0,
+        expenseCategories: expenseBreakdown.length,
+        revenueCategories: revenueBreakdown.length
+      }
+    };
+  } catch (error) {
+    console.error('Error building financial context:', error);
+    return null;
+  }
+};
 
 // POST /api/chat - Handle chat messages with Groq AI
 router.post('/', async (req, res) => {
   try {
     console.log('🚀 Received chat request for Groq AI');
-    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
     
     const { message, conversationHistory, plData } = req.body;
 
-    // Validate required fields
     if (!message || typeof message !== 'string' || message.trim() === '') {
       return res.status(400).json({
         success: false,
@@ -19,79 +106,26 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log('💬 Processing message with Groq AI:', message);
+    // Get user ID from token if available
+    const userId = getUserIdFromToken(req);
+    console.log('👤 User ID from token:', userId || 'Not authenticated');
 
-    // Fetch detailed P&L data from MongoDB for AI context
-    let enhancedPLData = plData;
-    try {
-      // Get the most recent P&L statement for enhanced context
-      const latestPL = await PLStatement.findOne()
-        .sort({ createdAt: -1 })
-        .limit(1);
-
-      if (latestPL) {
-        console.log('📊 Found detailed P&L data from MongoDB');
-        enhancedPLData = {
-          // Basic P&L data from frontend
-          ...(plData || {}),
-          
-          // Enhanced data from MongoDB
-          period: latestPL.period,
-          totalRevenue: latestPL.analysis?.totalRevenue || 0,
-          totalExpenses: latestPL.analysis?.totalExpenses || 0,
-          netIncome: latestPL.analysis?.netIncome || 0,
-          transactionCount: latestPL.analysis?.transactionCount || 0,
-          
-          // Revenue breakdown with categories
-          revenueBreakdown: latestPL.revenue?.map(rev => ({
-            category: rev.category,
-            amount: rev.amount,
-            transactionCount: rev.transactions?.length || 0,
-            sampleTransactions: rev.transactions?.slice(0, 3) // First 3 transactions as examples
-          })) || [],
-          
-          // Expense breakdown with categories  
-          expenseBreakdown: latestPL.expenses?.map(exp => ({
-            category: exp.category,
-            amount: exp.amount,
-            transactionCount: exp.transactions?.length || 0,
-            sampleTransactions: exp.transactions?.slice(0, 3) // First 3 transactions as examples
-          })) || [],
-          
-          // Raw file info
-          uploadedFile: latestPL.rawBankData ? {
-            fileName: latestPL.rawBankData.fileName,
-            uploadDate: latestPL.rawBankData.uploadDate,
-            transactionCount: latestPL.rawBankData.transactionCount
-          } : null,
-          
-          // Additional insights
-          profitMargin: latestPL.analysis?.totalRevenue > 0 ? 
-            ((latestPL.analysis.netIncome / latestPL.analysis.totalRevenue) * 100).toFixed(2) : 0,
-          
-          businessType: latestPL.businessProfile?.businessType || 'General Business',
-          analysisDate: latestPL.createdAt
-        };
-        
-        console.log('✅ Enhanced P&L data prepared for AI');
-      } else {
-        console.log('ℹ️ No P&L data found in MongoDB, using frontend data only');
-      }
-    } catch (dbError) {
-      console.error('⚠️ Error fetching P&L data from MongoDB:', dbError.message);
-      // Continue with frontend data only
+    // Fetch user-specific P&L data
+    let userFinancialData = await buildUserFinancialContext(userId);
+    
+    if (!userFinancialData && plData) {
+      // Fallback to frontend-provided data
+      userFinancialData = plData;
     }
 
-    // Generate AI response using Groq with enhanced P&L data
+    console.log('📊 Financial context available:', !!userFinancialData);
+
     const aiResponse = await groqAI.generateChatResponse(
       message.trim(),
       conversationHistory || [],
-      enhancedPLData || null
+      userFinancialData
     );
 
-    console.log('✅ Groq AI response generated successfully');
-
-    // Return successful response
     return res.status(200).json({
       success: true,
       response: aiResponse,
@@ -101,32 +135,26 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Chat endpoint error:', error);
-    
     return res.status(500).json({
       success: false,
-      error: 'Failed to generate AI response',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Failed to generate AI response'
     });
   }
 });
 
-// GET /api/chat/health - Health check for chat service
+// GET /api/chat/health - Health check
 router.get('/health', (req, res) => {
-  console.log('📨 Groq AI health check called');
   res.status(200).json({
     success: true,
-    message: 'Groq AI chat service is operational',
+    message: 'Daddy AI chat service is operational',
     service: 'groq',
-    model: 'llama-3.1-8b-instant',
     timestamp: new Date().toISOString()
   });
 });
 
-// POST /api/chat/message - Alternative endpoint for chatbot widget
+// POST /api/chat/message - Chatbot widget endpoint
 router.post('/message', async (req, res) => {
   try {
-    console.log('💬 Chatbot widget message received');
-    
     const { message, conversationHistory } = req.body;
 
     if (!message || typeof message !== 'string' || message.trim() === '') {
@@ -136,28 +164,16 @@ router.post('/message', async (req, res) => {
       });
     }
 
-    // Get latest P&L data for context
-    let plContext = null;
-    try {
-      const latestPL = await PLStatement.findOne().sort({ createdAt: -1 });
-      if (latestPL) {
-        plContext = {
-          totalRevenue: latestPL.analysis?.totalRevenue || 0,
-          totalExpenses: latestPL.analysis?.totalExpenses || 0,
-          netIncome: latestPL.analysis?.netIncome || 0,
-          transactionCount: latestPL.analysis?.transactionCount || 0,
-          profitMargin: latestPL.analysis?.totalRevenue > 0 ? 
-            ((latestPL.analysis.netIncome / latestPL.analysis.totalRevenue) * 100).toFixed(2) : 0
-        };
-      }
-    } catch (dbErr) {
-      console.log('⚠️ Could not fetch P&L context:', dbErr.message);
-    }
+    // Get user ID from token
+    const userId = getUserIdFromToken(req);
+    
+    // Build comprehensive financial context
+    const userFinancialData = await buildUserFinancialContext(userId);
 
     const aiResponse = await groqAI.generateChatResponse(
       message.trim(),
       conversationHistory || [],
-      plContext
+      userFinancialData
     );
 
     return res.status(200).json({

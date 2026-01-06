@@ -12,66 +12,101 @@ class GroqAIService {
     console.log('✅ Groq AI service initialized successfully');
   }
 
-  async generateChatResponse(message, conversationHistory = [], plData = null) {
-    try {
-      console.log('🚀 Generating Groq AI response for:', message);
+  buildSystemPrompt(financialData) {
+    let prompt = `You are Daddy, an elite AI financial analyst for Indian entrepreneurs. Your responses must be:
 
-      // Build context from conversation history
-      let messages = [];
+## CORE PRINCIPLES:
+1. **DATA-DRIVEN ONLY** - Only state facts from the provided data. Never assume or hallucinate numbers.
+2. **SURGICAL PRECISION** - Every number you mention must come from the data below.
+3. **CONCISE** - 2-4 sentences max. Use bullet points sparingly.
+4. **ACTIONABLE** - Give specific, practical advice based on the data.
+5. **INDIAN CONTEXT** - Use ₹, reference GST/TDS/Income Tax when relevant.
+
+## CRITICAL RULES:
+- If asked about data you don't have, say "I don't have that data in your uploaded statements."
+- Never make up numbers, percentages, or amounts.
+- Always round to 2 decimal places for percentages.
+- Format amounts in Indian style (₹8,11,833.98 not ₹811833.98).
+`;
+
+    if (financialData && financialData.summary) {
+      const data = financialData;
+      const s = data.summary;
       
-      // Add system message for context
-      let systemMessage = `You are Daddy, a concise AI financial advisor for StratSchool. 
+      prompt += `\n## USER'S ACTUAL FINANCIAL DATA:\n`;
+      prompt += `**Period:** ${data.period || 'Current'}\n`;
+      prompt += `**Total Revenue:** ₹${s.totalRevenue?.toLocaleString('en-IN') || '0'}\n`;
+      prompt += `**Total Expenses:** ₹${s.totalExpenses?.toLocaleString('en-IN') || '0'}\n`;
+      prompt += `**Net ${s.isProfit ? 'Profit' : 'Loss'}:** ₹${Math.abs(s.netIncome)?.toLocaleString('en-IN') || '0'}\n`;
+      prompt += `**Profit Margin:** ${s.profitMargin}%\n`;
+      prompt += `**Total Transactions:** ${s.transactionCount || 'N/A'}\n`;
 
-CRITICAL RULES:
-1. Keep ALL responses to 2-3 sentences MAX
-2. Be direct and to the point - no lengthy explanations
-3. Use bullet points only if absolutely necessary (max 3 bullets)
-4. All amounts are in Indian Rupees (₹) - never use $
-5. Reference the actual data provided below
-6. Don't repeat what the user already knows
-7. Give ONE actionable insight per response
-
-Example good response: "Your net loss is ₹42,921. Focus on reducing your highest expense category to improve margins."
-Example bad response: Long paragraphs with multiple observations and detailed breakdowns.`;
-      
-      if (plData) {
-        systemMessage += `\n\n=== FINANCIAL DATA ===`;
-        
-        // Basic P&L Information
-        if (plData.totalRevenue || plData.totalExpenses) {
-          systemMessage += `\nRevenue: ₹${plData.totalRevenue?.toLocaleString('en-IN') || 'N/A'} | Expenses: ₹${plData.totalExpenses?.toLocaleString('en-IN') || 'N/A'} | Net: ₹${plData.netIncome?.toLocaleString('en-IN') || 'N/A'} | Margin: ${plData.profitMargin || 'N/A'}%`;
-        }
-
-        // Revenue Categories (simplified)
-        if (plData.revenueBreakdown && plData.revenueBreakdown.length > 0) {
-          const topRevenue = plData.revenueBreakdown.slice(0, 3).map(r => `${r.category}: ₹${r.amount?.toLocaleString('en-IN')}`).join(' | ');
-          systemMessage += `\nTop Revenue: ${topRevenue}`;
-        }
-
-        // Expense Categories (simplified)
-        if (plData.expenseBreakdown && plData.expenseBreakdown.length > 0) {
-          const topExpenses = plData.expenseBreakdown.slice(0, 3).map(e => `${e.category}: ₹${e.amount?.toLocaleString('en-IN')}`).join(' | ');
-          systemMessage += `\nTop Expenses: ${topExpenses}`;
-        }
-
-        systemMessage += `\n\nRemember: Keep responses to 2-3 sentences. Be concise and actionable.`;
+      // Revenue breakdown
+      if (data.revenueBreakdown && data.revenueBreakdown.length > 0) {
+        prompt += `\n**REVENUE BY CATEGORY:**\n`;
+        data.revenueBreakdown.forEach((r, i) => {
+          if (i < 8) { // Top 8 categories
+            prompt += `- ${r.category}: ₹${r.amount?.toLocaleString('en-IN')} (${r.percentage}%)\n`;
+          }
+        });
       }
 
+      // Expense breakdown  
+      if (data.expenseBreakdown && data.expenseBreakdown.length > 0) {
+        prompt += `\n**EXPENSES BY CATEGORY:**\n`;
+        data.expenseBreakdown.forEach((e, i) => {
+          if (i < 8) { // Top 8 categories
+            prompt += `- ${e.category}: ₹${e.amount?.toLocaleString('en-IN')} (${e.percentage}%)\n`;
+          }
+        });
+      }
+
+      // Key insights
+      if (data.insights) {
+        prompt += `\n**KEY INSIGHTS:**\n`;
+        prompt += `- Highest expense category takes ${data.insights.highestExpenseRatio}% of total expenses\n`;
+        prompt += `- Top revenue source contributes ${data.insights.revenueConcentration}% of total revenue\n`;
+        prompt += `- ${data.insights.expenseCategories} expense categories, ${data.insights.revenueCategories} revenue categories\n`;
+      }
+
+      prompt += `\n## RESPONSE GUIDELINES:
+- When asked about revenue: Quote exact figures from REVENUE BY CATEGORY
+- When asked about expenses: Quote exact figures from EXPENSES BY CATEGORY  
+- When asked about profit/loss: Use the Net Profit/Loss figure
+- When asked for advice: Base it on the actual category breakdown
+- If user asks about something not in this data: Say "That information isn't in your current statement"
+`;
+    } else {
+      prompt += `\n## NO FINANCIAL DATA AVAILABLE:
+The user hasn't uploaded any bank statements yet. 
+- Encourage them to upload a bank statement for personalized insights
+- You can answer general financial questions about Indian taxes, GST, business structure
+- Don't make up any numbers - be clear you need their data first
+`;
+    }
+
+    return prompt;
+  }
+
+  async generateChatResponse(message, conversationHistory = [], financialData = null) {
+    try {
+      console.log('🚀 Generating Groq AI response');
+      console.log('📊 Financial data available:', !!financialData);
+
+      const messages = [];
+      
+      // Build data-focused system prompt
       messages.push({
         role: 'system',
-        content: systemMessage
+        content: this.buildSystemPrompt(financialData)
       });
 
-      // Add conversation history (keep last 8 messages for context)
+      // Add conversation history (last 6 messages)
       if (conversationHistory && conversationHistory.length > 0) {
-        conversationHistory.slice(-8).forEach(msg => {
-          // Handle both formats: {type, text} or {role, content}
+        conversationHistory.slice(-6).forEach(msg => {
           const role = msg.role || (msg.type === 'user' ? 'user' : 'assistant');
           const content = msg.content || msg.text;
-          messages.push({
-            role: role,
-            content: content
-          });
+          messages.push({ role, content });
         });
       }
 
@@ -84,11 +119,11 @@ Example bad response: Long paragraphs with multiple observations and detailed br
       const response = await axios.post(
         this.baseURL,
         {
-          model: 'llama-3.1-8b-instant', // Updated to current model
+          model: 'llama-3.3-70b-versatile', // Best model for accuracy
           messages: messages,
           max_tokens: 1000,
-          temperature: 0.7,
-          top_p: 1,
+          temperature: 0.3, // Lower = more precise
+          top_p: 0.9,
           stream: false
         },
         {
@@ -100,36 +135,27 @@ Example bad response: Long paragraphs with multiple observations and detailed br
         }
       );
 
-      if (response.data && response.data.choices && response.data.choices.length > 0) {
+      if (response.data?.choices?.[0]?.message?.content) {
         const aiResponse = response.data.choices[0].message.content.trim();
-        console.log('✅ Groq AI response generated successfully');
-        console.log('📊 Token usage:', response.data.usage);
+        console.log('✅ Groq AI response generated');
         return aiResponse;
       } else {
-        throw new Error('Invalid response format from Groq API');
+        throw new Error('Invalid response from Groq API');
       }
 
     } catch (error) {
-      console.error('❌ Groq AI response generation failed:', error.message);
+      console.error('❌ Groq AI error:', error.message);
       
-      if (error.response) {
-        console.error('API Error Status:', error.response.status);
-        console.error('API Error Data:', error.response.data);
-        
-        // Handle specific Groq API errors
-        if (error.response.status === 401) {
-          return "I apologize, but there's an authentication issue with the AI service. Please check the API key configuration.";
-        } else if (error.response.status === 429) {
-          return "I'm currently experiencing high demand. Please try again in a moment. In the meantime, I can see your P&L data looks good!";
-        }
+      if (error.response?.status === 401) {
+        return "Authentication issue with AI service. Please contact support.";
+      } else if (error.response?.status === 429) {
+        return "I'm experiencing high demand. Please try again in a moment.";
       }
       
-      // Return a helpful fallback message
-      return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or feel free to ask me about your P&L analysis or any financial questions you might have.";
+      return "I'm having trouble processing your request. Please try again.";
     }
   }
 }
 
-// Create and export a singleton instance
 const groqAI = new GroqAIService();
 module.exports = groqAI;
