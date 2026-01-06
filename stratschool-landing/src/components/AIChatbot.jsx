@@ -49,10 +49,14 @@ const AIChatbot = ({ user }) => {
     setIsLoading(true);
 
     try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
       const response = await fetch(buildApiUrl('/api/chat/message'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({
           message: userMessage.text,
