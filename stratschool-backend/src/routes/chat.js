@@ -41,44 +41,57 @@ const buildUserFinancialContext = async (userId) => {
     const netIncome = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(2) : 0;
 
-    // Aggregate transactions by category from revenue array
+    // Aggregate transactions by category
     let revenueByCategory = {};
     let expenseByCategory = {};
 
-    // Process revenue array - each item has transactions with category info
+    // Process revenue - drill into transactions array inside each item
     if (plStatement.revenue && plStatement.revenue.length > 0) {
       plStatement.revenue.forEach(item => {
-        // Get category name - can be string or object
-        let catName = 'Other Income';
-        if (typeof item.category === 'string') {
-          catName = item.category;
-        } else if (item.category?.category) {
-          catName = item.category.category;
+        // Check if item has transactions array (nested structure)
+        if (item.transactions && item.transactions.length > 0) {
+          item.transactions.forEach(txn => {
+            const catName = txn.category?.category || txn.category || 'Other Income';
+            const amount = Math.abs(txn.amount || 0);
+            if (!revenueByCategory[catName]) {
+              revenueByCategory[catName] = 0;
+            }
+            revenueByCategory[catName] += amount;
+          });
+        } else {
+          // Flat structure - item itself is a transaction
+          const catName = item.category?.category || (typeof item.category === 'string' ? item.category : 'Other Income');
+          const amount = Math.abs(item.amount || 0);
+          if (!revenueByCategory[catName]) {
+            revenueByCategory[catName] = 0;
+          }
+          revenueByCategory[catName] += amount;
         }
-        
-        const amount = Math.abs(item.amount || 0);
-        if (!revenueByCategory[catName]) {
-          revenueByCategory[catName] = 0;
-        }
-        revenueByCategory[catName] += amount;
       });
     }
 
-    // Process expenses array
+    // Process expenses - drill into transactions array inside each item
     if (plStatement.expenses && plStatement.expenses.length > 0) {
       plStatement.expenses.forEach(item => {
-        let catName = 'General Expenses';
-        if (typeof item.category === 'string') {
-          catName = item.category;
-        } else if (item.category?.category) {
-          catName = item.category.category;
+        // Check if item has transactions array (nested structure)
+        if (item.transactions && item.transactions.length > 0) {
+          item.transactions.forEach(txn => {
+            const catName = txn.category?.category || txn.category || 'General Expenses';
+            const amount = Math.abs(txn.amount || 0);
+            if (!expenseByCategory[catName]) {
+              expenseByCategory[catName] = 0;
+            }
+            expenseByCategory[catName] += amount;
+          });
+        } else {
+          // Flat structure - item itself is a transaction
+          const catName = item.category?.category || (typeof item.category === 'string' ? item.category : 'General Expenses');
+          const amount = Math.abs(item.amount || 0);
+          if (!expenseByCategory[catName]) {
+            expenseByCategory[catName] = 0;
+          }
+          expenseByCategory[catName] += amount;
         }
-        
-        const amount = Math.abs(item.amount || 0);
-        if (!expenseByCategory[catName]) {
-          expenseByCategory[catName] = 0;
-        }
-        expenseByCategory[catName] += amount;
       });
     }
 
