@@ -1719,8 +1719,13 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     return categoryMap[category] || categoryMap['default'];
   };
 
+  // Custom Material Symbol icon component for Overview
+  const OverviewIcon = ({ className }) => (
+    <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>overview</span>
+  );
+
   const navigationItems = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'overview', label: 'Overview', icon: OverviewIcon, isMaterial: true },
     { id: 'revenue', label: 'Revenue', icon: TrendingUp },
     { id: 'expense', label: 'Expense', icon: ArrowDownRight },
     { id: 'foresight', label: 'Foresight', icon: Eye },
