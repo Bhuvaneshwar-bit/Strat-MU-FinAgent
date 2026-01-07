@@ -1719,14 +1719,18 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     return categoryMap[category] || categoryMap['default'];
   };
 
-  // Custom Material Symbol icon component for Overview
+  // Custom Material Symbol icon components
   const OverviewIcon = ({ className }) => (
     <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>overview</span>
+  );
+  
+  const RevenueIcon = ({ className }) => (
+    <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>money_bag</span>
   );
 
   const navigationItems = [
     { id: 'overview', label: 'Overview', icon: OverviewIcon, isMaterial: true },
-    { id: 'revenue', label: 'Revenue', icon: TrendingUp },
+    { id: 'revenue', label: 'Revenue', icon: RevenueIcon, isMaterial: true },
     { id: 'expense', label: 'Expense', icon: ArrowDownRight },
     { id: 'foresight', label: 'Foresight', icon: Eye },
     { id: 'advisor', label: 'Financial Advisor', icon: MessageSquare },
