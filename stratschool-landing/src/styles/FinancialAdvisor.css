@@ -476,6 +476,10 @@
 .message-body {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .message-header {
@@ -492,6 +496,9 @@
   font-size: 0.9rem;
   line-height: 1.65;
   color: var(--text-secondary);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .message-content p {
