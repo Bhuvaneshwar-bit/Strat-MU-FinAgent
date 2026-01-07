@@ -270,8 +270,11 @@ router.post('/update-category', authenticate, async (req, res) => {
     // Extract entity name from the transaction description
     const entityName = CategoryRule.extractEntityName(transactionDescription);
     const entityNameNormalized = CategoryRule.normalizeEntityName(entityName);
+    const fullDescNormalized = transactionDescription.toLowerCase().trim();
 
     console.log('🏷️ Extracted entity:', entityName);
+    console.log('🏷️ Normalized entity:', entityNameNormalized);
+    console.log('🏷️ Full desc:', fullDescNormalized.substring(0, 50) + '...');
 
     // Create or update the category rule for this user
     const existingRule = await CategoryRule.findOne({ 
@@ -316,16 +319,20 @@ router.post('/update-category', authenticate, async (req, res) => {
     if (plStatement && plStatement.rawAnalysis?.transactions) {
       const transactions = plStatement.rawAnalysis.transactions;
       
-      // Update all transactions that contain this entity name
+      // Update transactions matching by entity name OR exact description
       transactions.forEach(txn => {
-        const desc = (txn.description || txn.particulars || '').toLowerCase();
-        if (desc.includes(entityNameNormalized)) {
+        const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+        const matchesByEntity = desc.includes(entityNameNormalized);
+        const matchesByExact = desc === fullDescNormalized;
+        
+        if (matchesByEntity || matchesByExact) {
           txn.category = {
             type: categoryType,
             category: newCategory
           };
           txn.categorySource = 'user_rule';
           updatedCount++;
+          console.log(`  ✅ Updated rawAnalysis txn: ${desc.substring(0, 40)}...`);
         }
       });
 
@@ -334,9 +341,13 @@ router.post('/update-category', authenticate, async (req, res) => {
         plStatement.revenue.forEach(rev => {
           if (rev.transactions) {
             rev.transactions.forEach(txn => {
-              const desc = (txn.description || txn.particulars || '').toLowerCase();
-              if (desc.includes(entityNameNormalized)) {
+              const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+              const matchesByEntity = desc.includes(entityNameNormalized);
+              const matchesByExact = desc === fullDescNormalized;
+              
+              if (matchesByEntity || matchesByExact) {
                 txn.category = { type: 'revenue', category: newCategory };
+                console.log(`  ✅ Updated revenue txn: ${desc.substring(0, 40)}...`);
               }
             });
           }
@@ -347,9 +358,13 @@ router.post('/update-category', authenticate, async (req, res) => {
         plStatement.expenses.forEach(exp => {
           if (exp.transactions) {
             exp.transactions.forEach(txn => {
-              const desc = (txn.description || txn.particulars || '').toLowerCase();
-              if (desc.includes(entityNameNormalized)) {
+              const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+              const matchesByEntity = desc.includes(entityNameNormalized);
+              const matchesByExact = desc === fullDescNormalized;
+              
+              if (matchesByEntity || matchesByExact) {
                 txn.category = { type: 'expenses', category: newCategory };
+                console.log(`  ✅ Updated expense txn: ${desc.substring(0, 40)}...`);
               }
             });
           }
@@ -359,6 +374,12 @@ router.post('/update-category', authenticate, async (req, res) => {
       // Save the updated P&L statement
       plStatement.rawAnalysis.transactions = transactions;
       plStatement.metadata.updatedAt = new Date();
+      
+      // Mark nested arrays as modified for Mongoose to detect changes
+      plStatement.markModified('rawAnalysis.transactions');
+      plStatement.markModified('revenue');
+      plStatement.markModified('expenses');
+      
       await plStatement.save();
       console.log(`✅ Updated ${updatedCount} matching transactions in P&L statement`);
     }
