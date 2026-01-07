@@ -33,12 +33,7 @@ const buildUserFinancialContext = async (userId) => {
     
     if (!plStatement) return null;
 
-    // Extract all revenue data
-    const revenueItems = plStatement.profitLossStatement?.revenue?.items || 
-                         plStatement.revenue || [];
-    const expenseItems = plStatement.profitLossStatement?.expenses?.items || 
-                         plStatement.expenses || [];
-
+    // Get total amounts
     const totalRevenue = plStatement.analysis?.totalRevenue ||
                          plStatement.profitLossStatement?.revenue?.totalRevenue || 0;
     const totalExpenses = plStatement.analysis?.totalExpenses ||
@@ -46,21 +41,76 @@ const buildUserFinancialContext = async (userId) => {
     const netIncome = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(2) : 0;
 
-    // Build detailed revenue breakdown
-    const revenueBreakdown = revenueItems.map(item => ({
-      category: item.category || 'Uncategorized',
-      amount: item.amount || item.total || 0,
-      count: item.transactions?.length || item.count || 0,
-      percentage: totalRevenue > 0 ? (((item.amount || item.total || 0) / totalRevenue) * 100).toFixed(1) : 0
-    })).sort((a, b) => b.amount - a.amount);
+    // Extract revenue breakdown from multiple possible sources
+    let revenueBreakdown = [];
+    
+    // Source 1: revenue array (main source)
+    if (plStatement.revenue && plStatement.revenue.length > 0) {
+      revenueBreakdown = plStatement.revenue.map(item => ({
+        category: item.category || 'Uncategorized',
+        amount: item.amount || 0,
+        count: item.transactions?.length || 0,
+        percentage: totalRevenue > 0 ? (((item.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
+      }));
+    }
+    // Source 2: profitLossStatement.revenue.revenueStreams
+    else if (plStatement.profitLossStatement?.revenue?.revenueStreams?.length > 0) {
+      revenueBreakdown = plStatement.profitLossStatement.revenue.revenueStreams.map(item => ({
+        category: item.category || item.name || 'Uncategorized',
+        amount: item.amount || 0,
+        count: 0,
+        percentage: totalRevenue > 0 ? (((item.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
+      }));
+    }
+    // Source 3: profitLossStatement.revenue.breakdown (object)
+    else if (plStatement.profitLossStatement?.revenue?.breakdown) {
+      const breakdown = plStatement.profitLossStatement.revenue.breakdown;
+      revenueBreakdown = Object.entries(breakdown).map(([category, amount]) => ({
+        category,
+        amount: typeof amount === 'number' ? amount : amount?.amount || 0,
+        count: 0,
+        percentage: totalRevenue > 0 ? (((typeof amount === 'number' ? amount : amount?.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
+      }));
+    }
 
-    // Build detailed expense breakdown
-    const expenseBreakdown = expenseItems.map(item => ({
-      category: item.category || 'Uncategorized',
-      amount: item.amount || item.total || 0,
-      count: item.transactions?.length || item.count || 0,
-      percentage: totalExpenses > 0 ? (((item.amount || item.total || 0) / totalExpenses) * 100).toFixed(1) : 0
-    })).sort((a, b) => b.amount - a.amount);
+    // Extract expense breakdown from multiple possible sources
+    let expenseBreakdown = [];
+    
+    // Source 1: expenses array (main source)
+    if (plStatement.expenses && plStatement.expenses.length > 0) {
+      expenseBreakdown = plStatement.expenses.map(item => ({
+        category: item.category || 'Uncategorized',
+        amount: item.amount || 0,
+        count: item.transactions?.length || 0,
+        percentage: totalExpenses > 0 ? (((item.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
+      }));
+    }
+    // Source 2: profitLossStatement.expenses.expenseCategories
+    else if (plStatement.profitLossStatement?.expenses?.expenseCategories?.length > 0) {
+      expenseBreakdown = plStatement.profitLossStatement.expenses.expenseCategories.map(item => ({
+        category: item.category || item.name || 'Uncategorized',
+        amount: item.amount || 0,
+        count: 0,
+        percentage: totalExpenses > 0 ? (((item.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
+      }));
+    }
+    // Source 3: profitLossStatement.expenses.breakdown (object)
+    else if (plStatement.profitLossStatement?.expenses?.breakdown) {
+      const breakdown = plStatement.profitLossStatement.expenses.breakdown;
+      expenseBreakdown = Object.entries(breakdown).map(([category, amount]) => ({
+        category,
+        amount: typeof amount === 'number' ? amount : amount?.amount || 0,
+        count: 0,
+        percentage: totalExpenses > 0 ? (((typeof amount === 'number' ? amount : amount?.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
+      }));
+    }
+
+    // Sort by amount descending
+    revenueBreakdown.sort((a, b) => b.amount - a.amount);
+    expenseBreakdown.sort((a, b) => b.amount - a.amount);
+
+    console.log('📊 Revenue categories found:', revenueBreakdown.length, revenueBreakdown.map(r => `${r.category}: ₹${r.amount}`));
+    console.log('📊 Expense categories found:', expenseBreakdown.length, expenseBreakdown.map(e => `${e.category}: ₹${e.amount}`));
 
     return {
       period: plStatement.period || 'Monthly',
@@ -71,9 +121,7 @@ const buildUserFinancialContext = async (userId) => {
         netIncome,
         profitMargin: parseFloat(profitMargin),
         isProfit: netIncome >= 0,
-        transactionCount: plStatement.analysis?.transactionCount || 
-                          (revenueItems.reduce((sum, r) => sum + (r.transactions?.length || 0), 0) +
-                           expenseItems.reduce((sum, e) => sum + (e.transactions?.length || 0), 0))
+        transactionCount: plStatement.analysis?.transactionCount || 0
       },
       revenueBreakdown,
       expenseBreakdown,
