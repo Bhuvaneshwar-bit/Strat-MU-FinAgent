@@ -1725,7 +1725,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
   );
   
   const RevenueIcon = ({ className }) => (
-    <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>money_bag</span>
+    <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>wallet</span>
   );
 
   const navigationItems = [
