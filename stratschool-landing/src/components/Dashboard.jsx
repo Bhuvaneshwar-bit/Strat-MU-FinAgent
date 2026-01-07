@@ -1336,7 +1336,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
       
       // Call backend API to save category rule and update all matching transactions
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/api/pl-statements/update-category`, {
           method: 'POST',
           headers: {
