@@ -41,76 +41,66 @@ const buildUserFinancialContext = async (userId) => {
     const netIncome = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(2) : 0;
 
-    // Extract revenue breakdown from multiple possible sources
-    let revenueBreakdown = [];
-    
-    // Source 1: revenue array (main source)
+    // Aggregate transactions by category from revenue array
+    let revenueByCategory = {};
+    let expenseByCategory = {};
+
+    // Process revenue array - each item has transactions with category info
     if (plStatement.revenue && plStatement.revenue.length > 0) {
-      revenueBreakdown = plStatement.revenue.map(item => ({
-        category: item.category || 'Uncategorized',
-        amount: item.amount || 0,
-        count: item.transactions?.length || 0,
-        percentage: totalRevenue > 0 ? (((item.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
-      }));
-    }
-    // Source 2: profitLossStatement.revenue.revenueStreams
-    else if (plStatement.profitLossStatement?.revenue?.revenueStreams?.length > 0) {
-      revenueBreakdown = plStatement.profitLossStatement.revenue.revenueStreams.map(item => ({
-        category: item.category || item.name || 'Uncategorized',
-        amount: item.amount || 0,
-        count: 0,
-        percentage: totalRevenue > 0 ? (((item.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
-      }));
-    }
-    // Source 3: profitLossStatement.revenue.breakdown (object)
-    else if (plStatement.profitLossStatement?.revenue?.breakdown) {
-      const breakdown = plStatement.profitLossStatement.revenue.breakdown;
-      revenueBreakdown = Object.entries(breakdown).map(([category, amount]) => ({
-        category,
-        amount: typeof amount === 'number' ? amount : amount?.amount || 0,
-        count: 0,
-        percentage: totalRevenue > 0 ? (((typeof amount === 'number' ? amount : amount?.amount || 0) / totalRevenue) * 100).toFixed(1) : 0
-      }));
+      plStatement.revenue.forEach(item => {
+        // Get category name - can be string or object
+        let catName = 'Other Income';
+        if (typeof item.category === 'string') {
+          catName = item.category;
+        } else if (item.category?.category) {
+          catName = item.category.category;
+        }
+        
+        const amount = Math.abs(item.amount || 0);
+        if (!revenueByCategory[catName]) {
+          revenueByCategory[catName] = 0;
+        }
+        revenueByCategory[catName] += amount;
+      });
     }
 
-    // Extract expense breakdown from multiple possible sources
-    let expenseBreakdown = [];
-    
-    // Source 1: expenses array (main source)
+    // Process expenses array
     if (plStatement.expenses && plStatement.expenses.length > 0) {
-      expenseBreakdown = plStatement.expenses.map(item => ({
-        category: item.category || 'Uncategorized',
-        amount: item.amount || 0,
-        count: item.transactions?.length || 0,
-        percentage: totalExpenses > 0 ? (((item.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
-      }));
+      plStatement.expenses.forEach(item => {
+        let catName = 'General Expenses';
+        if (typeof item.category === 'string') {
+          catName = item.category;
+        } else if (item.category?.category) {
+          catName = item.category.category;
+        }
+        
+        const amount = Math.abs(item.amount || 0);
+        if (!expenseByCategory[catName]) {
+          expenseByCategory[catName] = 0;
+        }
+        expenseByCategory[catName] += amount;
+      });
     }
-    // Source 2: profitLossStatement.expenses.expenseCategories
-    else if (plStatement.profitLossStatement?.expenses?.expenseCategories?.length > 0) {
-      expenseBreakdown = plStatement.profitLossStatement.expenses.expenseCategories.map(item => ({
-        category: item.category || item.name || 'Uncategorized',
-        amount: item.amount || 0,
-        count: 0,
-        percentage: totalExpenses > 0 ? (((item.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
-      }));
-    }
-    // Source 3: profitLossStatement.expenses.breakdown (object)
-    else if (plStatement.profitLossStatement?.expenses?.breakdown) {
-      const breakdown = plStatement.profitLossStatement.expenses.breakdown;
-      expenseBreakdown = Object.entries(breakdown).map(([category, amount]) => ({
+
+    // Convert to arrays and calculate percentages
+    const revenueBreakdown = Object.entries(revenueByCategory)
+      .map(([category, amount]) => ({
         category,
-        amount: typeof amount === 'number' ? amount : amount?.amount || 0,
-        count: 0,
-        percentage: totalExpenses > 0 ? (((typeof amount === 'number' ? amount : amount?.amount || 0) / totalExpenses) * 100).toFixed(1) : 0
-      }));
-    }
+        amount,
+        percentage: totalRevenue > 0 ? ((amount / totalRevenue) * 100).toFixed(1) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
-    // Sort by amount descending
-    revenueBreakdown.sort((a, b) => b.amount - a.amount);
-    expenseBreakdown.sort((a, b) => b.amount - a.amount);
+    const expenseBreakdown = Object.entries(expenseByCategory)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
-    console.log('📊 Revenue categories found:', revenueBreakdown.length, revenueBreakdown.map(r => `${r.category}: ₹${r.amount}`));
-    console.log('📊 Expense categories found:', expenseBreakdown.length, expenseBreakdown.map(e => `${e.category}: ₹${e.amount}`));
+    console.log('📊 Revenue categories:', revenueBreakdown.map(r => `${r.category}: ₹${r.amount.toLocaleString('en-IN')} (${r.percentage}%)`));
+    console.log('📊 Expense categories:', expenseBreakdown.map(e => `${e.category}: ₹${e.amount.toLocaleString('en-IN')} (${e.percentage}%)`));
 
     return {
       period: plStatement.period || 'Monthly',
