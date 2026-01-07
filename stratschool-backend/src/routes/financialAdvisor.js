@@ -5,12 +5,12 @@ const PLStatement = require('../models/PLStatement');
 const auth = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini with Pro model for maximum accuracy
+// Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
-  model: 'gemini-2.0-flash',
+  model: 'gemini-1.5-flash',
   generationConfig: {
-    temperature: 0.3,
+    temperature: 0.4,
     topP: 0.9,
     maxOutputTokens: 4096
   }
