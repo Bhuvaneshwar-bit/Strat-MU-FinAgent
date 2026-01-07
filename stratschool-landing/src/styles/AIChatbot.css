@@ -266,6 +266,10 @@
   padding: 12px 16px;
   border-radius: 16px;
   position: relative;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .message.bot .message-content {
