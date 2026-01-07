@@ -1725,13 +1725,17 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
   );
   
   const RevenueIcon = ({ className }) => (
+    <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>money_bag</span>
+  );
+  
+  const ExpenseIcon = ({ className }) => (
     <span className={`material-symbols-outlined ${className || ''}`} style={{ fontSize: '20px' }}>wallet</span>
   );
 
   const navigationItems = [
     { id: 'overview', label: 'Overview', icon: OverviewIcon, isMaterial: true },
     { id: 'revenue', label: 'Revenue', icon: RevenueIcon, isMaterial: true },
-    { id: 'expense', label: 'Expense', icon: ArrowDownRight },
+    { id: 'expense', label: 'Expense', icon: ExpenseIcon, isMaterial: true },
     { id: 'foresight', label: 'Foresight', icon: Eye },
     { id: 'advisor', label: 'Financial Advisor', icon: MessageSquare },
     { id: 'invoice', label: 'Invoice Generation', icon: Receipt },
