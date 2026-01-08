@@ -52,6 +52,7 @@ import Foresight from './Foresight';
 import FinancialAdvisor from './FinancialAdvisor';
 import BankAccountOffers from './BankAccountOffers';
 import GSTDashboard from './GSTDashboard';
+import SettingsPanel from './SettingsPanel';
 import { buildApiUrl, API_BASE_URL } from '../config/api';
 
 // Logo imports
@@ -4222,15 +4223,12 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
           )}
 
           {activeTab === 'settings' && (
-            <div className="tab-placeholder">
-              <div className="placeholder-content">
-                <div className="placeholder-icon">
-                  <Settings />
-                </div>
-                <h3>System Settings</h3>
-                <p>Configure your InFINity preferences, automation rules, notification settings, and integration parameters for optimal performance.</p>
-              </div>
-            </div>
+            <SettingsPanel 
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+              user={user}
+              onLogout={onLogout}
+            />
           )}
           </main>
         </div>
