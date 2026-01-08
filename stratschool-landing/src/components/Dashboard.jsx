@@ -1874,41 +1874,107 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
               );
             })}
           </nav>
+
+          {/* Sidebar Footer - User Profile & Theme Toggle */}
+          <div style={{
+            marginTop: 'auto',
+            padding: sidebarCollapsed ? '12px 8px' : '16px',
+            borderTop: darkMode ? '1px solid #21262d' : '1px solid rgba(0,0,0,0.1)'
+          }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                gap: '12px',
+                padding: sidebarCollapsed ? '12px' : '12px 16px',
+                marginBottom: '8px',
+                background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: darkMode ? '#e6edf3' : '#1a1a1a',
+                fontSize: '14px',
+                transition: 'all 0.2s ease'
+              }}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+              {!sidebarCollapsed && <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
+            </button>
+
+            {/* User Profile */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+              gap: '12px',
+              padding: sidebarCollapsed ? '12px' : '12px 16px',
+              background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              borderRadius: '10px'
+            }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: '#D4AF37',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <User size={18} color="#000" />
+              </div>
+              {!sidebarCollapsed && (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: darkMode ? '#e6edf3' : '#1a1a1a',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {user?.firstName} {user?.lastName}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: darkMode ? '#8b949e' : '#64748b'
+                  }}>
+                    Entrepreneur
+                  </div>
+                </div>
+              )}
+              {!sidebarCollapsed && (
+                <button
+                  onClick={onLogout}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    color: darkMode ? '#8b949e' : '#64748b',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Logout"
+                >
+                  <LogOut size={18} />
+                </button>
+              )}
+            </div>
+          </div>
         </aside>
 
-        {/* Right Side: Header + Main Content */}
+        {/* Right Side: Main Content Only */}
         <div className="dashboard-right-panel">
-          {/* Header - Now inside right panel */}
-          <header className="dashboard-header">
-            <div className="header-brand">
-              {/* Empty - logo is in sidebar */}
-            </div>
-
-            <div className="header-actions">
-              {/* Dark Mode Toggle */}
-              <button 
-                className="action-button theme-toggle"
-                onClick={() => setDarkMode(!darkMode)}
-                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {darkMode ? <Sun className="action-icon" /> : <Moon className="action-icon" />}
-              </button>
-              
-              <div className="user-profile">
-                <div className="user-avatar">
-                  <User className="avatar-icon" />
-                </div>
-                <div className="user-info">
-                  <span className="user-name">{user?.firstName} {user?.lastName}</span>
-                  <span className="user-role">Entrepreneur</span>
-                </div>
-                <button className="logout-button" onClick={onLogout}>
-                  <LogOut className="logout-icon" />
-                </button>
-              </div>
-            </div>
-          </header>
-
           {/* Main Content */}
           <main className="dashboard-content">
             {activeTab === 'overview' && (

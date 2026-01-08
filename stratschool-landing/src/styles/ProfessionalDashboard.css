@@ -181,21 +181,10 @@
   overflow: hidden;
 }
 
-/* Header Styles */
+/* Header Styles - Hidden by default now */
 .dashboard-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  padding: var(--space-4) var(--space-6);
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  width: 100%;
-  min-height: 72px;
-  margin: 0;
+  display: none;
+}
   box-sizing: border-box;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
@@ -677,7 +666,7 @@
   padding: var(--space-8);
   overflow-y: auto;
   width: 100%;
-  height: calc(100vh - 72px);
+  height: 100vh;
   margin: 0;
   box-sizing: border-box;
   background: var(--bg-primary);
