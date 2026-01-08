@@ -1748,39 +1748,9 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
 
   return (
     <div className={`professional-dashboard ${darkMode ? 'dark-mode' : 'light-mode'}`}>
-      {/* Professional Header */}
-      <header className="dashboard-header">
-        <div className="header-brand">
-          {/* Logo moved to sidebar */}
-        </div>
-
-        <div className="header-actions">
-          {/* Dark Mode Toggle */}
-          <button 
-            className="action-button theme-toggle"
-            onClick={() => setDarkMode(!darkMode)}
-            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {darkMode ? <Sun className="action-icon" /> : <Moon className="action-icon" />}
-          </button>
-          
-          <div className="user-profile">
-            <div className="user-avatar">
-              <User className="avatar-icon" />
-            </div>
-            <div className="user-info">
-              <span className="user-name">{user?.firstName} {user?.lastName}</span>
-              <span className="user-role">Entrepreneur</span>
-            </div>
-            <button className="logout-button" onClick={onLogout}>
-              <LogOut className="logout-icon" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="dashboard-layout">
-        {/* Professional Sidebar - Collapsible */}
+      {/* New Layout: Sidebar on left, Header + Content on right */}
+      <div className="dashboard-wrapper">
+        {/* Professional Sidebar - Full Height */}
         <aside 
           className="dashboard-sidebar"
           style={{
@@ -1794,8 +1764,9 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            padding: sidebarCollapsed ? '12px 8px' : '12px 16px',
-            borderBottom: darkMode ? '1px solid #21262d' : '1px solid #e2e8f0'
+            padding: sidebarCollapsed ? '16px 8px' : '16px 16px',
+            borderBottom: darkMode ? '1px solid #21262d' : '1px solid rgba(0,0,0,0.1)',
+            minHeight: '72px'
           }}>
             {/* Logo and Brand */}
             <div style={{
@@ -1905,9 +1876,42 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="dashboard-content">
-          {activeTab === 'overview' && (
+        {/* Right Side: Header + Main Content */}
+        <div className="dashboard-right-panel">
+          {/* Header - Now inside right panel */}
+          <header className="dashboard-header">
+            <div className="header-brand">
+              {/* Empty - logo is in sidebar */}
+            </div>
+
+            <div className="header-actions">
+              {/* Dark Mode Toggle */}
+              <button 
+                className="action-button theme-toggle"
+                onClick={() => setDarkMode(!darkMode)}
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {darkMode ? <Sun className="action-icon" /> : <Moon className="action-icon" />}
+              </button>
+              
+              <div className="user-profile">
+                <div className="user-avatar">
+                  <User className="avatar-icon" />
+                </div>
+                <div className="user-info">
+                  <span className="user-name">{user?.firstName} {user?.lastName}</span>
+                  <span className="user-role">Entrepreneur</span>
+                </div>
+                <button className="logout-button" onClick={onLogout}>
+                  <LogOut className="logout-icon" />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="dashboard-content">
+            {activeTab === 'overview' && (
             <>
               {/* P&L Status Banner */}
               {!plData ? (
@@ -4162,7 +4166,8 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
               </div>
             </div>
           )}
-        </main>
+          </main>
+        </div>
       </div>
 
       {/* Click-outside handler for expense dropdown */}
