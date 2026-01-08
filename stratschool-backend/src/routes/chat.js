@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const groqAI = require('../utils/groqAI');
+const stockMarketAPI = require('../utils/stockMarketAPI');
 const PLStatement = require('../models/PLStatement');
 const auth = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
@@ -171,17 +172,29 @@ router.post('/', async (req, res) => {
 
     console.log('📊 Financial context available:', !!userFinancialData);
 
+    // Check if message is about stocks/investments and fetch real-time data
+    let stockContext = null;
+    if (stockMarketAPI.isStockQuery(message)) {
+      console.log('📈 Stock query detected, fetching real-time data...');
+      stockContext = await stockMarketAPI.getInvestmentContext(message);
+      if (stockContext) {
+        console.log('✅ Stock data fetched for:', stockContext.stocks.map(s => s.symbol).join(', '));
+      }
+    }
+
     const aiResponse = await groqAI.generateChatResponse(
       message.trim(),
       conversationHistory || [],
-      userFinancialData
+      userFinancialData,
+      stockContext
     );
 
     return res.status(200).json({
       success: true,
       response: aiResponse,
       timestamp: new Date().toISOString(),
-      service: 'groq'
+      service: 'groq',
+      stockData: stockContext?.stocks || null
     });
 
   } catch (error) {
@@ -221,16 +234,28 @@ router.post('/message', async (req, res) => {
     // Build comprehensive financial context
     const userFinancialData = await buildUserFinancialContext(userId);
 
+    // Check if message is about stocks/investments and fetch real-time data
+    let stockContext = null;
+    if (stockMarketAPI.isStockQuery(message)) {
+      console.log('📈 Stock query detected in widget, fetching real-time data...');
+      stockContext = await stockMarketAPI.getInvestmentContext(message);
+      if (stockContext) {
+        console.log('✅ Stock data fetched for:', stockContext.stocks.map(s => s.symbol).join(', '));
+      }
+    }
+
     const aiResponse = await groqAI.generateChatResponse(
       message.trim(),
       conversationHistory || [],
-      userFinancialData
+      userFinancialData,
+      stockContext
     );
 
     return res.status(200).json({
       success: true,
       response: aiResponse,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      stockData: stockContext?.stocks || null
     });
 
   } catch (error) {

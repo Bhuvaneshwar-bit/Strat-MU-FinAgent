@@ -1,4 +1,5 @@
 const axios = require('axios');
+const stockMarketAPI = require('./stockMarketAPI');
 
 class GroqAIService {
   constructor() {
@@ -101,17 +102,45 @@ The user hasn't uploaded any bank statements yet.
     return prompt;
   }
 
-  async generateChatResponse(message, conversationHistory = [], financialData = null) {
+  async generateChatResponse(message, conversationHistory = [], financialData = null, stockContext = null) {
     try {
       console.log('🚀 Generating Groq AI response');
       console.log('📊 Financial data available:', !!financialData);
+      console.log('📈 Stock data available:', !!stockContext);
 
       const messages = [];
       
       // Build data-focused system prompt
+      let systemPrompt = this.buildSystemPrompt(financialData);
+      
+      // Add stock market data if available
+      if (stockContext) {
+        systemPrompt += stockMarketAPI.formatStockContext(stockContext);
+        
+        // Add investment advice guidelines
+        systemPrompt += `
+## INVESTMENT ADVICE GUIDELINES:
+When user asks about investing in a stock:
+1. **Quote the EXACT current price** from the real-time data above
+2. **Calculate how many shares** they can buy with their amount
+3. **Compare to their financial situation** - can they afford the risk?
+4. **Mention the 52-week range** to show if it's near high or low
+5. **Give a clear recommendation** based on their P&L data
+6. **Warn about risks** - never guarantee returns
+7. **Suggest diversification** if they're putting too much in one stock
+
+Example calculation:
+- User wants to invest ₹1,00,000 in a stock priced at ₹500
+- They can buy: 1,00,000 ÷ 500 = 200 shares
+- If their monthly income is ₹50,000, this is 2 months' worth - HIGH RISK
+
+Always use the REAL price data provided, not made-up numbers!
+`;
+      }
+      
       messages.push({
         role: 'system',
-        content: this.buildSystemPrompt(financialData)
+        content: systemPrompt
       });
 
       // Add conversation history (last 6 messages)
