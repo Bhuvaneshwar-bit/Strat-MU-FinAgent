@@ -42,7 +42,9 @@ import {
   Loader2,
   Eye,
   MessageSquare,
-  Shield
+  Shield,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
@@ -154,6 +156,9 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [uploadingFile, setUploadingFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [pendingFile, setPendingFile] = useState(null);
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -487,8 +492,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   // ============================================================
   // BANK STATEMENT RE-UPLOAD HANDLER
   // ============================================================
-  const handleBankStatementUpload = async (event) => {
-    const file = event.target.files[0];
+  const handleBankStatementUpload = async (event, password = null) => {
+    let file = event?.target?.files?.[0] || pendingFile;
     if (!file) return;
 
     // Validate file type
@@ -512,6 +517,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     }
 
     setUploadingFile(file);
+    setPendingFile(file);
     setUploadError(null);
     setIsUploading(true);
 
@@ -523,18 +529,39 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
         companyName: user?.businessName || 'Your Business',
         industry: user?.industry || 'General'
       }));
+      
+      // Add password if provided (for password-protected PDFs)
+      if (password) {
+        formData.append('password', password);
+      }
 
       const response = await fetch(buildApiUrl('/api/pl/analyze'), {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Analysis failed: ${response.status}`);
+      const result = await response.json();
+
+      // Check if password is required
+      if (result.error === 'PASSWORD_REQUIRED' || result.passwordRequired) {
+        setPasswordRequired(true);
+        setIsUploading(false);
+        setUploadError(null);
+        return;
       }
 
-      const result = await response.json();
+      // Check for incorrect password
+      if (result.error === 'INCORRECT_PASSWORD') {
+        setPasswordRequired(true);
+        setIsUploading(false);
+        setUploadError('Incorrect password. Please try again.');
+        setPdfPassword('');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || `Analysis failed: ${response.status}`);
+      }
       
       if (result.success && result.data) {
         // Save new P&L data
@@ -542,10 +569,13 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
         localStorage.setItem(userPlDataKey, JSON.stringify(result.data));
         setPlData(result.data);
         
-        // Close modal and show success
+        // Close modal and reset states
         setShowUploadModal(false);
         setUploadingFile(null);
         setIsUploading(false);
+        setPasswordRequired(false);
+        setPdfPassword('');
+        setPendingFile(null);
         
         // Trigger animation
         setIsAnimating(false);
@@ -560,11 +590,23 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
     }
   };
 
+  // Handle password submission for protected PDFs
+  const handlePasswordSubmit = () => {
+    if (!pdfPassword.trim()) {
+      setUploadError('Please enter the PDF password');
+      return;
+    }
+    handleBankStatementUpload(null, pdfPassword);
+  };
+
   const closeUploadModal = () => {
     setShowUploadModal(false);
     setUploadingFile(null);
     setUploadError(null);
     setIsUploading(false);
+    setPasswordRequired(false);
+    setPdfPassword('');
+    setPendingFile(null);
   };
 
   // ============================================================
@@ -5208,7 +5250,9 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
             </div>
 
             <p style={{ color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '24px', fontSize: '14px' }}>
-              Upload a new bank statement to update your financial analysis and P&L data.
+              {passwordRequired 
+                ? 'This PDF is password protected. Please enter the password to continue.'
+                : 'Upload a new bank statement to update your financial analysis and P&L data.'}
             </p>
 
             {uploadError && (
@@ -5228,78 +5272,180 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
               </div>
             )}
 
-            <label 
-              htmlFor="bank-statement-upload"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px 20px',
-                border: `2px dashed ${darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
-                borderRadius: '12px',
-                cursor: isUploading ? 'not-allowed' : 'pointer',
-                background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                transition: 'all 0.2s ease',
-                marginBottom: '20px',
-                opacity: isUploading ? 0.6 : 1
-              }}
-            >
-              <input
-                type="file"
-                id="bank-statement-upload"
-                accept=".pdf,.csv,.xlsx,.xls,.txt"
-                onChange={handleBankStatementUpload}
-                style={{ display: 'none' }}
-                disabled={isUploading}
-              />
-              
-              {isUploading ? (
-                <>
-                  <Loader2 size={40} className="animate-spin" style={{ color: '#3b82f6', marginBottom: '12px' }} />
-                  <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
-                    Processing {uploadingFile?.name}...
+            {/* Password Input Section (for protected PDFs) */}
+            {passwordRequired ? (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  background: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                  borderRadius: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <Lock size={20} style={{ color: '#3b82f6' }} />
+                  <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontSize: '14px' }}>
+                    {uploadingFile?.name || pendingFile?.name}
                   </span>
-                  <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
-                    Analyzing your bank statement with AI
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Upload size={40} style={{ color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '12px' }} />
-                  <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
-                    Drop your bank statement here
-                  </span>
-                  <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
-                    Or click to browse files
-                  </span>
-                </>
-              )}
-            </label>
+                </div>
 
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              marginBottom: '16px'
-            }}>
-              {['PDF', 'CSV', 'Excel', 'TXT'].map(format => (
-                <span 
-                  key={format}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="password"
+                    value={pdfPassword}
+                    onChange={(e) => setPdfPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                    placeholder="Enter PDF password"
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      paddingRight: '50px',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                      borderRadius: '10px',
+                      background: darkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                      color: darkMode ? '#e2e8f0' : '#1e293b',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    disabled={isUploading}
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  onClick={handlePasswordSubmit}
+                  disabled={isUploading || !pdfPassword.trim()}
                   style={{
-                    padding: '4px 10px',
-                    background: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    color: '#3b82f6',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '500'
+                    width: '100%',
+                    marginTop: '16px',
+                    padding: '14px 24px',
+                    background: isUploading || !pdfPassword.trim() ? '#64748b' : '#3b82f6',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: isUploading || !pdfPassword.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
                   }}
                 >
-                  {format}
-                </span>
-              ))}
-            </div>
+                  {isUploading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Decrypting & Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Unlock size={18} />
+                      Unlock & Analyze
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPasswordRequired(false);
+                    setPdfPassword('');
+                    setPendingFile(null);
+                    setUploadingFile(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    marginTop: '8px',
+                    padding: '10px',
+                    background: 'transparent',
+                    color: darkMode ? '#94a3b8' : '#64748b',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Upload a different file
+                </button>
+              </div>
+            ) : (
+              /* File Upload Section */
+              <label 
+                htmlFor="bank-statement-upload"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '40px 20px',
+                  border: `2px dashed ${darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
+                  borderRadius: '12px',
+                  cursor: isUploading ? 'not-allowed' : 'pointer',
+                  background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '20px',
+                  opacity: isUploading ? 0.6 : 1
+                }}
+              >
+                <input
+                  type="file"
+                  id="bank-statement-upload"
+                  accept=".pdf,.csv,.xlsx,.xls,.txt"
+                  onChange={handleBankStatementUpload}
+                  style={{ display: 'none' }}
+                  disabled={isUploading}
+                />
+                
+                {isUploading ? (
+                  <>
+                    <Loader2 size={40} className="animate-spin" style={{ color: '#3b82f6', marginBottom: '12px' }} />
+                    <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
+                      Processing {uploadingFile?.name}...
+                    </span>
+                    <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                      Analyzing your bank statement with AI
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={40} style={{ color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '12px' }} />
+                    <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
+                      Drop your bank statement here
+                    </span>
+                    <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                      Or click to browse files
+                    </span>
+                  </>
+                )}
+              </label>
+            )}
+
+            {!passwordRequired && (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                marginBottom: '16px'
+              }}>
+                {['PDF', 'CSV', 'Excel', 'TXT'].map(format => (
+                  <span 
+                    key={format}
+                    style={{
+                      padding: '4px 10px',
+                      background: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                      color: '#3b82f6',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {format}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <p style={{ 
               color: darkMode ? '#64748b' : '#94a3b8', 
