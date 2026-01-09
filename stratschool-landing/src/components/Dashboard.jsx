@@ -41,12 +41,12 @@ import {
   PanelLeft,
   Loader2,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Shield
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import '../styles/ProfessionalDashboard.css';
 import InvoiceGeneration from './InvoiceGeneration';
-import BookkeepingDashboard from './BookkeepingDashboard';
 import AIChatbot from './AIChatbot';
 import Foresight from './Foresight';
 import FinancialAdvisor from './FinancialAdvisor';
@@ -148,6 +148,12 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
   // Synopsis modal state for 'd' button AI explanations
   const [synopsisModal, setSynopsisModal] = useState({ show: false, type: null, content: '', loading: false });
+
+  // Bank statement upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
@@ -477,6 +483,89 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       }
     };
   }, [metrics.totalRevenue, metrics.totalExpenses, metrics.netProfit, metrics.transactions]);
+
+  // ============================================================
+  // BANK STATEMENT RE-UPLOAD HANDLER
+  // ============================================================
+  const handleBankStatementUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = [
+      'application/pdf',
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain'
+    ];
+    
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Please upload a valid bank statement file (PDF, CSV, Excel, or TXT)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File size must be less than 10MB');
+      return;
+    }
+
+    setUploadingFile(file);
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('bankStatement', file);
+      formData.append('period', 'monthly');
+      formData.append('businessInfo', JSON.stringify({
+        companyName: user?.businessName || 'Your Business',
+        industry: user?.industry || 'General'
+      }));
+
+      const response = await fetch(buildApiUrl('/api/pl/analyze'), {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Analysis failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Save new P&L data
+        const userPlDataKey = getUserPlDataKey();
+        localStorage.setItem(userPlDataKey, JSON.stringify(result.data));
+        setPlData(result.data);
+        
+        // Close modal and show success
+        setShowUploadModal(false);
+        setUploadingFile(null);
+        setIsUploading(false);
+        
+        // Trigger animation
+        setIsAnimating(false);
+        setTimeout(() => setIsAnimating(true), 100);
+      } else {
+        throw new Error(result.message || 'Analysis failed');
+      }
+    } catch (error) {
+      console.error('Bank statement upload error:', error);
+      setUploadError(error.message || 'Failed to process bank statement. Please try again.');
+      setIsUploading(false);
+    }
+  };
+
+  const closeUploadModal = () => {
+    setShowUploadModal(false);
+    setUploadingFile(null);
+    setUploadError(null);
+    setIsUploading(false);
+  };
 
   // ============================================================
   // PROFESSIONAL P&L STATEMENT PDF EXPORT (Indian Standard - Schedule III)
@@ -1990,7 +2079,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                     <p>Upload a bank statement to see your P&L analysis and financial insights.</p>
                     <button 
                       className="primary-button"
-                      onClick={() => setActiveTab('bookkeeping')}
+                      onClick={() => setShowUploadModal(true)}
                     >
                       <Upload className="button-icon" />
                       Upload Bank Statement
@@ -2006,7 +2095,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                       <div className="header-actions">
                         <button 
                           className="secondary-button"
-                          onClick={() => setActiveTab('bookkeeping')}
+                          onClick={() => setShowUploadModal(true)}
                         >
                           <RefreshCw className="button-icon" />
                           Re-upload Statement
@@ -2663,11 +2752,6 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
             </>
           )}
 
-          {/* Additional tab content */}
-          {activeTab === 'bookkeeping' && (
-            <BookkeepingDashboard user={user} />
-          )}
-
           {activeTab === 'invoice' && (
             <InvoiceGeneration user={user} />
           )}
@@ -2687,7 +2771,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                   </div>
                   <h3>No Revenue Data Available</h3>
                   <p>Upload a bank statement to see your revenue breakdown</p>
-                  <button onClick={() => setActiveTab('bookkeeping')} className="upload-btn">
+                  <button onClick={() => setShowUploadModal(true)} className="upload-btn">
                     <Upload /> Upload Bank Statement
                   </button>
                 </div>
@@ -3361,7 +3445,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                   </div>
                   <h3>No Expense Data Available</h3>
                   <p>Upload a bank statement to see your expense breakdown</p>
-                  <button onClick={() => setActiveTab('bookkeeping')} className="upload-btn">
+                  <button onClick={() => setShowUploadModal(true)} className="upload-btn">
                     <Upload /> Upload Bank Statement
                   </button>
                 </div>
@@ -5069,6 +5153,166 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Statement Upload Modal */}
+      {showUploadModal && (
+        <div 
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={closeUploadModal}
+        >
+          <div 
+            className="upload-modal"
+            style={{
+              background: darkMode ? '#1e293b' : '#ffffff',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ margin: 0, color: darkMode ? '#f1f5f9' : '#1e293b', fontSize: '20px' }}>
+                Upload Bank Statement
+              </h2>
+              <button 
+                onClick={closeUploadModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  color: darkMode ? '#94a3b8' : '#64748b'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '24px', fontSize: '14px' }}>
+              Upload a new bank statement to update your financial analysis and P&L data.
+            </p>
+
+            {uploadError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#ef4444'
+              }}>
+                <AlertCircle size={18} />
+                <span style={{ fontSize: '14px' }}>{uploadError}</span>
+              </div>
+            )}
+
+            <label 
+              htmlFor="bank-statement-upload"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '40px 20px',
+                border: `2px dashed ${darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
+                borderRadius: '12px',
+                cursor: isUploading ? 'not-allowed' : 'pointer',
+                background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                transition: 'all 0.2s ease',
+                marginBottom: '20px',
+                opacity: isUploading ? 0.6 : 1
+              }}
+            >
+              <input
+                type="file"
+                id="bank-statement-upload"
+                accept=".pdf,.csv,.xlsx,.xls,.txt"
+                onChange={handleBankStatementUpload}
+                style={{ display: 'none' }}
+                disabled={isUploading}
+              />
+              
+              {isUploading ? (
+                <>
+                  <Loader2 size={40} className="animate-spin" style={{ color: '#3b82f6', marginBottom: '12px' }} />
+                  <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
+                    Processing {uploadingFile?.name}...
+                  </span>
+                  <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                    Analyzing your bank statement with AI
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload size={40} style={{ color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '12px' }} />
+                  <span style={{ color: darkMode ? '#e2e8f0' : '#334155', fontWeight: '500', marginBottom: '8px' }}>
+                    Drop your bank statement here
+                  </span>
+                  <span style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                    Or click to browse files
+                  </span>
+                </>
+              )}
+            </label>
+
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              marginBottom: '16px'
+            }}>
+              {['PDF', 'CSV', 'Excel', 'TXT'].map(format => (
+                <span 
+                  key={format}
+                  style={{
+                    padding: '4px 10px',
+                    background: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {format}
+                </span>
+              ))}
+            </div>
+
+            <p style={{ 
+              color: darkMode ? '#64748b' : '#94a3b8', 
+              fontSize: '12px', 
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}>
+              <Shield size={14} />
+              Your data is encrypted and processed securely
+            </p>
           </div>
         </div>
       )}
