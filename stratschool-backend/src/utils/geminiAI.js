@@ -26,18 +26,24 @@ class GeminiAIService {
       
       // Check if password is required
       if (parseResult.requiresPassword) {
-        throw new Error('PDF_REQUIRES_PASSWORD: This PDF is password-protected. Please use the password-protected document endpoints.');
+        const error = new Error('PASSWORD_REQUIRED');
+        error.passwordRequired = true;
+        throw error;
       }
       
       return parseResult.extractedText;
     } catch (error) {
       console.error('PDF parsing error:', error);
       
-      // If it's a password error, throw a specific error
-      if (error.message.includes('PDF_REQUIRES_PASSWORD') || 
+      // If it's a password error, throw a specific error that can be caught by the route
+      if (error.message.includes('PASSWORD_REQUIRED') || 
+          error.passwordRequired ||
           error.message.includes('password') || 
-          error.message.includes('No password given')) {
-        throw new Error('This PDF is password-protected. Please use the Bookkeeping tab and enter the password when prompted.');
+          error.message.includes('No password given') ||
+          error.message.includes('encrypted')) {
+        const passError = new Error('PASSWORD_REQUIRED');
+        passError.passwordRequired = true;
+        throw passError;
       }
       
       throw new Error('Failed to extract text from PDF');

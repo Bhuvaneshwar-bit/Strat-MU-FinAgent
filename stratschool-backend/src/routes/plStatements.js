@@ -71,28 +71,20 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
 
     let fileBuffer = req.file.buffer;
     
-    // Handle password-protected PDFs
-    if (req.file.mimetype === 'application/pdf') {
+    // Handle password-protected PDFs - ONLY if password is provided
+    // This preserves the original flow for non-password-protected PDFs
+    if (req.file.mimetype === 'application/pdf' && password) {
       try {
-        console.log('🔐 Checking if PDF is password protected...');
+        console.log('🔐 Password provided, processing protected PDF...');
         const pdfResult = await processPdf(
           req.file.buffer,
-          password || null,
+          password,
           req.file.originalname
         );
         fileBuffer = pdfResult.buffer;
-        console.log(`✅ PDF processed - was encrypted: ${pdfResult.wasEncrypted}`);
+        console.log(`✅ PDF decrypted successfully`);
       } catch (pdfError) {
         console.error('PDF processing error:', pdfError.message);
-        
-        if (pdfError.message.includes('PASSWORD_REQUIRED')) {
-          return res.status(400).json({
-            success: false,
-            error: 'PASSWORD_REQUIRED',
-            message: 'This PDF is password protected. Please provide the password.',
-            passwordRequired: true
-          });
-        }
         
         if (pdfError.message.includes('INCORRECT_PASSWORD')) {
           return res.status(400).json({
@@ -116,11 +108,25 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
 
     // Step 1: Analyze bank statement with Gemini AI
     console.log(`🤖 Starting AI analysis for user ${userId}...`);
-    let analysisData = await geminiAI.analyzeBankStatement(
-      fileData.buffer, 
-      fileData.mimeType, 
-      period
-    );
+    let analysisData;
+    try {
+      analysisData = await geminiAI.analyzeBankStatement(
+        fileData.buffer, 
+        fileData.mimeType, 
+        period
+      );
+    } catch (analysisError) {
+      // Check if password is required
+      if (analysisError.passwordRequired || analysisError.message === 'PASSWORD_REQUIRED') {
+        return res.status(400).json({
+          success: false,
+          error: 'PASSWORD_REQUIRED',
+          message: 'This PDF is password protected. Please provide the password.',
+          passwordRequired: true
+        });
+      }
+      throw analysisError;
+    }
 
     console.log(`✅ AI analysis completed successfully`);
 
