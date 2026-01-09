@@ -5,6 +5,7 @@ const PLStatement = require('../models/PLStatement');
 const CategoryRule = require('../models/CategoryRule');
 const authenticate = require('../middleware/auth');
 const geminiAI = require('../utils/geminiAI');
+const { processPdf } = require('../utils/aws/decryptPdf');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -37,7 +38,7 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
   console.log('📊 Period:', req.body.period);
   
   try {
-    const { period, businessInfo } = req.body;
+    const { period, businessInfo, password } = req.body;
     
     // Get userId from Authorization header if present
     let userId = 'anonymous-user';
@@ -61,18 +62,56 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
       });
     }
     
-    if (!period || !['Weekly', 'Monthly', 'Yearly'].includes(period)) {
+    if (!period || !['Weekly', 'Monthly', 'Yearly', 'weekly', 'monthly', 'yearly'].includes(period)) {
       return res.status(400).json({ 
         success: false,
         message: 'Valid period is required (Weekly, Monthly, or Yearly)' 
       });
+    }
+
+    let fileBuffer = req.file.buffer;
+    
+    // Handle password-protected PDFs
+    if (req.file.mimetype === 'application/pdf') {
+      try {
+        console.log('🔐 Checking if PDF is password protected...');
+        const pdfResult = await processPdf(
+          req.file.buffer,
+          password || null,
+          req.file.originalname
+        );
+        fileBuffer = pdfResult.buffer;
+        console.log(`✅ PDF processed - was encrypted: ${pdfResult.wasEncrypted}`);
+      } catch (pdfError) {
+        console.error('PDF processing error:', pdfError.message);
+        
+        if (pdfError.message.includes('PASSWORD_REQUIRED')) {
+          return res.status(400).json({
+            success: false,
+            error: 'PASSWORD_REQUIRED',
+            message: 'This PDF is password protected. Please provide the password.',
+            passwordRequired: true
+          });
+        }
+        
+        if (pdfError.message.includes('INCORRECT_PASSWORD')) {
+          return res.status(400).json({
+            success: false,
+            error: 'INCORRECT_PASSWORD',
+            message: 'The provided password is incorrect',
+            passwordRequired: true
+          });
+        }
+        
+        throw pdfError;
+      }
     }
     
     const fileData = {
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      buffer: req.file.buffer
+      buffer: fileBuffer
     };
 
     // Step 1: Analyze bank statement with Gemini AI
