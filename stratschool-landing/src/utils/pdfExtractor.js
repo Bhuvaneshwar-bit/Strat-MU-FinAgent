@@ -6,8 +6,12 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set the worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Use the bundled worker from node_modules (works with Vite)
+// This avoids CSP issues with external CDN workers
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 /**
  * Extract text from a PDF file (handles password-protected PDFs)
