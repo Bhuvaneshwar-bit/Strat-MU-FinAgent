@@ -103,6 +103,9 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
       console.log(`✅ PDF processed successfully`);
       console.log(`   Was encrypted: ${pdfResult.wasEncrypted}`);
       console.log(`   Buffer size: ${(pdfResult.buffer.length / 1024).toFixed(2)} KB`);
+      if (pdfResult.extractedText) {
+        console.log(`   Pre-extracted text: ${pdfResult.extractedText.length} characters`);
+      }
       
     } catch (error) {
       console.error(`❌ PDF processing failed: ${error.message}`);
@@ -128,20 +131,39 @@ router.post('/bank-statement', optionalAuth, upload.single('pdf'), async (req, r
       throw error;
     }
     
-    // Step 2: Process with AWS Textract (Direct buffer upload - NO S3!)
-    console.log('\n🔍 STEP 2: AWS Textract Analysis...');
+    // Step 2: Process with AWS Textract OR use pre-extracted text
+    console.log('\n🔍 STEP 2: Document Analysis...');
     console.log('-'.repeat(60));
     let textractData;
     try {
-      textractData = await analyzeDocumentFromBufferComplete(pdfResult.buffer);
+      // If we have pre-extracted text from password-protected PDF, use Gemini directly
+      if (pdfResult.extractedText && pdfResult.extractedText.length > 100) {
+        console.log('📝 Using pre-extracted text from password-protected PDF...');
+        const { analyzePreExtractedText } = require('../utils/aws/textractHandler');
+        textractData = await analyzePreExtractedText(pdfResult.extractedText);
+        
+        if (textractData && textractData.parsedTransactions?.length > 0) {
+          console.log(`✅ Pre-extracted text analysis completed`);
+          console.log(`   Source: ${textractData.source}`);
+          console.log(`   Transactions found: ${textractData.parsedTransactions.length}`);
+        } else {
+          console.log('⚠️ Pre-extracted text parsing failed, falling back to Textract...');
+          textractData = await analyzeDocumentFromBufferComplete(pdfResult.buffer);
+        }
+      } else {
+        // Normal flow: Use Textract
+        console.log('🔍 Using AWS Textract for analysis...');
+        textractData = await analyzeDocumentFromBufferComplete(pdfResult.buffer);
+      }
       
-      console.log(`✅ Textract analysis completed`);
+      console.log(`✅ Document analysis completed`);
+      console.log(`   Source: ${textractData.source || 'textract'}`);
       console.log(`   Text blocks: ${textractData.text?.length || 0}`);
       console.log(`   Key-value pairs: ${textractData.keyValuePairs?.length || 0}`);
       console.log(`   Tables found: ${textractData.tables?.length || 0}`);
       
     } catch (error) {
-      console.error(`❌ Textract analysis failed: ${error.message}`);
+      console.error(`❌ Document analysis failed: ${error.message}`);
       throw error;
     }
     

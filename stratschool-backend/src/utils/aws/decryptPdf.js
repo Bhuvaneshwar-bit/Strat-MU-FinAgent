@@ -42,31 +42,51 @@ async function isPdfPasswordProtected(pdfBuffer) {
 }
 
 /**
- * Decrypt a password-protected PDF
+ * Decrypt a password-protected PDF and extract text
  * @param {Buffer} pdfBuffer - The encrypted PDF buffer
  * @param {string} password - The password to decrypt the PDF
- * @returns {Promise<Buffer>} - Decrypted PDF buffer
+ * @returns {Promise<{buffer: Buffer, extractedText: string|null}>} - Decrypted PDF buffer and extracted text
  */
 async function decryptPdf(pdfBuffer, password) {
   try {
-    console.log('🔓 Starting PDF decryption...');
+    console.log('🔓 Starting PDF decryption with password...');
     
-    // Load the encrypted PDF with the password
-    const pdfDoc = await PDFDocument.load(pdfBuffer, { 
-      password: password,
-      ignoreEncryption: false 
-    });
+    let extractedText = null;
     
-    // Save as a new, unencrypted PDF
-    const decryptedPdfBytes = await pdfDoc.save();
+    // Method 1: Try pdf-parse with password to extract text directly
+    // This is the most reliable method for password-protected PDFs
+    try {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(pdfBuffer, { password: password });
+      extractedText = data.text;
+      console.log(`✅ pdf-parse extracted ${extractedText.length} characters with password`);
+    } catch (parseError) {
+      console.log('⚠️ pdf-parse with password failed:', parseError.message);
+    }
     
-    console.log('✅ PDF successfully decrypted');
-    return Buffer.from(decryptedPdfBytes);
+    // Method 2: Try pdf-lib to create an unencrypted buffer (for Textract fallback)
+    let decryptedBuffer = pdfBuffer; // Default to original
+    try {
+      const pdfDoc = await PDFDocument.load(pdfBuffer, { 
+        password: password,
+        ignoreEncryption: false 
+      });
+      const decryptedPdfBytes = await pdfDoc.save();
+      decryptedBuffer = Buffer.from(decryptedPdfBytes);
+      console.log('✅ PDF buffer decrypted with pdf-lib');
+    } catch (pdfLibError) {
+      console.log('⚠️ pdf-lib decryption failed, will use extracted text:', pdfLibError.message);
+      // If pdf-lib fails but we have extracted text, that's still okay
+    }
+    
+    return {
+      buffer: decryptedBuffer,
+      extractedText: extractedText
+    };
     
   } catch (error) {
     console.error('❌ PDF decryption failed:', error.message);
     
-    // Provide specific error messages
     if (error.message.includes('password') || error.message.includes('Incorrect')) {
       throw new Error('INCORRECT_PASSWORD: The provided password is incorrect');
     }
@@ -137,7 +157,7 @@ async function deleteTempFile(filePath) {
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @param {string} password - Password (optional if not protected)
  * @param {string} originalFilename - Original filename
- * @returns {Promise<{buffer: Buffer, tempPath: string, wasEncrypted: boolean}>}
+ * @returns {Promise<{buffer: Buffer, tempPath: string, wasEncrypted: boolean, extractedText: string|null}>}
  */
 async function processPdf(pdfBuffer, password, originalFilename) {
   try {
@@ -146,6 +166,7 @@ async function processPdf(pdfBuffer, password, originalFilename) {
     // Check if PDF is password protected
     const { isProtected, canBypass } = await isPdfPasswordProtected(pdfBuffer);
     
+    // CASE 1: Truly password protected (requires user password to open)
     if (isProtected) {
       console.log('🔒 PDF is password protected (requires user password)');
       
@@ -153,57 +174,106 @@ async function processPdf(pdfBuffer, password, originalFilename) {
         throw new Error('PASSWORD_REQUIRED: This PDF is password protected but no password was provided');
       }
       
-      // Decrypt the PDF
-      const decryptedBuffer = await decryptPdf(pdfBuffer, password);
+      // Decrypt the PDF and extract text
+      const decryptResult = await decryptPdf(pdfBuffer, password);
       
       // Save to temp file
-      const tempPath = await saveDecryptedPdfToTemp(decryptedBuffer, originalFilename);
+      const tempPath = await saveDecryptedPdfToTemp(decryptResult.buffer, originalFilename);
       
       return {
-        buffer: decryptedBuffer,
+        buffer: decryptResult.buffer,
         tempPath: tempPath,
-        wasEncrypted: true
+        wasEncrypted: true,
+        extractedText: decryptResult.extractedText // Pass extracted text for Gemini parsing
       };
-    } else {
-      // PDF is either unprotected OR has only owner-password (can bypass)
-      if (canBypass) {
-        console.log('🔓 PDF has edit restrictions but is viewable - bypassing encryption');
-        // Load with ignoreEncryption and save as unencrypted
+    }
+    
+    // CASE 2: Has owner password (edit restrictions) but user provided a password anyway
+    // This is the bank statement case - try to use password for extraction
+    if (canBypass && password) {
+      console.log('🔓 PDF has owner password - user provided password, extracting with password...');
+      
+      let extractedText = null;
+      
+      // Try pdf-parse with the provided password
+      try {
+        const pdfParse = require('pdf-parse');
+        const data = await pdfParse(pdfBuffer, { password: password });
+        extractedText = data.text;
+        console.log(`✅ Extracted ${extractedText.length} characters using provided password`);
+      } catch (parseError) {
+        console.log('⚠️ pdf-parse with password failed, trying without password...');
+        // Try without password (owner password PDFs can sometimes be read without user password)
         try {
-          const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-          const unlockedBytes = await pdfDoc.save();
-          const unlockedBuffer = Buffer.from(unlockedBytes);
-          
-          const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
-          
-          return {
-            buffer: unlockedBuffer,
-            tempPath: tempPath,
-            wasEncrypted: false // Treat as not encrypted since no password was needed
-          };
-        } catch (bypassError) {
-          console.warn('⚠️ Bypass failed, using original buffer:', bypassError.message);
-          // Fallback to original buffer
-          const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
-          return {
-            buffer: pdfBuffer,
-            tempPath: tempPath,
-            wasEncrypted: false
-          };
+          const pdfParse = require('pdf-parse');
+          const data = await pdfParse(pdfBuffer);
+          extractedText = data.text;
+          console.log(`✅ Extracted ${extractedText.length} characters without password`);
+        } catch (noPassError) {
+          console.log('⚠️ pdf-parse without password also failed:', noPassError.message);
         }
-      } else {
-        console.log('🔓 PDF is not password protected');
+      }
+      
+      // Create unencrypted buffer for Textract fallback
+      let unlockedBuffer = pdfBuffer;
+      try {
+        const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+        const unlockedBytes = await pdfDoc.save();
+        unlockedBuffer = Buffer.from(unlockedBytes);
+      } catch (bypassError) {
+        console.warn('⚠️ pdf-lib bypass failed:', bypassError.message);
+      }
+      
+      const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
+      
+      return {
+        buffer: unlockedBuffer,
+        tempPath: tempPath,
+        wasEncrypted: false,
+        extractedText: extractedText // Pass extracted text for Gemini parsing
+      };
+    }
+    
+    // CASE 3: Has owner password (edit restrictions) but NO password provided
+    if (canBypass) {
+      console.log('🔓 PDF has edit restrictions but is viewable - bypassing encryption');
+      
+      try {
+        const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+        const unlockedBytes = await pdfDoc.save();
+        const unlockedBuffer = Buffer.from(unlockedBytes);
         
-        // Save to temp file anyway for uniform processing
+        const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
+        
+        return {
+          buffer: unlockedBuffer,
+          tempPath: tempPath,
+          wasEncrypted: false,
+          extractedText: null
+        };
+      } catch (bypassError) {
+        console.warn('⚠️ Bypass failed, using original buffer:', bypassError.message);
         const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
-        
         return {
           buffer: pdfBuffer,
           tempPath: tempPath,
-          wasEncrypted: false
+          wasEncrypted: false,
+          extractedText: null
         };
       }
     }
+    
+    // CASE 4: Not password protected at all
+    console.log('🔓 PDF is not password protected');
+    
+    const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
+    
+    return {
+      buffer: pdfBuffer,
+      tempPath: tempPath,
+      wasEncrypted: false,
+      extractedText: null // No extracted text, use Textract normally
+    };
     
   } catch (error) {
     console.error('❌ PDF processing failed:', error.message);

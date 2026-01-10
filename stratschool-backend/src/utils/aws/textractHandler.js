@@ -213,6 +213,56 @@ Return ONLY the JSON object, nothing else.`;
 }
 
 /**
+ * Process pre-extracted text from password-protected PDF using Gemini
+ * This is used when pdf-parse successfully extracts text using the password
+ * @param {string} extractedText - Raw text extracted from PDF using password
+ * @returns {Promise<Object>} - Structured data compatible with the rest of the pipeline
+ */
+async function analyzePreExtractedText(extractedText) {
+  try {
+    console.log('📝 Processing pre-extracted text from password-protected PDF...');
+    console.log(`   Text length: ${extractedText.length} characters`);
+    
+    if (!extractedText || extractedText.length < 50) {
+      console.log('⚠️ Pre-extracted text is too short, skipping...');
+      return null;
+    }
+    
+    // Use Gemini to parse the extracted text
+    const geminiResult = await parseTransactionsWithGemini(extractedText);
+    
+    if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
+      console.log(`✅ Gemini parsed ${geminiResult.transactions.length} transactions from pre-extracted text`);
+      
+      return {
+        text: [],
+        keyValuePairs: [],
+        tables: [],
+        rawText: extractedText,
+        pageCount: 0,
+        source: 'password-protected-pdf-parse',
+        geminiParsed: geminiResult,
+        parsedTransactions: geminiResult.transactions.map(tx => ({
+          date: tx.date,
+          description: tx.description,
+          debit: tx.type === 'debit' ? tx.amount : 0,
+          credit: tx.type === 'credit' ? tx.amount : 0,
+          balance: tx.balance || 0
+        })),
+        summary: geminiResult.summary
+      };
+    }
+    
+    console.log('⚠️ Gemini could not parse transactions from pre-extracted text');
+    return null;
+    
+  } catch (error) {
+    console.error('❌ Pre-extracted text processing failed:', error.message);
+    return null;
+  }
+}
+
+/**
  * Parse bank statement PDF directly using Gemini 2.5 Pro Vision
  * Used when pdf-parse fails to extract text from corrupted/encoded PDFs
  * @param {Buffer} pdfBuffer - PDF file buffer
@@ -969,6 +1019,7 @@ module.exports = {
   analyzeDocumentFromBuffer,
   analyzeDocumentFromBufferComplete,
   analyzeMultiPagePdfFromBuffer,
+  analyzePreExtractedText,
   splitPdfPages,
   startDocumentAnalysis,
   getDocumentAnalysis,
