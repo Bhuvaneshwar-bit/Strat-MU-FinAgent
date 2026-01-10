@@ -19,6 +19,20 @@ class GeminiAIService {
     }
   }
 
+  /**
+   * Direct generateContent wrapper for external use
+   */
+  async generateContent(prompt) {
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('🚨 Gemini generateContent error:', error);
+      throw error;
+    }
+  }
+
   async extractTextFromPDF(buffer) {
     try {
       // Use advanced document parser to handle password-protected PDFs
@@ -806,8 +820,12 @@ Create JSON response with EXACT calculations:
   }
 }
 
-CRITICAL: Calculate profit margin as (netIncome ÷ totalRevenue) × 100 with 2 decimal precision.
-Return ONLY valid JSON with real numbers and insights.`;
+CRITICAL RULES:
+1. Calculate profit margin as (netIncome ÷ totalRevenue) × 100 with 2 decimal precision.
+2. Return ONLY valid JSON - no markdown, no code blocks, no explanations.
+3. Ensure ALL strings are properly escaped and terminated.
+4. Keep insight strings SHORT (under 200 characters each).
+5. Use actual numbers, not placeholders.`;
 
       console.log('🤖 Sending extracted text to Gemini AI...');
       const result = await this.model.generateContent(prompt);
@@ -818,7 +836,13 @@ Return ONLY valid JSON with real numbers and insights.`;
       console.log(`📊 Response length: ${text.length} characters`);
 
       // Clean and parse JSON response
-      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Fix common JSON issues
+      cleanedText = cleanedText
+        .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' '); // Remove control characters
       
       try {
         const analysisData = JSON.parse(cleanedText);
@@ -830,12 +854,50 @@ Return ONLY valid JSON with real numbers and insights.`;
         // Try to extract JSON from the response
         const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const analysisData = JSON.parse(jsonMatch[0]);
-          console.log('✅ Extracted JSON from response');
-          return analysisData;
+          try {
+            // Try to fix truncated JSON by adding closing braces
+            let jsonStr = jsonMatch[0];
+            const openBraces = (jsonStr.match(/\{/g) || []).length;
+            const closeBraces = (jsonStr.match(/\}/g) || []).length;
+            const openBrackets = (jsonStr.match(/\[/g) || []).length;
+            const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+            
+            // Add missing closing brackets/braces
+            for (let i = 0; i < openBrackets - closeBrackets; i++) jsonStr += ']';
+            for (let i = 0; i < openBraces - closeBraces; i++) jsonStr += '}';
+            
+            const analysisData = JSON.parse(jsonStr);
+            console.log('✅ Fixed and extracted JSON from response');
+            return analysisData;
+          } catch (e) {
+            console.error('❌ Failed to fix JSON:', e);
+          }
         }
         
-        throw new Error('Failed to parse AI response as JSON');
+        // Return fallback response instead of throwing
+        console.log('⚠️ Returning fallback analysis data');
+        return {
+          analysis: {
+            period: period,
+            totalRevenue: 0,
+            totalExpenses: 0,
+            netIncome: 0,
+            transactionCount: 0
+          },
+          transactions: [],
+          revenue: [],
+          expenses: [],
+          insights: [
+            "Unable to fully parse bank statement. Please try uploading again or use a different format.",
+            "Tip: CSV or Excel formats often work better than password-protected PDFs.",
+            "If issues persist, try exporting your statement in a simpler format."
+          ],
+          profitLossStatement: {
+            revenue: { totalRevenue: 0, breakdown: {} },
+            expenses: { totalExpenses: 0, breakdown: {} },
+            profitability: { netIncome: 0, profitMargin: 0 }
+          }
+        };
       }
 
     } catch (error) {
