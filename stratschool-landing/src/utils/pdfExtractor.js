@@ -66,6 +66,12 @@ export async function extractTextFromPDF(file, password = null) {
     }
 
     console.log(`✅ Total extracted: ${fullText.length} characters from ${pdf.numPages} pages`);
+    
+    // Log sample of extracted text for debugging
+    console.log('📝 Sample of extracted text (first 500 chars):');
+    console.log('---START---');
+    console.log(fullText.substring(0, 500));
+    console.log('---END---');
 
     return {
       success: true,
