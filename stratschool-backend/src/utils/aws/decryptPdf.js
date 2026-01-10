@@ -1,155 +1,197 @@
 /**
- * PDF Decryption Utility
- * Handles password-protected PDFs and converts them to unlocked temporary files
+ * PDF Decryption Utility - QPDF Edition
+ * Uses QPDF command-line tool for reliable PDF decryption
+ * Handles password-protected PDFs (both user and owner passwords)
  * 
  * @module decryptPdf
  */
 
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
-const { execSync } = require('child_process');
+const { execSync, exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
+
+// Temp directory for PDF operations
+const TEMP_DIR = path.join(__dirname, '../../../temp');
 
 /**
- * Check if a PDF is password protected (requires user password to open)
- * Note: PDFs with only "owner password" (edit restrictions) are NOT considered password protected
- * @param {Buffer} pdfBuffer - The PDF file buffer
- * @returns {Promise<{isProtected: boolean, canBypass: boolean}>} - Protection status
+ * Ensure temp directory exists
  */
-async function isPdfPasswordProtected(pdfBuffer) {
+async function ensureTempDir() {
   try {
-    // First try: Load WITHOUT ignoring encryption - strict check
+    await fs.mkdir(TEMP_DIR, { recursive: true });
+  } catch (error) {
+    // Directory exists
+  }
+}
+
+/**
+ * Generate unique temp file path
+ */
+function getTempFilePath(prefix = 'pdf') {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 8);
+  return path.join(TEMP_DIR, `${prefix}_${timestamp}_${randomId}.pdf`);
+}
+
+/**
+ * Check if QPDF is available on the system
+ */
+async function isQpdfAvailable() {
+  try {
+    execSync('qpdf --version', { stdio: 'pipe' });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Check PDF encryption status using QPDF
+ * More reliable than pdf-lib for detecting encryption types
+ */
+async function checkPdfEncryption(pdfPath) {
+  try {
+    const result = execSync(`qpdf --show-encryption "${pdfPath}" 2>&1`, { 
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    const output = result.toLowerCase();
+    
+    if (output.includes('not encrypted')) {
+      return { encrypted: false, type: null };
+    }
+    
+    // Check for user password requirement
+    if (output.includes('user password') && !output.includes('user password =')) {
+      return { encrypted: true, type: 'user', needsPassword: true };
+    }
+    
+    // Owner password only (restrictions but viewable)
+    if (output.includes('owner password')) {
+      return { encrypted: true, type: 'owner', needsPassword: false };
+    }
+    
+    return { encrypted: true, type: 'unknown', needsPassword: true };
+    
+  } catch (error) {
+    // QPDF returns error for encrypted files that need password
+    if (error.message && error.message.includes('password')) {
+      return { encrypted: true, type: 'user', needsPassword: true };
+    }
+    return { encrypted: false, type: null };
+  }
+}
+
+/**
+ * Decrypt PDF using QPDF command-line tool
+ * This properly preserves fonts and all content
+ */
+async function decryptWithQpdf(inputPath, outputPath, password = null) {
+  try {
+    let command;
+    
+    if (password) {
+      // With password - handles both user and owner passwords
+      command = `qpdf --password="${password}" --decrypt "${inputPath}" "${outputPath}"`;
+    } else {
+      // Without password - strips owner password restrictions
+      command = `qpdf --decrypt "${inputPath}" "${outputPath}"`;
+    }
+    
+    console.log('🔧 Running QPDF decryption...');
+    
+    const { stdout, stderr } = await execAsync(command);
+    
+    if (stderr && !stderr.includes('warning')) {
+      console.warn('⚠️ QPDF stderr:', stderr);
+    }
+    
+    // Verify output file exists and has content
+    const stats = await fs.stat(outputPath);
+    if (stats.size < 100) {
+      throw new Error('QPDF produced empty or invalid output');
+    }
+    
+    console.log(`✅ QPDF decryption successful. Output size: ${(stats.size / 1024).toFixed(2)} KB`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ QPDF decryption failed:', error.message);
+    
+    // Check for specific error types
+    if (error.message.includes('invalid password')) {
+      throw new Error('INCORRECT_PASSWORD: The provided password is incorrect');
+    }
+    
+    if (error.message.includes('password')) {
+      throw new Error('PASSWORD_REQUIRED: This PDF requires a password');
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Fallback: Check if PDF is password protected using pdf-lib
+ */
+async function isPdfPasswordProtectedFallback(pdfBuffer) {
+  try {
     await PDFDocument.load(pdfBuffer, { ignoreEncryption: false });
     return { isProtected: false, canBypass: false };
   } catch (strictError) {
-    // If strict loading fails, try with ignoreEncryption: true
-    // This handles PDFs with "owner password" only (edit restrictions, but viewable)
     try {
       await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-      console.log('🔓 PDF has owner password (edit restrictions) but can be read without user password');
       return { isProtected: false, canBypass: true };
     } catch (bypassError) {
-      // Even ignoring encryption failed - this is truly password protected
       if (strictError.message.includes('encrypted') || 
-          strictError.message.includes('password') ||
-          strictError.message.includes('Encrypted')) {
+          strictError.message.includes('password')) {
         return { isProtected: true, canBypass: false };
       }
-      // Re-throw if it's a different error (corrupt PDF, etc.)
       throw strictError;
     }
   }
 }
 
 /**
- * Decrypt a password-protected PDF and extract text
- * @param {Buffer} pdfBuffer - The encrypted PDF buffer
- * @param {string} password - The password to decrypt the PDF
- * @returns {Promise<{buffer: Buffer, extractedText: string|null}>} - Decrypted PDF buffer and extracted text
+ * Check if a PDF is password protected
  */
-async function decryptPdf(pdfBuffer, password) {
-  try {
-    console.log('🔓 Starting PDF decryption with password...');
-    
-    let extractedText = null;
-    
-    // Method 1: Try pdf-parse with password to extract text directly
-    // This is the most reliable method for password-protected PDFs
-    try {
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(pdfBuffer, { password: password });
-      extractedText = data.text;
-      console.log(`✅ pdf-parse extracted ${extractedText.length} characters with password`);
-    } catch (parseError) {
-      console.log('⚠️ pdf-parse with password failed:', parseError.message);
-    }
-    
-    // Method 2: Try pdf-lib to create an unencrypted buffer (for Textract fallback)
-    let decryptedBuffer = pdfBuffer; // Default to original
-    try {
-      const pdfDoc = await PDFDocument.load(pdfBuffer, { 
-        password: password,
-        ignoreEncryption: false 
-      });
-      const decryptedPdfBytes = await pdfDoc.save();
-      decryptedBuffer = Buffer.from(decryptedPdfBytes);
-      console.log('✅ PDF buffer decrypted with pdf-lib');
-    } catch (pdfLibError) {
-      console.log('⚠️ pdf-lib decryption failed, will use extracted text:', pdfLibError.message);
-      // If pdf-lib fails but we have extracted text, that's still okay
-    }
-    
-    return {
-      buffer: decryptedBuffer,
-      extractedText: extractedText
-    };
-    
-  } catch (error) {
-    console.error('❌ PDF decryption failed:', error.message);
-    
-    if (error.message.includes('password') || error.message.includes('Incorrect')) {
-      throw new Error('INCORRECT_PASSWORD: The provided password is incorrect');
-    }
-    
-    throw new Error(`PDF_DECRYPTION_ERROR: ${error.message}`);
-  }
-}
-
-/**
- * Create a temporary file path for unlocked PDF
- * @param {string} originalFilename - Original file name
- * @returns {string} - Temporary file path
- */
-function getTempFilePath(originalFilename) {
-  const timestamp = Date.now();
-  const randomId = Math.random().toString(36).substring(7);
-  const basename = path.basename(originalFilename, '.pdf');
-  const tempDir = path.join(__dirname, '../../../temp');
+async function isPdfPasswordProtected(pdfBuffer) {
+  await ensureTempDir();
   
-  return path.join(tempDir, `${basename}_unlocked_${timestamp}_${randomId}.pdf`);
-}
-
-/**
- * Save decrypted PDF to temporary file
- * @param {Buffer} pdfBuffer - Decrypted PDF buffer
- * @param {string} originalFilename - Original filename
- * @returns {Promise<string>} - Path to temporary file
- */
-async function saveDecryptedPdfToTemp(pdfBuffer, originalFilename) {
-  try {
-    const tempFilePath = getTempFilePath(originalFilename);
-    
-    // Ensure temp directory exists
-    const tempDir = path.dirname(tempFilePath);
-    await fs.mkdir(tempDir, { recursive: true });
-    
-    // Write the decrypted PDF to temp file
-    await fs.writeFile(tempFilePath, pdfBuffer);
-    
-    console.log(`💾 Decrypted PDF saved to: ${tempFilePath}`);
-    return tempFilePath;
-    
-  } catch (error) {
-    console.error('❌ Failed to save decrypted PDF:', error.message);
-    throw new Error(`TEMP_FILE_ERROR: ${error.message}`);
-  }
-}
-
-/**
- * Delete temporary file
- * @param {string} filePath - Path to file to delete
- * @returns {Promise<void>}
- */
-async function deleteTempFile(filePath) {
-  try {
-    await fs.unlink(filePath);
-    console.log(`🗑️  Temporary file deleted: ${filePath}`);
-  } catch (error) {
-    // Don't throw error if file doesn't exist
-    if (error.code !== 'ENOENT') {
-      console.warn(`⚠️  Failed to delete temp file ${filePath}:`, error.message);
+  // Check if QPDF is available
+  const qpdfAvailable = await isQpdfAvailable();
+  
+  if (qpdfAvailable) {
+    // Use QPDF for accurate detection
+    const tempInput = getTempFilePath('check_input');
+    try {
+      await fs.writeFile(tempInput, pdfBuffer);
+      const encStatus = await checkPdfEncryption(tempInput);
+      await fs.unlink(tempInput).catch(() => {});
+      
+      if (!encStatus.encrypted) {
+        return { isProtected: false, canBypass: false };
+      }
+      
+      if (encStatus.type === 'owner' && !encStatus.needsPassword) {
+        return { isProtected: false, canBypass: true };
+      }
+      
+      return { isProtected: true, canBypass: false };
+      
+    } catch (error) {
+      await fs.unlink(tempInput).catch(() => {});
+      console.warn('⚠️ QPDF check failed, using fallback:', error.message);
     }
   }
+  
+  // Fallback to pdf-lib
+  return isPdfPasswordProtectedFallback(pdfBuffer);
 }
 
 /**
@@ -160,132 +202,193 @@ async function deleteTempFile(filePath) {
  * @returns {Promise<{buffer: Buffer, tempPath: string, wasEncrypted: boolean, extractedText: string|null}>}
  */
 async function processPdf(pdfBuffer, password, originalFilename) {
+  await ensureTempDir();
+  
+  console.log('📄 Processing PDF:', originalFilename);
+  console.log(`   Buffer size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
+  console.log(`   Password provided: ${password ? 'Yes' : 'No'}`);
+  
+  const qpdfAvailable = await isQpdfAvailable();
+  console.log(`   QPDF available: ${qpdfAvailable ? 'Yes ✅' : 'No ❌'}`);
+  
+  // Generate temp file paths
+  const tempInput = getTempFilePath('input');
+  const tempOutput = getTempFilePath('output');
+  
   try {
-    console.log('📄 Processing PDF:', originalFilename);
+    // Write input PDF to temp file
+    await fs.writeFile(tempInput, pdfBuffer);
     
-    // Check if PDF is password protected
+    // Check encryption status
     const { isProtected, canBypass } = await isPdfPasswordProtected(pdfBuffer);
+    console.log(`   Is protected: ${isProtected}, Can bypass: ${canBypass}`);
     
-    // CASE 1: Truly password protected (requires user password to open)
-    if (isProtected) {
-      console.log('🔒 PDF is password protected (requires user password)');
-      
-      if (!password) {
-        throw new Error('PASSWORD_REQUIRED: This PDF is password protected but no password was provided');
-      }
-      
-      // Decrypt the PDF and extract text
-      const decryptResult = await decryptPdf(pdfBuffer, password);
-      
-      // Save to temp file
-      const tempPath = await saveDecryptedPdfToTemp(decryptResult.buffer, originalFilename);
-      
+    // CASE 1: Not encrypted at all
+    if (!isProtected && !canBypass) {
+      console.log('🔓 PDF is not password protected');
       return {
-        buffer: decryptResult.buffer,
-        tempPath: tempPath,
-        wasEncrypted: true,
-        extractedText: decryptResult.extractedText // Pass extracted text for Gemini parsing
+        buffer: pdfBuffer,
+        tempPath: tempInput,
+        wasEncrypted: false,
+        extractedText: null
       };
     }
     
-    // CASE 2: Has owner password (edit restrictions) but user provided a password anyway
-    // This is the bank statement case - try to use password for extraction
-    if (canBypass && password) {
-      console.log('🔓 PDF has owner password - user provided password, extracting with password...');
+    // CASE 2: Use QPDF for decryption (preferred method)
+    if (qpdfAvailable) {
+      console.log('🔧 Using QPDF for decryption...');
       
-      let extractedText = null;
-      
-      // Try pdf-parse with the provided password
       try {
-        const pdfParse = require('pdf-parse');
-        const data = await pdfParse(pdfBuffer, { password: password });
-        extractedText = data.text;
-        console.log(`✅ Extracted ${extractedText.length} characters using provided password`);
-      } catch (parseError) {
-        console.log('⚠️ pdf-parse with password failed, trying without password...');
-        // Try without password (owner password PDFs can sometimes be read without user password)
+        // If protected and no password provided
+        if (isProtected && !password) {
+          throw new Error('PASSWORD_REQUIRED: This PDF is password protected but no password was provided');
+        }
+        
+        // Decrypt with QPDF
+        await decryptWithQpdf(tempInput, tempOutput, password);
+        
+        // Read the decrypted PDF
+        const decryptedBuffer = await fs.readFile(tempOutput);
+        
+        // Extract text from decrypted PDF using pdf-parse
+        let extractedText = null;
         try {
           const pdfParse = require('pdf-parse');
-          const data = await pdfParse(pdfBuffer);
+          const data = await pdfParse(decryptedBuffer);
           extractedText = data.text;
-          console.log(`✅ Extracted ${extractedText.length} characters without password`);
-        } catch (noPassError) {
-          console.log('⚠️ pdf-parse without password also failed:', noPassError.message);
+          console.log(`✅ Extracted ${extractedText.length} characters from decrypted PDF`);
+        } catch (parseError) {
+          console.warn('⚠️ pdf-parse on decrypted PDF failed:', parseError.message);
         }
+        
+        // Cleanup input temp file
+        await fs.unlink(tempInput).catch(() => {});
+        
+        return {
+          buffer: decryptedBuffer,
+          tempPath: tempOutput,
+          wasEncrypted: isProtected || canBypass,
+          extractedText: extractedText
+        };
+        
+      } catch (qpdfError) {
+        // Clean up temp files
+        await fs.unlink(tempInput).catch(() => {});
+        await fs.unlink(tempOutput).catch(() => {});
+        
+        // Re-throw password errors
+        if (qpdfError.message.includes('PASSWORD_REQUIRED') || 
+            qpdfError.message.includes('INCORRECT_PASSWORD')) {
+          throw qpdfError;
+        }
+        
+        console.warn('⚠️ QPDF failed, trying fallback method:', qpdfError.message);
       }
+    }
+    
+    // CASE 3: Fallback - pdf-lib method (less reliable but works for some PDFs)
+    console.log('🔄 Using pdf-lib fallback method...');
+    
+    if (isProtected && !password) {
+      throw new Error('PASSWORD_REQUIRED: This PDF is password protected but no password was provided');
+    }
+    
+    try {
+      // Try to load with password
+      const loadOptions = password 
+        ? { password: password, ignoreEncryption: false }
+        : { ignoreEncryption: true };
       
-      // Create unencrypted buffer for Textract fallback
-      let unlockedBuffer = pdfBuffer;
+      const pdfDoc = await PDFDocument.load(pdfBuffer, loadOptions);
+      
+      // Create a new unencrypted PDF by copying pages
+      const newDoc = await PDFDocument.create();
+      const pageCount = pdfDoc.getPageCount();
+      console.log(`📄 Copying ${pageCount} pages to new unencrypted PDF...`);
+      
+      const pages = await newDoc.copyPages(pdfDoc, Array.from({ length: pageCount }, (_, i) => i));
+      pages.forEach(page => newDoc.addPage(page));
+      
+      const unencryptedBytes = await newDoc.save();
+      const unencryptedBuffer = Buffer.from(unencryptedBytes);
+      
+      console.log(`✅ Created unencrypted PDF: ${(unencryptedBuffer.length / 1024).toFixed(2)} KB`);
+      
+      // Save to temp file
+      await fs.writeFile(tempOutput, unencryptedBuffer);
+      await fs.unlink(tempInput).catch(() => {});
+      
+      // Try to extract text
+      let extractedText = null;
       try {
-        const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-        const unlockedBytes = await pdfDoc.save();
-        unlockedBuffer = Buffer.from(unlockedBytes);
-      } catch (bypassError) {
-        console.warn('⚠️ pdf-lib bypass failed:', bypassError.message);
+        const pdfParse = require('pdf-parse');
+        const data = await pdfParse(unencryptedBuffer);
+        extractedText = data.text;
+        console.log(`✅ Extracted ${extractedText.length} characters`);
+      } catch (parseError) {
+        console.warn('⚠️ Text extraction failed:', parseError.message);
       }
-      
-      const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
       
       return {
-        buffer: unlockedBuffer,
-        tempPath: tempPath,
-        wasEncrypted: false,
-        extractedText: extractedText // Pass extracted text for Gemini parsing
+        buffer: unencryptedBuffer,
+        tempPath: tempOutput,
+        wasEncrypted: true,
+        extractedText: extractedText
       };
-    }
-    
-    // CASE 3: Has owner password (edit restrictions) but NO password provided
-    if (canBypass) {
-      console.log('🔓 PDF has edit restrictions but is viewable - bypassing encryption');
       
-      try {
-        const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-        const unlockedBytes = await pdfDoc.save();
-        const unlockedBuffer = Buffer.from(unlockedBytes);
-        
-        const tempPath = await saveDecryptedPdfToTemp(unlockedBuffer, originalFilename);
-        
-        return {
-          buffer: unlockedBuffer,
-          tempPath: tempPath,
-          wasEncrypted: false,
-          extractedText: null
-        };
-      } catch (bypassError) {
-        console.warn('⚠️ Bypass failed, using original buffer:', bypassError.message);
-        const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
-        return {
-          buffer: pdfBuffer,
-          tempPath: tempPath,
-          wasEncrypted: false,
-          extractedText: null
-        };
+    } catch (pdfLibError) {
+      // Clean up
+      await fs.unlink(tempInput).catch(() => {});
+      await fs.unlink(tempOutput).catch(() => {});
+      
+      if (pdfLibError.message.includes('password') || pdfLibError.message.includes('Incorrect')) {
+        throw new Error('INCORRECT_PASSWORD: The provided password is incorrect');
       }
+      
+      throw new Error(`PDF_PROCESSING_ERROR: ${pdfLibError.message}`);
     }
-    
-    // CASE 4: Not password protected at all
-    console.log('🔓 PDF is not password protected');
-    
-    const tempPath = await saveDecryptedPdfToTemp(pdfBuffer, originalFilename);
-    
-    return {
-      buffer: pdfBuffer,
-      tempPath: tempPath,
-      wasEncrypted: false,
-      extractedText: null // No extracted text, use Textract normally
-    };
     
   } catch (error) {
+    // Clean up temp files on error
+    await fs.unlink(tempInput).catch(() => {});
+    await fs.unlink(tempOutput).catch(() => {});
+    
     console.error('❌ PDF processing failed:', error.message);
     throw error;
   }
 }
 
+/**
+ * Delete temporary file
+ */
+async function deleteTempFile(filePath) {
+  try {
+    await fs.unlink(filePath);
+    console.log(`🗑️  Temporary file deleted: ${filePath}`);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.warn(`⚠️  Failed to delete temp file ${filePath}:`, error.message);
+    }
+  }
+}
+
+/**
+ * Save decrypted PDF to temporary file
+ */
+async function saveDecryptedPdfToTemp(pdfBuffer, originalFilename) {
+  await ensureTempDir();
+  const tempPath = getTempFilePath(path.basename(originalFilename, '.pdf'));
+  await fs.writeFile(tempPath, pdfBuffer);
+  console.log(`💾 PDF saved to: ${tempPath}`);
+  return tempPath;
+}
+
 module.exports = {
   isPdfPasswordProtected,
-  decryptPdf,
   processPdf,
-  saveDecryptedPdfToTemp,
   deleteTempFile,
-  getTempFilePath
+  saveDecryptedPdfToTemp,
+  getTempFilePath,
+  isQpdfAvailable,
+  decryptWithQpdf
 };
