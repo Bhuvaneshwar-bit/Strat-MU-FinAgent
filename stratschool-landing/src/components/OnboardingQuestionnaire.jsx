@@ -355,22 +355,53 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
 
       setProcessingStage('✅ Analysis complete! Finalizing your dashboard...');
 
-      // Complete the onboarding
+      // Parse the response data
+      let plData = null;
+      let bookkeepingData = null;
+      
+      try {
+        if (plResponse && plResponse.ok) {
+          const plResult = await plResponse.json();
+          console.log('📊 P&L Response:', plResult);
+          plData = plResult.analysis || plResult;
+        } else if (plResponse) {
+          console.error('❌ P&L request failed:', plResponse.status);
+        }
+      } catch (e) {
+        console.error('❌ Error parsing P&L response:', e);
+      }
+      
+      try {
+        if (bookkeepingResponse && bookkeepingResponse.ok) {
+          const bookkeepingResult = await bookkeepingResponse.json();
+          console.log('📊 Bookkeeping Response:', bookkeepingResult);
+          bookkeepingData = bookkeepingResult.data || bookkeepingResult;
+        } else if (bookkeepingResponse) {
+          console.error('❌ Bookkeeping request failed:', bookkeepingResponse.status);
+        }
+      } catch (e) {
+        console.error('❌ Error parsing Bookkeeping response:', e);
+      }
+
+      // Complete the onboarding with the actual data
       setTimeout(() => {
         setProcessingStage('🎉 Welcome to StratSchool! Redirecting to your dashboard...');
         setTimeout(() => {
+          console.log('🚀 Calling onComplete with plData:', plData ? 'YES' : 'NO');
           onComplete({
             user,
             answers,
-            uploadedFile: uploadedFile?.name,
+            uploadedFile: fileToProcess?.name,
+            plData: plData,
+            bookkeepingData: bookkeepingData,
             processingResults: {
-              plAnalysis: true,
-              bookkeeping: true,
+              plAnalysis: !!plData,
+              bookkeeping: !!bookkeepingData,
               timestamp: new Date().toISOString()
             }
           });
-        }, 2000);
-      }, 1000);
+        }, 1500);
+      }, 500);
 
     } catch (error) {
       console.error('Error during onboarding processing:', error);
