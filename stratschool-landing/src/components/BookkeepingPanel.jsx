@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PasswordModal from './PasswordModal';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
+import { extractTextFromPDF } from '../utils/pdfExtractor';
 import { 
   Brain, 
   Zap, 
@@ -224,33 +225,45 @@ const BookkeepingPanel = ({ user }) => {
     setPasswordError('');
     
     try {
-      const formData = new FormData();
-      formData.append('pdf', pendingFile); // Changed from 'document' to 'pdf'
-      formData.append('password', password);
-      formData.append('async', 'false');
+      console.log('🔐 Extracting text from password-protected PDF in browser...');
       
-      const token = localStorage.getItem('token');
+      // Step 1: Extract text client-side using pdf.js
+      const extractionResult = await extractTextFromPDF(pendingFile, password);
       
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error === 'INCORRECT_PASSWORD') {
+      if (!extractionResult.success) {
+        if (extractionResult.error === 'INCORRECT_PASSWORD') {
           setPasswordError('Incorrect password. Please try again.');
           setIsProcessingPassword(false);
           return;
         }
-        throw new Error(errorData.message || 'Failed to process document');
+        throw new Error(extractionResult.message || 'Failed to extract text from PDF');
+      }
+      
+      console.log(`✅ Extracted ${extractionResult.text.length} characters from ${extractionResult.pageCount} pages`);
+      
+      // Step 2: Send extracted text to server for AI processing
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(buildApiUrl('/api/bookkeeping/process-extracted-text'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          extractedText: extractionResult.text,
+          fileName: pendingFile.name,
+          pageCount: extractionResult.pageCount
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process extracted text');
       }
       
       const result = await response.json();
-      const data = result.data; // AWS Textract returns data in 'data' field
+      const data = result.data;
       
       // Success - close modal and set as uploaded file
       setShowPasswordModal(false);

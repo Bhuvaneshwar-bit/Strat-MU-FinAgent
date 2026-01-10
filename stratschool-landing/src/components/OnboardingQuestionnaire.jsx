@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, Building, DollarSign, Globe, CreditCard, BarChart3, Upload, FileText, CheckCircle, Loader } from 'lucide-react';
 import PasswordModal from './PasswordModal';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
+import { extractTextFromPDF } from '../utils/pdfExtractor';
 import '../styles/OnboardingQuestionnaire.css';
 
 const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, darkMode = true }) => {
@@ -209,37 +210,29 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
     setPasswordError('');
     
     try {
-      const formData = new FormData();
-      formData.append('pdf', pendingFile);
-      formData.append('password', password);
-      formData.append('async', 'false');
+      console.log('🔐 Extracting text from password-protected PDF in browser...');
       
-      const token = localStorage.getItem('token');
+      // Step 1: Extract text client-side using pdf.js
+      const extractionResult = await extractTextFromPDF(pendingFile, password);
       
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error === 'INCORRECT_PASSWORD') {
+      if (!extractionResult.success) {
+        if (extractionResult.error === 'INCORRECT_PASSWORD') {
           setPasswordError('Incorrect password. Please try again.');
           setIsProcessingPassword(false);
           return;
         }
-        throw new Error(errorData.message || 'Failed to process document');
+        throw new Error(extractionResult.message || 'Failed to extract text from PDF');
       }
       
-      const result = await response.json();
-      const data = result.data;
+      console.log(`✅ Extracted ${extractionResult.text.length} characters from ${extractionResult.pageCount} pages`);
+      
+      // Store extracted text for later processing
+      pendingFile.extractedText = extractionResult.text;
+      pendingFile.pageCount = extractionResult.pageCount;
       
       // Success - transition to processing stage
       setShowPasswordModal(false);
-      setUploadedFile(pendingFile); // Now set as uploaded file
+      setUploadedFile(pendingFile);
       setPendingFile(null);
       setPasswordError('');
       setIsProcessingPassword(false);
@@ -248,7 +241,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
       setIsProcessing(true);
       setProcessingStage('🔓 Document unlocked! Setting up your AI CFO dashboard...');
       
-      console.log('🎉 Password-protected document processed successfully!');
+      console.log('🎉 Password-protected document extracted successfully!');
       
       // Continue with the normal processing flow
       setTimeout(() => {
