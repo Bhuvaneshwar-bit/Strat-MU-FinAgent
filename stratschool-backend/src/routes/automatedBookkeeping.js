@@ -500,4 +500,130 @@ router.get('/entries', async (req, res) => {
   }
 });
 
+/**
+ * PROCESS EXTRACTED TEXT FROM CLIENT-SIDE PDF PARSING
+ * For password-protected PDFs that are decrypted in the browser
+ */
+router.post('/process-extracted-text', async (req, res) => {
+  console.log('📝 Processing client-extracted text from password-protected PDF');
+  
+  try {
+    const { extractedText, fileName, pageCount } = req.body;
+    
+    if (!extractedText || extractedText.trim().length < 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Extracted text is too short or empty'
+      });
+    }
+    
+    console.log(`   File: ${fileName}`);
+    console.log(`   Pages: ${pageCount}`);
+    console.log(`   Text length: ${extractedText.length} characters`);
+    
+    // Use Gemini AI to parse the bank statement text
+    const geminiAI = require('../utils/geminiAI');
+    
+    const prompt = `You are an expert bank statement parser. Parse this extracted bank statement text and return a JSON object.
+
+BANK STATEMENT TEXT:
+${extractedText.substring(0, 30000)}
+
+Return ONLY a valid JSON object (no markdown, no code blocks) with this structure:
+{
+  "account_holder": "name or null",
+  "account_number": "masked number or null",
+  "bank_name": "bank name or null",
+  "transactions": [
+    {
+      "date": "DD-MM-YYYY",
+      "description": "transaction description",
+      "debit": 0,
+      "credit": 0,
+      "balance": 0,
+      "type": "debit or credit",
+      "category": "category name"
+    }
+  ],
+  "summary": {
+    "total_credits": 0,
+    "total_debits": 0,
+    "opening_balance": 0,
+    "closing_balance": 0,
+    "transaction_count": 0
+  }
+}
+
+Parse ALL transactions you find. Use Indian Rupee format (no currency symbol in numbers).
+For category, use: Salary, Transfer, UPI, Bill Payment, Shopping, Food, Travel, Investment, ATM, Other.`;
+
+    const aiResponse = await geminiAI.generateContent(prompt);
+    
+    // Parse AI response
+    let parsedData;
+    try {
+      // Remove any markdown code blocks if present
+      let cleanResponse = aiResponse;
+      if (cleanResponse.includes('```json')) {
+        cleanResponse = cleanResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (cleanResponse.includes('```')) {
+        cleanResponse = cleanResponse.replace(/```\n?/g, '');
+      }
+      parsedData = JSON.parse(cleanResponse.trim());
+    } catch (parseError) {
+      console.error('❌ Failed to parse AI response:', parseError);
+      console.log('AI Response:', aiResponse.substring(0, 500));
+      
+      // Return basic structure if parsing fails
+      parsedData = {
+        account_holder: null,
+        account_number: null,
+        bank_name: null,
+        transactions: [],
+        summary: {
+          total_credits: 0,
+          total_debits: 0,
+          transaction_count: 0
+        }
+      };
+    }
+    
+    // Calculate totals if not provided
+    if (parsedData.transactions && parsedData.transactions.length > 0) {
+      const totalCredits = parsedData.transactions.reduce((sum, tx) => sum + (tx.credit || 0), 0);
+      const totalDebits = parsedData.transactions.reduce((sum, tx) => sum + (tx.debit || 0), 0);
+      
+      parsedData.summary = {
+        ...parsedData.summary,
+        total_credits: totalCredits,
+        total_debits: totalDebits,
+        transaction_count: parsedData.transactions.length
+      };
+    }
+    
+    console.log(`✅ Parsed ${parsedData.transactions?.length || 0} transactions`);
+    console.log(`   Total Credits: ₹${parsedData.summary?.total_credits || 0}`);
+    console.log(`   Total Debits: ₹${parsedData.summary?.total_debits || 0}`);
+    
+    return res.status(200).json({
+      success: true,
+      data: parsedData,
+      metadata: {
+        source: 'client-extracted-text',
+        fileName: fileName,
+        pageCount: pageCount,
+        textLength: extractedText.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing extracted text:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process extracted text',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
