@@ -527,9 +527,15 @@ router.post('/process-extracted-text', async (req, res) => {
     const prompt = `You are an expert bank statement parser. Parse this extracted bank statement text and return a JSON object.
 
 BANK STATEMENT TEXT:
-${extractedText.substring(0, 30000)}
+${extractedText.substring(0, 25000)}
 
-Return ONLY a valid JSON object (no markdown, no code blocks) with this structure:
+CRITICAL INSTRUCTIONS:
+1. Return ONLY valid JSON - no markdown code blocks, no explanations
+2. Keep transaction descriptions SHORT (max 50 chars)
+3. Ensure ALL strings are properly quoted and escaped
+4. Do NOT include incomplete transactions at the end
+
+Return this exact JSON structure:
 {
   "account_holder": "name or null",
   "account_number": "masked number or null",
@@ -537,7 +543,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with this structur
   "transactions": [
     {
       "date": "DD-MM-YYYY",
-      "description": "transaction description",
+      "description": "short description",
       "debit": 0,
       "credit": 0,
       "balance": 0,
@@ -554,12 +560,12 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with this structur
   }
 }
 
-Parse ALL transactions you find. Use Indian Rupee format (no currency symbol in numbers).
-For category, use: Salary, Transfer, UPI, Bill Payment, Shopping, Food, Travel, Investment, ATM, Other.`;
+Categories: Salary, Transfer, UPI, Bill Payment, Shopping, Food, Travel, Investment, ATM, Other.
+IMPORTANT: Calculate summary totals from ALL transactions even if you can't list them all.`;
 
     const aiResponse = await geminiAI.generateContent(prompt);
     
-    // Parse AI response
+    // Parse AI response with robust JSON repair
     let parsedData;
     try {
       // Remove any markdown code blocks if present
@@ -569,23 +575,74 @@ For category, use: Salary, Transfer, UPI, Bill Payment, Shopping, Food, Travel, 
       } else if (cleanResponse.includes('```')) {
         cleanResponse = cleanResponse.replace(/```\n?/g, '');
       }
-      parsedData = JSON.parse(cleanResponse.trim());
+      
+      // Fix common JSON issues
+      cleanResponse = cleanResponse.trim()
+        .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' '); // Remove control characters
+      
+      parsedData = JSON.parse(cleanResponse);
     } catch (parseError) {
       console.error('❌ Failed to parse AI response:', parseError);
       console.log('AI Response:', aiResponse.substring(0, 500));
       
-      // Return basic structure if parsing fails
-      parsedData = {
-        account_holder: null,
-        account_number: null,
-        bank_name: null,
-        transactions: [],
-        summary: {
-          total_credits: 0,
-          total_debits: 0,
-          transaction_count: 0
+      // Try to fix truncated JSON
+      try {
+        let fixedJson = aiResponse
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .trim();
+        
+        // Find the last complete transaction
+        const lastCompleteTransaction = fixedJson.lastIndexOf('},');
+        if (lastCompleteTransaction > 0) {
+          // Cut at last complete transaction and close the JSON properly
+          fixedJson = fixedJson.substring(0, lastCompleteTransaction + 1);
+          
+          // Count and add missing closing brackets/braces
+          const openBraces = (fixedJson.match(/\{/g) || []).length;
+          const closeBraces = (fixedJson.match(/\}/g) || []).length;
+          const openBrackets = (fixedJson.match(/\[/g) || []).length;
+          const closeBrackets = (fixedJson.match(/\]/g) || []).length;
+          
+          // Close the transactions array
+          if (openBrackets > closeBrackets) {
+            fixedJson += ']';
+          }
+          
+          // Add summary if missing and close main object
+          if (!fixedJson.includes('"summary"')) {
+            fixedJson += ',"summary":{"total_credits":0,"total_debits":0,"transaction_count":0}';
+          }
+          
+          // Close remaining braces
+          for (let i = 0; i < openBraces - closeBraces - 1; i++) {
+            fixedJson += '}';
+          }
+          fixedJson += '}';
+          
+          parsedData = JSON.parse(fixedJson);
+          console.log('✅ Fixed truncated JSON successfully');
+        } else {
+          throw new Error('Could not find complete transaction to fix JSON');
         }
-      };
+      } catch (fixError) {
+        console.error('❌ Failed to fix JSON:', fixError);
+        
+        // Return basic structure if parsing fails
+        parsedData = {
+          account_holder: null,
+          account_number: null,
+          bank_name: null,
+          transactions: [],
+          summary: {
+            total_credits: 0,
+            total_debits: 0,
+            transaction_count: 0
+          }
+        };
+      }
     }
     
     // Calculate totals if not provided
