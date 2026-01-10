@@ -80,6 +80,7 @@ function App() {
             console.log('📊 Found P&L data in localStorage (cache)');
             localPlData = JSON.parse(savedPlData);
             setOnboardingData({ plData: localPlData });
+          }
           
           // Check if localStorage has good data (non-zero values)
           const localHasGoodData = localPlData && (
