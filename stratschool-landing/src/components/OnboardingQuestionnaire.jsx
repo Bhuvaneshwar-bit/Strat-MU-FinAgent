@@ -244,8 +244,9 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
       console.log('🎉 Password-protected document extracted successfully!');
       
       // Continue with the normal processing flow
+      // Pass the file directly since React state update is async
       setTimeout(() => {
-        processCompletedOnboarding();
+        processCompletedOnboarding(pendingFile);
       }, 1000);
       
     } catch (error) {
@@ -262,16 +263,22 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
     setIsProcessingPassword(false);
   };
 
-  const processCompletedOnboarding = async () => {
+  const processCompletedOnboarding = async (fileOverride = null) => {
     try {
       setProcessingStage('🤖 Starting AI analysis of your bank statement...');
       
-      // Create FormData for both API calls
-      // Check if we have pre-extracted text from password-protected PDF
-      const hasExtractedText = uploadedFile.extractedText && uploadedFile.extractedText.length > 100;
+      // Use the override file if provided (for password-protected PDFs where state hasn't updated yet)
+      const fileToProcess = fileOverride || uploadedFile;
       
-      console.log('📤 Processing file:', uploadedFile.name);
-      console.log('   Has extracted text:', hasExtractedText ? 'Yes (' + uploadedFile.extractedText.length + ' chars)' : 'No');
+      if (!fileToProcess) {
+        throw new Error('No file to process');
+      }
+      
+      // Check if we have pre-extracted text from password-protected PDF
+      const hasExtractedText = fileToProcess.extractedText && fileToProcess.extractedText.length > 100;
+      
+      console.log('📤 Processing file:', fileToProcess.name);
+      console.log('   Has extracted text:', hasExtractedText ? 'Yes (' + fileToProcess.extractedText.length + ' chars)' : 'No');
 
       const token = localStorage.getItem('token');
       const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -293,8 +300,8 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              extractedText: uploadedFile.extractedText,
-              fileName: uploadedFile.name,
+              extractedText: fileToProcess.extractedText,
+              fileName: fileToProcess.name,
               period: 'Monthly'
             })
           }),
@@ -306,9 +313,9 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              extractedText: uploadedFile.extractedText,
-              fileName: uploadedFile.name,
-              pageCount: uploadedFile.pageCount || 1
+              extractedText: fileToProcess.extractedText,
+              fileName: fileToProcess.name,
+              pageCount: fileToProcess.pageCount || 1
             })
           })
         ]);
@@ -317,7 +324,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
         console.log('📤 Using normal file upload endpoint');
         
         const formData = new FormData();
-        formData.append('bankStatement', uploadedFile);
+        formData.append('bankStatement', fileToProcess);
         formData.append('period', 'Monthly');
         formData.append('businessInfo', JSON.stringify({
           companyName: 'Your Business',
@@ -325,7 +332,7 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
         }));
 
         const bookkeepingFormData = new FormData();
-        bookkeepingFormData.append('document', uploadedFile);
+        bookkeepingFormData.append('document', fileToProcess);
         bookkeepingFormData.append('businessName', 'Your Business');
         bookkeepingFormData.append('industry', 'Technology');
         bookkeepingFormData.append('accountingMethod', 'accrual');
