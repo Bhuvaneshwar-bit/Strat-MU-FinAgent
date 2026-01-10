@@ -282,6 +282,113 @@ router.post('/analyze', upload.single('bankStatement'), async (req, res) => {
 });
 
 /**
+ * ANALYZE PRE-EXTRACTED TEXT
+ * Used for password-protected PDFs where text is extracted client-side
+ * Skips PDF processing and directly analyzes the text
+ */
+router.post('/analyze-text', async (req, res) => {
+  console.log('🔥 P&L Analyze-Text endpoint hit!');
+  
+  try {
+    const { extractedText, fileName, period = 'Monthly' } = req.body;
+    
+    // Get userId from Authorization header if present
+    let userId = 'anonymous-user';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'stratschool_jwt_secret_key_2025_super_secure_random_string');
+        userId = decoded.userId;
+        console.log('🔐 Authenticated user for P&L text analysis:', userId);
+      } catch (e) {
+        console.log('⚠️ Token verification failed, using anonymous user');
+      }
+    }
+    
+    if (!extractedText || extractedText.length < 50) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Extracted text is required and must contain meaningful content' 
+      });
+    }
+
+    console.log(`📝 Received ${extractedText.length} chars of extracted text from: ${fileName}`);
+    console.log(`📊 Period: ${period}`);
+
+    // Step 1: Analyze extracted text with Gemini AI
+    console.log(`🤖 Starting AI analysis of extracted text for user ${userId}...`);
+    
+    const analysisData = await geminiAI.analyzeExtractedText(extractedText, period);
+    
+    console.log(`✅ AI analysis of extracted text completed successfully`);
+
+    // Step 1.5: APPLY USER'S SAVED CATEGORY RULES
+    console.log(`🧠 Applying user's saved category rules...`);
+    const userRules = await CategoryRule.find({ userId }).lean();
+    
+    if (userRules.length > 0 && analysisData.transactions) {
+      let rulesApplied = 0;
+      
+      analysisData.transactions = analysisData.transactions.map(txn => {
+        const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
+        
+        for (const rule of userRules) {
+          if (desc.includes(rule.entityNameNormalized)) {
+            rulesApplied++;
+            return {
+              ...txn,
+              category: {
+                type: rule.type,
+                category: rule.category
+              },
+              categorySource: 'user_rule'
+            };
+          }
+        }
+        return txn;
+      });
+      
+      console.log(`✅ Applied ${rulesApplied} user category rules to transactions`);
+    }
+
+    // Step 2: SAVE TO DATABASE
+    console.log(`💾 Saving P&L analysis to MongoDB database...`);
+    
+    const newStatement = new PLStatement({
+      userId: userId,
+      period: period.charAt(0).toUpperCase() + period.slice(1).toLowerCase(),
+      fileName: fileName || 'extracted-text.pdf',
+      uploadedAt: new Date(),
+      ...analysisData
+    });
+
+    await newStatement.save();
+    console.log(`✅ P&L statement saved to database with ID: ${newStatement._id}`);
+
+    // Return the response with statement ID
+    res.json({
+      success: true,
+      message: 'Bank statement text analyzed successfully',
+      statementId: newStatement._id,
+      analysis: analysisData,
+      period,
+      source: 'client-side-extraction'
+    });
+
+  } catch (error) {
+    console.error('❌ Error in P&L analyze-text:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to analyze extracted text',
+      error: error.message
+    });
+  }
+});
+
+/**
  * SMART CATEGORY UPDATE ENDPOINT
  * When user changes a transaction's category:
  * 1. Extract entity name from the transaction

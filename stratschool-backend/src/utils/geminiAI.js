@@ -727,6 +727,122 @@ Return ONLY valid JSON with real numbers and insights.`;
       throw error;
     }
   }
+
+  /**
+   * Analyze pre-extracted text from password-protected PDFs
+   * Used when text is extracted client-side with pdf.js
+   */
+  async analyzeExtractedText(extractedText, period) {
+    try {
+      console.log(`🔍 Starting analysis of extracted text for ${period} period`);
+      console.log(`📝 Text length: ${extractedText.length} characters`);
+
+      if (!extractedText || extractedText.length < 50) {
+        throw new Error('Insufficient text provided for analysis');
+      }
+
+      const prompt = `
+You are a world-class financial analyst AI. Analyze this bank statement data with SURGICAL PRECISION for ${period} P&L generation.
+
+BANK STATEMENT DATA:
+${extractedText.substring(0, 15000)}
+
+REQUIREMENTS:
+1. Calculate EXACT profit margins with 2 decimal precision
+2. Generate 3-5 ACTIONABLE financial insights that are easy to understand
+3. Categorize ALL transactions accurately
+4. Calculate profitability ratios precisely
+
+Create JSON response with EXACT calculations:
+{
+  "analysis": {
+    "period": "${period}",
+    "totalRevenue": [calculate total revenue],
+    "totalExpenses": [calculate total expenses], 
+    "netIncome": [revenue - expenses],
+    "transactionCount": [count all transactions]
+  },
+  "transactions": [
+    {"date": "YYYY-MM-DD", "description": "...", "amount": [number], "type": "credit/debit", "category": {"type": "revenue/expenses", "category": "..."}}
+  ],
+  "revenue": [
+    {"category": "Primary Sales", "amount": [amount], "transactions": ["transaction details"]},
+    {"category": "Secondary Revenue", "amount": [amount], "transactions": ["transaction details"]}
+  ],
+  "expenses": [
+    {"category": "Operating Expenses", "amount": [amount], "transactions": ["transaction details"]},
+    {"category": "Administrative Costs", "amount": [amount], "transactions": ["transaction details"]}
+  ],
+  "insights": [
+    "Your profit margin is X% - this is [excellent/good/needs improvement] compared to industry standards",
+    "Your biggest expense category is [category] at ₹[amount] - consider [specific action]",
+    "Revenue trend analysis: [insight about revenue patterns]",
+    "Cash flow insight: [actionable recommendation]",
+    "Cost optimization: [specific suggestion to reduce expenses]"
+  ],
+  "profitLossStatement": {
+    "revenue": {
+      "totalRevenue": [total revenue],
+      "breakdown": {"primarySales": [amount], "secondaryRevenue": [amount]},
+      "revenueStreams": [
+        {"name": "Primary Sales", "category": "Sales", "amount": [amount]},
+        {"name": "Secondary Revenue", "category": "Other", "amount": [amount]}
+      ]
+    },
+    "expenses": {
+      "totalExpenses": [total expenses],
+      "breakdown": {"operatingExpenses": [amount], "administrativeCosts": [amount]},
+      "expenseCategories": [
+        {"name": "Operating Expenses", "category": "Operations", "amount": [amount]},
+        {"name": "Administrative Costs", "category": "Admin", "amount": [amount]}
+      ]
+    },
+    "profitability": {
+      "netIncome": [revenue - expenses],
+      "grossProfit": [revenue - direct costs],
+      "profitMargin": [round((netIncome/totalRevenue)*100, 2)],
+      "netProfitMargin": [round((netIncome/totalRevenue)*100, 2)]
+    }
+  }
+}
+
+CRITICAL: Calculate profit margin as (netIncome ÷ totalRevenue) × 100 with 2 decimal precision.
+Return ONLY valid JSON with real numbers and insights.`;
+
+      console.log('🤖 Sending extracted text to Gemini AI...');
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      console.log('✅ Received response from Gemini AI');
+      console.log(`📊 Response length: ${text.length} characters`);
+
+      // Clean and parse JSON response
+      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      try {
+        const analysisData = JSON.parse(cleanedText);
+        console.log('✅ Successfully parsed Gemini AI response for extracted text');
+        return analysisData;
+      } catch (parseError) {
+        console.error('❌ JSON parsing error:', parseError);
+        
+        // Try to extract JSON from the response
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const analysisData = JSON.parse(jsonMatch[0]);
+          console.log('✅ Extracted JSON from response');
+          return analysisData;
+        }
+        
+        throw new Error('Failed to parse AI response as JSON');
+      }
+
+    } catch (error) {
+      console.error('🚨 Gemini AI extracted text analysis error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new GeminiAIService();
