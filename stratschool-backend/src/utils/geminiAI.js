@@ -756,76 +756,62 @@ Return ONLY valid JSON with real numbers and insights.`;
       }
 
       const prompt = `
-You are a world-class financial analyst AI. Analyze this bank statement data with SURGICAL PRECISION for ${period} P&L generation.
+You are a world-class financial analyst AI. Analyze this COMPLETE bank statement with SURGICAL PRECISION.
 
-BANK STATEMENT DATA:
-${extractedText.substring(0, 15000)}
+BANK STATEMENT DATA (analyze ALL of it):
+${extractedText.substring(0, 20000)}
 
-REQUIREMENTS:
-1. Calculate EXACT profit margins with 2 decimal precision
-2. Generate 3-5 ACTIONABLE financial insights that are easy to understand
-3. Categorize ALL transactions accurately
-4. Calculate profitability ratios precisely
+CRITICAL INSTRUCTIONS:
+1. READ and CALCULATE from ALL transactions in the statement
+2. Sum up EVERY credit transaction for totalRevenue
+3. Sum up EVERY debit transaction for totalExpenses
+4. Do NOT list all transactions - only calculate totals
+5. Return COMPACT JSON to avoid truncation
 
-Create JSON response with EXACT calculations:
+Return this EXACT JSON structure (keep it compact):
 {
   "analysis": {
     "period": "${period}",
-    "totalRevenue": [calculate total revenue],
-    "totalExpenses": [calculate total expenses], 
-    "netIncome": [revenue - expenses],
-    "transactionCount": [count all transactions]
+    "totalRevenue": [EXACT sum of ALL credits],
+    "totalExpenses": [EXACT sum of ALL debits],
+    "netIncome": [credits - debits],
+    "transactionCount": [total count]
   },
-  "transactions": [
-    {"date": "YYYY-MM-DD", "description": "...", "amount": [number], "type": "credit/debit", "category": {"type": "revenue/expenses", "category": "..."}}
-  ],
   "revenue": [
-    {"category": "Primary Sales", "amount": [amount], "transactions": ["transaction details"]},
-    {"category": "Secondary Revenue", "amount": [amount], "transactions": ["transaction details"]}
+    {"category": "UPI Received", "amount": [sum]},
+    {"category": "Bank Transfers In", "amount": [sum]},
+    {"category": "Other Credits", "amount": [sum]}
   ],
   "expenses": [
-    {"category": "Operating Expenses", "amount": [amount], "transactions": ["transaction details"]},
-    {"category": "Administrative Costs", "amount": [amount], "transactions": ["transaction details"]}
+    {"category": "UPI Payments", "amount": [sum]},
+    {"category": "Bills & Utilities", "amount": [sum]},
+    {"category": "Shopping", "amount": [sum]},
+    {"category": "Food & Dining", "amount": [sum]},
+    {"category": "Travel", "amount": [sum]},
+    {"category": "Other Debits", "amount": [sum]}
   ],
   "insights": [
-    "Your profit margin is X% - this is [excellent/good/needs improvement] compared to industry standards",
-    "Your biggest expense category is [category] at ₹[amount] - consider [specific action]",
-    "Revenue trend analysis: [insight about revenue patterns]",
-    "Cash flow insight: [actionable recommendation]",
-    "Cost optimization: [specific suggestion to reduce expenses]"
+    "Short insight 1",
+    "Short insight 2",
+    "Short insight 3"
   ],
   "profitLossStatement": {
-    "revenue": {
-      "totalRevenue": [total revenue],
-      "breakdown": {"primarySales": [amount], "secondaryRevenue": [amount]},
-      "revenueStreams": [
-        {"name": "Primary Sales", "category": "Sales", "amount": [amount]},
-        {"name": "Secondary Revenue", "category": "Other", "amount": [amount]}
-      ]
-    },
-    "expenses": {
-      "totalExpenses": [total expenses],
-      "breakdown": {"operatingExpenses": [amount], "administrativeCosts": [amount]},
-      "expenseCategories": [
-        {"name": "Operating Expenses", "category": "Operations", "amount": [amount]},
-        {"name": "Administrative Costs", "category": "Admin", "amount": [amount]}
-      ]
-    },
+    "revenue": {"totalRevenue": [total]},
+    "expenses": {"totalExpenses": [total]},
     "profitability": {
-      "netIncome": [revenue - expenses],
-      "grossProfit": [revenue - direct costs],
-      "profitMargin": [round((netIncome/totalRevenue)*100, 2)],
-      "netProfitMargin": [round((netIncome/totalRevenue)*100, 2)]
+      "netIncome": [net],
+      "profitMargin": [percentage with 2 decimals]
     }
   }
 }
 
-CRITICAL RULES:
-1. Calculate profit margin as (netIncome ÷ totalRevenue) × 100 with 2 decimal precision.
-2. Return ONLY valid JSON - no markdown, no code blocks, no explanations.
-3. Ensure ALL strings are properly escaped and terminated.
-4. Keep insight strings SHORT (under 200 characters each).
-5. Use actual numbers, not placeholders.`;
+ACCURACY RULES:
+1. Add up EVERY transaction amount - do not skip any
+2. Credits = money IN = Revenue
+3. Debits = money OUT = Expenses  
+4. netIncome = totalRevenue - totalExpenses
+5. profitMargin = (netIncome / totalRevenue) * 100
+6. Return ONLY valid JSON, no markdown blocks`;
 
       console.log('🤖 Sending extracted text to Gemini AI...');
       const result = await this.model.generateContent(prompt);
