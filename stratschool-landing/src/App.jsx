@@ -34,6 +34,26 @@ function App() {
   // Helper function to get user-specific localStorage key
   const getUserPlDataKey = (userId) => `plData_${userId}`;
 
+  // Helper function to clear all legacy/other user cache keys
+  const clearLegacyCache = (currentUserId) => {
+    // Clear global legacy keys
+    localStorage.removeItem('plData');
+    localStorage.removeItem('plData_temp');
+    
+    // Clear any other user's plData keys (prevent cross-user data leaks)
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('plData_') && key !== `plData_${currentUserId}`) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => {
+      console.log(`🗑️ Removing other user cache: ${key}`);
+      localStorage.removeItem(key);
+    });
+  };
+
   // Check for existing user session on app load
   useEffect(() => {
     const restoreSession = async () => {
@@ -46,37 +66,20 @@ function App() {
           console.log('🔄 Restoring user session for:', userData.email);
           setUser(userData);
           
-          // Load P&L data - first check localStorage (cache), then fetch from database
+          // Load P&L data - ONLY from user-specific key
           const userId = userData._id || userData.id || userData.email;
           const userPlDataKey = getUserPlDataKey(userId);
           
+          // Clear any legacy/other user cache to prevent data leaks
+          clearLegacyCache(userId);
+          
           let savedPlData = localStorage.getItem(userPlDataKey);
           let localPlData = null;
-          
-          // Fallback to temp key
-          if (!savedPlData) {
-            savedPlData = localStorage.getItem('plData_temp');
-            if (savedPlData) {
-              console.log('📦 Migrating temp plData to user key');
-              localStorage.setItem(userPlDataKey, savedPlData);
-            }
-          }
-          
-          // Fallback to global key (legacy)
-          if (!savedPlData) {
-            savedPlData = localStorage.getItem('plData');
-            if (savedPlData) {
-              console.log('📦 Migrating global plData to user key');
-              localStorage.setItem(userPlDataKey, savedPlData);
-              localStorage.removeItem('plData');
-            }
-          }
           
           if (savedPlData) {
             console.log('📊 Found P&L data in localStorage (cache)');
             localPlData = JSON.parse(savedPlData);
             setOnboardingData({ plData: localPlData });
-          }
           
           // Check if localStorage has good data (non-zero values)
           const localHasGoodData = localPlData && (
@@ -152,21 +155,14 @@ function App() {
     localStorage.setItem('user', JSON.stringify(userData)); // Persist user
     setIsAuthModalOpen(false);
     
+    // Clear any legacy/other user cache to prevent data leaks
+    const userId = userData._id || userData.id || userData.email;
+    clearLegacyCache(userId);
+    
     // Load user-specific P&L data
-    const userPlDataKey = getUserPlDataKey(userData._id || userData.id || userData.email);
+    const userPlDataKey = getUserPlDataKey(userId);
     let savedPlData = localStorage.getItem(userPlDataKey);
     let localPlData = null;
-    
-    // Check for temp plData (saved during signup when user was null)
-    if (!savedPlData) {
-      const tempPlData = localStorage.getItem('plData_temp');
-      if (tempPlData) {
-        console.log('📦 Found temp plData, migrating to user key:', userPlDataKey);
-        localStorage.setItem(userPlDataKey, tempPlData);
-        localStorage.removeItem('plData_temp');
-        savedPlData = tempPlData;
-      }
-    }
     
     // Show dashboard immediately (will show loading or empty state)
     setShowDashboard(true);
