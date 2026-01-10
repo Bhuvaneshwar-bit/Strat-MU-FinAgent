@@ -267,39 +267,84 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
       setProcessingStage('🤖 Starting AI analysis of your bank statement...');
       
       // Create FormData for both API calls
-      const formData = new FormData();
-      formData.append('bankStatement', uploadedFile);
-      formData.append('period', 'Monthly');
-      formData.append('businessInfo', JSON.stringify({
-        companyName: 'Your Business',
-        industry: 'General'
-      }));
+      // Check if we have pre-extracted text from password-protected PDF
+      const hasExtractedText = uploadedFile.extractedText && uploadedFile.extractedText.length > 100;
+      
+      console.log('📤 Processing file:', uploadedFile.name);
+      console.log('   Has extracted text:', hasExtractedText ? 'Yes (' + uploadedFile.extractedText.length + ' chars)' : 'No');
 
-      const bookkeepingFormData = new FormData();
-      bookkeepingFormData.append('document', uploadedFile);
-      bookkeepingFormData.append('businessName', 'Your Business');
-      bookkeepingFormData.append('industry', 'Technology');
-      bookkeepingFormData.append('accountingMethod', 'accrual');
-
-      setProcessingStage('📊 Generating P&L statement and automated bookkeeping...');
-
-      // Get auth token for authenticated requests
       const token = localStorage.getItem('token');
       const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-      // Call both APIs simultaneously
-      const [plResponse, bookkeepingResponse] = await Promise.all([
-        fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
-          method: 'POST',
-          headers: authHeaders,
-          body: formData
-        }),
-        fetch(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
-          method: 'POST',
-          headers: authHeaders,
-          body: bookkeepingFormData
-        })
-      ]);
+      let plResponse, bookkeepingResponse;
+
+      if (hasExtractedText) {
+        // Use extracted text endpoint for password-protected PDFs
+        console.log('📝 Using extracted text endpoint for password-protected PDF');
+        
+        setProcessingStage('📊 AI is analyzing your extracted bank statement...');
+        
+        [plResponse, bookkeepingResponse] = await Promise.all([
+          // P&L Analysis with extracted text
+          fetch(buildApiUrl('/api/pl-statements/analyze-text'), {
+            method: 'POST',
+            headers: {
+              ...authHeaders,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              extractedText: uploadedFile.extractedText,
+              fileName: uploadedFile.name,
+              period: 'Monthly'
+            })
+          }),
+          // Bookkeeping with extracted text  
+          fetch(buildApiUrl('/api/bookkeeping/process-extracted-text'), {
+            method: 'POST',
+            headers: {
+              ...authHeaders,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              extractedText: uploadedFile.extractedText,
+              fileName: uploadedFile.name,
+              pageCount: uploadedFile.pageCount || 1
+            })
+          })
+        ]);
+      } else {
+        // Normal flow - upload file directly
+        console.log('📤 Using normal file upload endpoint');
+        
+        const formData = new FormData();
+        formData.append('bankStatement', uploadedFile);
+        formData.append('period', 'Monthly');
+        formData.append('businessInfo', JSON.stringify({
+          companyName: 'Your Business',
+          industry: 'General'
+        }));
+
+        const bookkeepingFormData = new FormData();
+        bookkeepingFormData.append('document', uploadedFile);
+        bookkeepingFormData.append('businessName', 'Your Business');
+        bookkeepingFormData.append('industry', 'Technology');
+        bookkeepingFormData.append('accountingMethod', 'accrual');
+
+        setProcessingStage('📊 Generating P&L statement and automated bookkeeping...');
+
+        [plResponse, bookkeepingResponse] = await Promise.all([
+          fetch(buildApiUrl(API_ENDPOINTS.PL_ANALYZE), {
+            method: 'POST',
+            headers: authHeaders,
+            body: formData
+          }),
+          fetch(buildApiUrl(API_ENDPOINTS.BOOKKEEPING_PROCESS), {
+            method: 'POST',
+            headers: authHeaders,
+            body: bookkeepingFormData
+          })
+        ]);
+      }
 
       setProcessingStage('✅ Analysis complete! Finalizing your dashboard...');
 
