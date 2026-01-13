@@ -111,22 +111,21 @@ const login = async (req, res) => {
       });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    // Update last login (use updateOne to avoid validation issues with cross-app users)
+    await User.updateOne({ _id: user._id }, { lastLogin: new Date() });
 
     // Generate token
     const token = generateToken(user._id);
 
-    // Return user without password
+    // Return user without password (handle both firstName/lastName and name field)
     const userResponse = {
       id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      firstName: user.firstName || (user.name ? user.name.split(' ')[0] : 'User'),
+      lastName: user.lastName || (user.name ? user.name.split(' ').slice(1).join(' ') : ''),
       email: user.email,
-      fullName: user.fullName,
+      fullName: user.fullName || user.name || user.firstName || 'User',
       isActive: user.isActive,
-      lastLogin: user.lastLogin,
+      lastLogin: new Date(),
       createdAt: user.createdAt
     };
 

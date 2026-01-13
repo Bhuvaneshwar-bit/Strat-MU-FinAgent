@@ -11,9 +11,15 @@ const userSchema = new mongoose.Schema({
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
+    required: false, // Made optional for cross-app compatibility (Singularity/Gravity)
     trim: true,
-    maxlength: [50, 'Last name cannot exceed 50 characters']
+    maxlength: [50, 'Last name cannot exceed 50 characters'],
+    default: ''
+  },
+  // Support for Singularity's single "name" field
+  name: {
+    type: String,
+    trim: true
   },
   email: {
     type: String,
@@ -41,9 +47,18 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for full name
+// Virtual for full name (supports both firstName+lastName and single name field)
 userSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
+  if (this.firstName && this.lastName) {
+    return `${this.firstName} ${this.lastName}`;
+  }
+  if (this.firstName) {
+    return this.firstName;
+  }
+  if (this.name) {
+    return this.name;
+  }
+  return 'User';
 });
 
 // Pre-save middleware to hash password
