@@ -1557,28 +1557,58 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     if (txnToUpdate) {
       const transactionDescription = txnToUpdate.description || txnToUpdate.particulars || '';
       
-      // Extract entity name from description (simple extraction)
+      // Extract entity name from description - match backend logic
       const extractEntityName = (desc) => {
+        if (!desc) return '';
+        
+        const normalizedDesc = desc.toUpperCase();
         const parts = desc.split('/');
-        // Look for common patterns like UPI, NEFT, IMPS
+        
+        // Skip common prefixes like UPI, NEFT, IMPS, transaction IDs
+        const skipPatterns = ['UPI', 'NEFT', 'IMPS', 'RTGS', 'P2A', 'P2M', 'IOBAN', 'INB', 'ACH'];
+        
         for (let i = 0; i < parts.length; i++) {
           const part = parts[i].trim();
-          if (part.length > 3 && !['UPI', 'NEFT', 'IMPS', 'RTGS', 'P2A', 'P2M'].includes(part.toUpperCase())) {
+          const partUpper = part.toUpperCase();
+          
+          // Skip if it's a known prefix or looks like a transaction ID (mostly numbers)
+          const isSkipPattern = skipPatterns.some(p => partUpper.startsWith(p));
+          const isMostlyNumbers = (part.replace(/[0-9]/g, '').length / part.length) < 0.3;
+          
+          if (part.length > 3 && !isSkipPattern && !isMostlyNumbers) {
+            console.log('🏷️ Extracted entity:', part, 'from desc:', desc.substring(0, 50));
             return part;
           }
         }
+        
+        // Fallback: use first meaningful part
         return parts[1] || parts[0] || desc.substring(0, 30);
       };
       
       const entityName = extractEntityName(transactionDescription);
       const entityNormalized = entityName.toLowerCase().trim();
       
+      console.log('🔍 Looking for similar transactions with entity:', entityNormalized);
+      console.log('📊 Total transactions to search:', transactions.length);
+      
       // Find all similar transactions with same entity
-      const similarTransactions = transactions.filter((t, idx) => {
-        if (t === txnToUpdate) return false; // Exclude the current transaction
-        const desc = (t.description || t.particulars || '').toLowerCase();
-        return desc.includes(entityNormalized);
+      const similarTransactions = transactions.filter((t) => {
+        // Exclude the current transaction by comparing descriptions and amounts
+        const tDesc = (t.description || t.particulars || '');
+        const currentDesc = transactionDescription;
+        if (tDesc === currentDesc && t.amount === txnToUpdate.amount && t.date === txnToUpdate.date) {
+          return false;
+        }
+        
+        const desc = tDesc.toLowerCase();
+        const matches = desc.includes(entityNormalized);
+        if (matches) {
+          console.log('  ✓ Match found:', tDesc.substring(0, 50));
+        }
+        return matches;
       });
+      
+      console.log('🔍 Similar transactions found:', similarTransactions.length);
       
       // If there are similar transactions, show the modal
       if (similarTransactions.length > 0) {
