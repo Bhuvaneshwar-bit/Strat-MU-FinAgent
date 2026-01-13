@@ -523,20 +523,21 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
 
     try {
       const formData = new FormData();
-      formData.append('bankStatement', file);
-      formData.append('period', 'monthly');
-      formData.append('businessInfo', JSON.stringify({
-        companyName: user?.businessName || 'Your Business',
-        industry: user?.industry || 'General'
-      }));
+      formData.append('pdf', file); // Use 'pdf' field name for upload endpoint
       
       // Add password if provided (for password-protected PDFs)
       if (password) {
         formData.append('password', password);
       }
 
-      const response = await fetch(buildApiUrl('/api/pl/analyze'), {
+      // Get auth token
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      // Use the same Textract endpoint as onboarding for consistent processing
+      const response = await fetch(buildApiUrl('/api/upload/bank-statement'), {
         method: 'POST',
+        headers,
         body: formData
       });
 
@@ -564,10 +565,74 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       }
       
       if (result.success && result.data) {
+        // Transform the bank statement data to P&L format for Dashboard display
+        const bankData = result.data;
+        
+        // Create P&L structure from bank statement data
+        const plDataFormatted = {
+          // Analysis metrics
+          analysis: {
+            period: 'Monthly',
+            totalRevenue: bankData.summary?.total_credits || 0,
+            totalExpenses: bankData.summary?.total_debits || 0,
+            netIncome: (bankData.summary?.total_credits || 0) - (bankData.summary?.total_debits || 0),
+            transactionCount: bankData.transactions?.length || 0
+          },
+          
+          // Account info
+          accountInfo: {
+            accountNumber: bankData.account_number,
+            accountHolder: bankData.account_holder,
+            bank: bankData.bank_name
+          },
+          
+          // Transactions
+          transactions: bankData.transactions || [],
+          
+          // P&L Statement format
+          profitLossStatement: {
+            revenue: {
+              totalRevenue: bankData.summary?.total_credits || 0,
+              categories: bankData.transactions
+                ?.filter(t => t.type === 'credit')
+                ?.reduce((acc, t) => {
+                  const cat = t.category || 'Other Income';
+                  const existing = acc.find(c => c.name === cat);
+                  if (existing) existing.amount += Math.abs(parseFloat(t.amount) || 0);
+                  else acc.push({ name: cat, amount: Math.abs(parseFloat(t.amount) || 0) });
+                  return acc;
+                }, []) || []
+            },
+            expenses: {
+              totalExpenses: bankData.summary?.total_debits || 0,
+              categories: bankData.transactions
+                ?.filter(t => t.type === 'debit')
+                ?.reduce((acc, t) => {
+                  const cat = t.category || 'Other Expenses';
+                  const existing = acc.find(c => c.name === cat);
+                  if (existing) existing.amount += Math.abs(parseFloat(t.amount) || 0);
+                  else acc.push({ name: cat, amount: Math.abs(parseFloat(t.amount) || 0) });
+                  return acc;
+                }, []) || []
+            },
+            profitability: {
+              netIncome: (bankData.summary?.total_credits || 0) - (bankData.summary?.total_debits || 0),
+              profitMargin: bankData.summary?.total_credits > 0 
+                ? (((bankData.summary?.total_credits - bankData.summary?.total_debits) / bankData.summary?.total_credits) * 100).toFixed(2)
+                : 0
+            }
+          },
+          
+          // Metadata
+          metadata: bankData.metadata || {
+            processedAt: new Date().toISOString()
+          }
+        };
+        
         // Save new P&L data
         const userPlDataKey = getUserPlDataKey();
-        localStorage.setItem(userPlDataKey, JSON.stringify(result.data));
-        setPlData(result.data);
+        localStorage.setItem(userPlDataKey, JSON.stringify(plDataFormatted));
+        setPlData(plDataFormatted);
         
         // Close modal and reset states
         setShowUploadModal(false);
