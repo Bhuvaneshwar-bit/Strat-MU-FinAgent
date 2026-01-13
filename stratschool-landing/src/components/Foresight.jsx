@@ -226,53 +226,70 @@ const Foresight = ({ plData, darkMode, initialHealthScore, onNavigateToBookkeepi
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          message: `You are a senior financial advisor analyzing this scenario for a business: "${userMessage}"
+          message: `You are a senior business strategist analyzing this scenario: "${userMessage}"
 
-=== COMPLETE FINANCIAL PROFILE ===
-• Financial Health Score: ${baseHealthScore}/100 (${baseHealthScore >= 60 ? 'Healthy' : baseHealthScore >= 40 ? 'Fair' : 'Struggling'})
-• Total Monthly Revenue: ₹${m.totalRevenue?.toLocaleString('en-IN') || 0}
-• Total Monthly Expenses: ₹${m.totalExpenses?.toLocaleString('en-IN') || 0}
+=== BUSINESS FINANCIAL PROFILE ===
+• Health Score: ${baseHealthScore}/100
+• Monthly Revenue: ₹${m.totalRevenue?.toLocaleString('en-IN') || 0}
+• Monthly Expenses: ₹${m.totalExpenses?.toLocaleString('en-IN') || 0}
 • Net Income: ₹${m.netIncome?.toLocaleString('en-IN') || 0}
 • Profit Margin: ${m.profitMargin?.toFixed(1) || 0}%
-• Savings Rate: ${m.savingsRate?.toFixed(1) || 0}%
 
-=== EXPENSE BREAKDOWN (Top Categories) ===
+=== EXPENSE BREAKDOWN ===
 ${expenseBreakdown}
 • Biggest Expense: ${topExpense}
-• Non-Essential Spending: ₹${m.nonEssentialTotal?.toLocaleString('en-IN') || 0}
-• Recurring Subscriptions: ${m.recurringCount || 0} items totaling ₹${m.recurringTotal?.toLocaleString('en-IN') || 0}
 
 === REVENUE BREAKDOWN ===
 ${revenueBreakdown}
 • Primary Income: ${topRevenue}
-• Revenue Streams: ${m.revenueStreams?.length || 1} sources
 
-=== KEY INSIGHTS ===
-• ${m.profitMargin > 20 ? 'Strong profit margin' : m.profitMargin > 10 ? 'Moderate profit margin' : 'Low profit margin - expenses too high'}
-• ${m.topRevenueStream?.percentage > 70 ? 'HIGH RISK: Over-reliant on single income source' : 'Income diversification is reasonable'}
-• ${m.savingsRate > 15 ? 'Good savings habits' : 'Savings rate needs improvement'}
-• Monthly burn rate: ₹${m.totalExpenses?.toLocaleString('en-IN') || 0}
+ANALYZE THE SCENARIO: "${userMessage}"
 
-Based on THEIR SPECIFIC financial situation, analyze the scenario "${userMessage}" and provide:
-
-1. SPECIFIC benefits/consequences using their ACTUAL numbers
-2. Calculate the REAL financial impact based on their data
-3. Show HOW this affects their specific expense categories or revenue
-4. Give a PERSONALIZED recommendation based on their weak points
+Think about:
+1. What is the BEST possible outcome if this goes perfectly?
+2. What is the WORST possible outcome if this fails?
+3. What's a SMARTER alternative to achieve the same goal?
 
 Respond in EXACTLY this JSON format (no markdown, pure JSON):
 {
-  "title": "Short title (5 words max)",
-  "description": "One line with specific numbers from their data",
-  "type": "positive" or "negative",
-  "impact": number (-15 to +15, calculated based on actual impact to their finances),
-  "benefits": ["Specific benefit with ₹ amounts", "How it improves their weak area"] (for positive scenarios),
-  "consequences": ["Specific consequence with ₹ amounts", "Which of their expenses/revenue affected"] (for negative scenarios),
-  "financialImpact": number (exact rupees, calculated from their data),
-  "recommendation": "Specific action referencing their top expense/revenue categories"
+  "title": "Short title (4-5 words)",
+  "description": "One line describing the scenario with ₹ amounts",
+  "type": "positive" or "negative" (is this generally a good or risky decision?),
+  "impact": number (-10 to +10, base case impact on health score),
+  "bestCase": {
+    "points": [
+      "Specific positive outcome 1 (be detailed about what success looks like)",
+      "Specific positive outcome 2 (mention ROI, productivity gains, revenue impact)",
+      "Specific positive outcome 3 (how it improves their situation)",
+      "Specific positive outcome 4 (long-term benefit)"
+    ],
+    "financialImpact": number (₹ benefit in best case),
+    "impactPoints": number (health score change in best case, usually +5 to +12)
+  },
+  "worstCase": {
+    "points": [
+      "Specific negative outcome 1 (what goes wrong)",
+      "Specific negative outcome 2 (hidden costs, time wasted)",
+      "Specific negative outcome 3 (how it hurts their finances)",
+      "Specific negative outcome 4 (opportunity cost)"
+    ],
+    "financialImpact": number (₹ loss/risk in worst case),
+    "impactPoints": number (health score change in worst case, usually -3 to -10)
+  },
+  "recommendation": "A SMARTER alternative way to achieve the same goal. Be specific - suggest freelancers vs full-time, automation vs manual, phased approach vs all-at-once, etc. This should be actionable advice."
 }
 
-Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories. No generic advice.`
+CRITICAL RULES:
+- bestCase.points should be OPTIMISTIC but REALISTIC outcomes specific to the scenario
+- worstCase.points should be REALISTIC risks specific to the scenario
+- recommendation should suggest a BETTER/CHEAPER/SAFER alternative approach
+- Use their actual financial data to calculate impacts
+- BE SPECIFIC to the scenario - no generic business advice
+
+Example for "hire 3 interns at ₹8000/month":
+- bestCase: "Interns are skilled, contribute to sales, reduce workload on core team, one becomes full-time hire"
+- worstCase: "Interns need constant supervision, make costly mistakes, leave after training"
+- recommendation: "Consider hiring 1 experienced freelancer for ₹15000/month instead - more reliable, no training needed, can deliver immediately"`
         })
       });
       
@@ -296,13 +313,21 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
             description: 'Custom scenario based on your input',
             type: 'positive',
             impact: 5,
-            benefits: ['Potential improvement in financial health'],
-            financialImpact: 10000,
-            recommendation: 'Evaluate this scenario carefully'
+            bestCase: {
+              points: ['Potential improvement in financial health'],
+              financialImpact: 10000,
+              impactPoints: 5
+            },
+            worstCase: {
+              points: ['May not work as expected'],
+              financialImpact: 5000,
+              impactPoints: -3
+            },
+            recommendation: 'Evaluate this scenario carefully before proceeding'
           };
         }
         
-        // Create the scenario card
+        // Create the scenario card with full best/worst case data from AI
         const newScenario = {
           id: `custom_${Date.now()}`,
           title: scenarioData.title || 'Custom Scenario',
@@ -316,9 +341,17 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
             : 'linear-gradient(135deg, #14532d 0%, #166534 100%)',
           isCustom: true,
           details: {
-            benefits: scenarioData.benefits,
-            consequences: scenarioData.consequences,
-            financialImpact: scenarioData.financialImpact,
+            // Store the full best/worst case from AI
+            bestCase: scenarioData.bestCase || {
+              points: scenarioData.benefits || ['Positive outcome expected'],
+              financialImpact: scenarioData.financialImpact || 10000,
+              impactPoints: Math.abs(scenarioData.impact || 5)
+            },
+            worstCase: scenarioData.worstCase || {
+              points: scenarioData.consequences || ['Some risks involved'],
+              financialImpact: Math.round((scenarioData.financialImpact || 10000) * 0.3),
+              impactPoints: -Math.abs(scenarioData.impact || 5)
+            },
             recommendation: scenarioData.recommendation
           }
         };
@@ -946,18 +979,39 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
         worstCase.impact = cardImpact - 3;
       }
       else if (scenario.isCustom) {
-        // AI-generated custom scenario
-        bestCase.points = scenario.details?.benefits || [
-          'Optimal execution of this strategy',
-          'Full financial benefit realized',
-          'Improved business position'
-        ];
-        bestCase.financialImpact = scenario.details?.financialImpact || 50000;
+        // AI-generated custom scenario - use the AI-provided best/worst case
+        const aiBestCase = scenario.details?.bestCase;
+        const aiWorstCase = scenario.details?.worstCase;
         
-        if (scenario.details?.consequences && scenario.details.consequences.length > 0) {
+        if (aiBestCase && aiBestCase.points && aiBestCase.points.length > 0) {
+          bestCase.points = aiBestCase.points;
+          bestCase.financialImpact = aiBestCase.financialImpact || 50000;
+          bestCase.impact = aiBestCase.impactPoints || cardImpact;
+        } else {
+          // Fallback if AI didn't provide proper bestCase
+          bestCase.points = [
+            'Scenario executed successfully',
+            'Expected financial benefits realized',
+            'Positive impact on business operations'
+          ];
+          bestCase.financialImpact = 50000;
+          bestCase.impact = Math.abs(cardImpact);
+        }
+        
+        if (aiWorstCase && aiWorstCase.points && aiWorstCase.points.length > 0) {
           worstCase.show = true;
-          worstCase.points = scenario.details.consequences;
-          worstCase.financialImpact = Math.round((scenario.details?.financialImpact || 50000) * 0.3);
+          worstCase.points = aiWorstCase.points;
+          worstCase.financialImpact = aiWorstCase.financialImpact || 20000;
+          worstCase.impact = aiWorstCase.impactPoints || -Math.abs(cardImpact);
+        } else {
+          // If no worst case from AI, still show one for custom scenarios
+          worstCase.show = true;
+          worstCase.points = [
+            'Scenario doesn\'t work as expected',
+            'Hidden costs or complications arise',
+            'Time and resources wasted'
+          ];
+          worstCase.financialImpact = Math.round(bestCase.financialImpact * 0.3);
           worstCase.impact = -Math.abs(cardImpact);
         }
       }
@@ -986,8 +1040,16 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
     
     const { bestCase, worstCase } = generateCases();
     
-    // Determine recommendation based on user's financial health
+    // Determine recommendation based on user's financial health and scenario type
     const getRecommendation = () => {
+      // For custom scenarios, use the AI-provided smart recommendation
+      if (scenario.isCustom && scenario.details?.recommendation) {
+        return {
+          suggest: 'smart',
+          reason: scenario.details.recommendation
+        };
+      }
+      
       // If no worst case exists, always recommend best case
       if (!worstCase.show) {
         return {
@@ -1191,8 +1253,10 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <Sparkles style={{ color: '#D4AF37' }} size={18} />
-                <span style={{ fontWeight: '600', color: '#D4AF37' }}>AI Recommendation</span>
-                {worstCase.show && (
+                <span style={{ fontWeight: '600', color: '#D4AF37' }}>
+                  {recommendation.suggest === 'smart' ? '💡 Smart Alternative' : 'AI Recommendation'}
+                </span>
+                {worstCase.show && recommendation.suggest !== 'smart' && (
                   <span style={{
                     marginLeft: 'auto',
                     background: recommendation.suggest === 'best' ? '#22c55e' : '#ef4444',
