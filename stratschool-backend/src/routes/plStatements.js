@@ -405,12 +405,15 @@ router.post('/update-category', authenticate, async (req, res) => {
       categoryType, // 'revenue' or 'expenses'
       transactionAmount,
       transactionDate,
-      statementId
+      statementId,
+      specificTransactionDescriptions, // NEW: Array of specific transaction descriptions to update
+      updateOnlyThisOne // NEW: If true, only update the exact transaction
     } = req.body;
 
     console.log('🔄 Smart Category Update for user:', userId);
     console.log('📝 Transaction:', transactionDescription);
     console.log('📂 New Category:', newCategory, '| Type:', categoryType);
+    console.log('📋 Specific transactions to update:', specificTransactionDescriptions?.length || 'ALL (auto)');
 
     if (!transactionDescription || !newCategory || !categoryType) {
       return res.status(400).json({
@@ -471,20 +474,51 @@ router.post('/update-category', authenticate, async (req, res) => {
     if (plStatement && plStatement.rawAnalysis?.transactions) {
       const transactions = plStatement.rawAnalysis.transactions;
       
+      // Build a set of normalized descriptions to update (if specific ones provided)
+      const allowedDescriptions = specificTransactionDescriptions 
+        ? new Set(specificTransactionDescriptions.map(d => d.toLowerCase().trim()))
+        : null;
+      
       // Update transactions matching by entity name OR exact description
       transactions.forEach(txn => {
         const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
-        const matchesByEntity = desc.includes(entityNameNormalized);
-        const matchesByExact = desc === fullDescNormalized;
         
-        if (matchesByEntity || matchesByExact) {
-          txn.category = {
-            type: categoryType,
-            category: newCategory
-          };
-          txn.categorySource = 'user_rule';
-          updatedCount++;
-          console.log(`  ✅ Updated rawAnalysis txn: ${desc.substring(0, 40)}...`);
+        // If we have specific transactions to update, only update those
+        if (allowedDescriptions) {
+          if (allowedDescriptions.has(desc)) {
+            txn.category = {
+              type: categoryType,
+              category: newCategory
+            };
+            txn.categorySource = 'user_rule';
+            updatedCount++;
+            console.log(`  ✅ Updated rawAnalysis txn (specific): ${desc.substring(0, 40)}...`);
+          }
+        } else if (updateOnlyThisOne) {
+          // Only update the exact transaction
+          if (desc === fullDescNormalized) {
+            txn.category = {
+              type: categoryType,
+              category: newCategory
+            };
+            txn.categorySource = 'user_rule';
+            updatedCount++;
+            console.log(`  ✅ Updated rawAnalysis txn (exact only): ${desc.substring(0, 40)}...`);
+          }
+        } else {
+          // Legacy: Update all matching by entity name OR exact description
+          const matchesByEntity = desc.includes(entityNameNormalized);
+          const matchesByExact = desc === fullDescNormalized;
+          
+          if (matchesByEntity || matchesByExact) {
+            txn.category = {
+              type: categoryType,
+              category: newCategory
+            };
+            txn.categorySource = 'user_rule';
+            updatedCount++;
+            console.log(`  ✅ Updated rawAnalysis txn: ${desc.substring(0, 40)}...`);
+          }
         }
       });
 
@@ -494,12 +528,25 @@ router.post('/update-category', authenticate, async (req, res) => {
           if (rev.transactions) {
             rev.transactions.forEach(txn => {
               const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
-              const matchesByEntity = desc.includes(entityNameNormalized);
-              const matchesByExact = desc === fullDescNormalized;
               
-              if (matchesByEntity || matchesByExact) {
-                txn.category = { type: 'revenue', category: newCategory };
-                console.log(`  ✅ Updated revenue txn: ${desc.substring(0, 40)}...`);
+              if (allowedDescriptions) {
+                if (allowedDescriptions.has(desc)) {
+                  txn.category = { type: 'revenue', category: newCategory };
+                  console.log(`  ✅ Updated revenue txn (specific): ${desc.substring(0, 40)}...`);
+                }
+              } else if (updateOnlyThisOne) {
+                if (desc === fullDescNormalized) {
+                  txn.category = { type: 'revenue', category: newCategory };
+                  console.log(`  ✅ Updated revenue txn (exact only): ${desc.substring(0, 40)}...`);
+                }
+              } else {
+                const matchesByEntity = desc.includes(entityNameNormalized);
+                const matchesByExact = desc === fullDescNormalized;
+                
+                if (matchesByEntity || matchesByExact) {
+                  txn.category = { type: 'revenue', category: newCategory };
+                  console.log(`  ✅ Updated revenue txn: ${desc.substring(0, 40)}...`);
+                }
               }
             });
           }
@@ -511,12 +558,25 @@ router.post('/update-category', authenticate, async (req, res) => {
           if (exp.transactions) {
             exp.transactions.forEach(txn => {
               const desc = (txn.description || txn.particulars || '').toLowerCase().trim();
-              const matchesByEntity = desc.includes(entityNameNormalized);
-              const matchesByExact = desc === fullDescNormalized;
               
-              if (matchesByEntity || matchesByExact) {
-                txn.category = { type: 'expenses', category: newCategory };
-                console.log(`  ✅ Updated expense txn: ${desc.substring(0, 40)}...`);
+              if (allowedDescriptions) {
+                if (allowedDescriptions.has(desc)) {
+                  txn.category = { type: 'expenses', category: newCategory };
+                  console.log(`  ✅ Updated expense txn (specific): ${desc.substring(0, 40)}...`);
+                }
+              } else if (updateOnlyThisOne) {
+                if (desc === fullDescNormalized) {
+                  txn.category = { type: 'expenses', category: newCategory };
+                  console.log(`  ✅ Updated expense txn (exact only): ${desc.substring(0, 40)}...`);
+                }
+              } else {
+                const matchesByEntity = desc.includes(entityNameNormalized);
+                const matchesByExact = desc === fullDescNormalized;
+                
+                if (matchesByEntity || matchesByExact) {
+                  txn.category = { type: 'expenses', category: newCategory };
+                  console.log(`  ✅ Updated expense txn: ${desc.substring(0, 40)}...`);
+                }
               }
             });
           }

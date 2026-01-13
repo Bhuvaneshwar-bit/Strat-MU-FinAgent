@@ -1582,6 +1582,7 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
       
       // If there are similar transactions, show the modal
       if (similarTransactions.length > 0) {
+        console.log('🔍 Found similar transactions:', similarTransactions.length, 'for entity:', entityName);
         setSimilarTxnModal({
           show: true,
           similarTransactions,
@@ -1599,8 +1600,9 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
         return;
       }
       
-      // No similar transactions - just update this one
-      await applyCategoryToTransactions([txnToUpdate], newCategory, categoryType, transactionDescription);
+      // No similar transactions - just update this one (with updateOnlyThisOne flag)
+      console.log('📝 No similar transactions found, updating only this one');
+      await applyCategoryToTransactions([txnToUpdate], newCategory, categoryType, transactionDescription, true);
     }
 
     // Close the editor
@@ -1611,11 +1613,19 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
   };
 
   // Apply category to selected transactions
-  const applyCategoryToTransactions = async (transactionsToUpdate, newCategory, categoryType, transactionDescription) => {
+  const applyCategoryToTransactions = async (transactionsToUpdate, newCategory, categoryType, transactionDescription, updateOnlyThisOne = false) => {
     const transactions = [...(plData?.transactions || [])];
     
     try {
       const token = localStorage.getItem('token');
+      
+      // Build array of specific transaction descriptions to update
+      const specificTransactionDescriptions = transactionsToUpdate.map(t => 
+        t.description || t.particulars || ''
+      ).filter(Boolean);
+      
+      console.log('📤 Sending update with specificTransactionDescriptions:', specificTransactionDescriptions.length);
+      
       const response = await fetch(`${API_BASE_URL}/api/pl-statements/update-category`, {
         method: 'POST',
         headers: {
@@ -1629,7 +1639,8 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
           transactionAmount: transactionsToUpdate[0]?.amount,
           transactionDate: transactionsToUpdate[0]?.date,
           statementId: plData?.statementId,
-          specificTransactionIds: transactionsToUpdate.map(t => t._id || t.id).filter(Boolean)
+          specificTransactionDescriptions, // Send specific descriptions instead of IDs
+          updateOnlyThisOne // If true, backend only updates exact match
         })
       });
 
@@ -1742,11 +1753,12 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
 
   // Close similar transactions modal
   const closeSimilarTxnModal = async () => {
-    // Just update the original transaction
+    // Just update the original transaction (with updateOnlyThisOne flag to prevent auto-matching)
     const { newCategory, categoryType, originalTxn } = similarTxnModal;
     if (originalTxn) {
       const transactionDescription = originalTxn.description || originalTxn.particulars || '';
-      await applyCategoryToTransactions([originalTxn], newCategory, categoryType, transactionDescription);
+      console.log('📝 Skip clicked - updating only original transaction');
+      await applyCategoryToTransactions([originalTxn], newCategory, categoryType, transactionDescription, true);
     }
     
     setSimilarTxnModal({
