@@ -199,6 +199,24 @@ const Foresight = ({ plData, darkMode, initialHealthScore, onNavigateToBookkeepi
     setScenarioInput('');
     setIsGenerating(true);
     
+    // Build comprehensive financial context
+    const m = getMetrics || {};
+    const expenseBreakdown = m.expenseCategories?.slice(0, 5).map(e => 
+      `${e.category}: ₹${e.amount?.toLocaleString('en-IN')} (${e.percentage?.toFixed(1)}%)`
+    ).join(', ') || 'No breakdown available';
+    
+    const revenueBreakdown = m.revenueStreams?.slice(0, 3).map(r => 
+      `${r.category}: ₹${r.amount?.toLocaleString('en-IN')} (${r.percentage?.toFixed(1)}%)`
+    ).join(', ') || 'No breakdown available';
+    
+    const topExpense = m.topExpenseCategory 
+      ? `${m.topExpenseCategory.category} at ₹${m.topExpenseCategory.amount?.toLocaleString('en-IN')}`
+      : 'Unknown';
+    
+    const topRevenue = m.topRevenueStream
+      ? `${m.topRevenueStream.category} at ₹${m.topRevenueStream.amount?.toLocaleString('en-IN')} (${m.topRevenueStream.percentage?.toFixed(0)}% of income)`
+      : 'Unknown';
+    
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(buildApiUrl('/api/chat'), {
@@ -208,24 +226,53 @@ const Foresight = ({ plData, darkMode, initialHealthScore, onNavigateToBookkeepi
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          message: `Based on this financial scenario: "${userMessage}"
-          
-The user's current financial health score is ${baseHealthScore}/100.
-Their total revenue is ₹${getMetrics?.totalRevenue?.toLocaleString('en-IN') || 0}.
-Their total expenses are ₹${getMetrics?.totalExpenses?.toLocaleString('en-IN') || 0}.
-Their profit margin is ${getMetrics?.profitMargin?.toFixed(1) || 0}%.
+          message: `You are a senior financial advisor analyzing this scenario for a business: "${userMessage}"
 
-Analyze this scenario and respond in EXACTLY this JSON format (no markdown, just pure JSON):
+=== COMPLETE FINANCIAL PROFILE ===
+• Financial Health Score: ${baseHealthScore}/100 (${baseHealthScore >= 60 ? 'Healthy' : baseHealthScore >= 40 ? 'Fair' : 'Struggling'})
+• Total Monthly Revenue: ₹${m.totalRevenue?.toLocaleString('en-IN') || 0}
+• Total Monthly Expenses: ₹${m.totalExpenses?.toLocaleString('en-IN') || 0}
+• Net Income: ₹${m.netIncome?.toLocaleString('en-IN') || 0}
+• Profit Margin: ${m.profitMargin?.toFixed(1) || 0}%
+• Savings Rate: ${m.savingsRate?.toFixed(1) || 0}%
+
+=== EXPENSE BREAKDOWN (Top Categories) ===
+${expenseBreakdown}
+• Biggest Expense: ${topExpense}
+• Non-Essential Spending: ₹${m.nonEssentialTotal?.toLocaleString('en-IN') || 0}
+• Recurring Subscriptions: ${m.recurringCount || 0} items totaling ₹${m.recurringTotal?.toLocaleString('en-IN') || 0}
+
+=== REVENUE BREAKDOWN ===
+${revenueBreakdown}
+• Primary Income: ${topRevenue}
+• Revenue Streams: ${m.revenueStreams?.length || 1} sources
+
+=== KEY INSIGHTS ===
+• ${m.profitMargin > 20 ? 'Strong profit margin' : m.profitMargin > 10 ? 'Moderate profit margin' : 'Low profit margin - expenses too high'}
+• ${m.topRevenueStream?.percentage > 70 ? 'HIGH RISK: Over-reliant on single income source' : 'Income diversification is reasonable'}
+• ${m.savingsRate > 15 ? 'Good savings habits' : 'Savings rate needs improvement'}
+• Monthly burn rate: ₹${m.totalExpenses?.toLocaleString('en-IN') || 0}
+
+Based on THEIR SPECIFIC financial situation, analyze the scenario "${userMessage}" and provide:
+
+1. SPECIFIC benefits/consequences using their ACTUAL numbers
+2. Calculate the REAL financial impact based on their data
+3. Show HOW this affects their specific expense categories or revenue
+4. Give a PERSONALIZED recommendation based on their weak points
+
+Respond in EXACTLY this JSON format (no markdown, pure JSON):
 {
   "title": "Short title (5 words max)",
-  "description": "One line description",
+  "description": "One line with specific numbers from their data",
   "type": "positive" or "negative",
-  "impact": number between -15 and +15 (points to add/subtract from health score),
-  "benefits": ["benefit 1", "benefit 2"] (if positive scenario),
-  "consequences": ["consequence 1", "consequence 2"] (if negative scenario),
-  "financialImpact": number (estimated rupees impact),
-  "recommendation": "One actionable recommendation"
-}`
+  "impact": number (-15 to +15, calculated based on actual impact to their finances),
+  "benefits": ["Specific benefit with ₹ amounts", "How it improves their weak area"] (for positive scenarios),
+  "consequences": ["Specific consequence with ₹ amounts", "Which of their expenses/revenue affected"] (for negative scenarios),
+  "financialImpact": number (exact rupees, calculated from their data),
+  "recommendation": "Specific action referencing their top expense/revenue categories"
+}
+
+Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories. No generic advice.`
         })
       });
       
