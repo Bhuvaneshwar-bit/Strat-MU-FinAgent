@@ -39,13 +39,20 @@ class GeminiAIService {
       const parseResult = await advancedDocumentParser.parseDocument(buffer, 'application/pdf', 'uploaded.pdf');
       
       // Check if password is required
-      if (parseResult.requiresPassword) {
+      if (parseResult.requiresPassword || parseResult.metadata?.requiresPassword) {
         const error = new Error('PASSWORD_REQUIRED');
         error.passwordRequired = true;
         throw error;
       }
       
-      return parseResult.extractedText;
+      // extractedText can be at top level or in metadata
+      const extractedText = parseResult.extractedText || parseResult.metadata?.extractedText || '';
+      
+      if (!extractedText || extractedText.length < 50) {
+        throw new Error('Failed to extract sufficient text from PDF');
+      }
+      
+      return extractedText;
     } catch (error) {
       console.error('PDF parsing error:', error);
       
@@ -258,6 +265,29 @@ Return ONLY valid JSON with real numbers and insights.`;
 
   generateFallbackAnalysis(period, extractedText) {
     console.log('🤖 Generating intelligent fallback analysis...');
+    
+    // Handle undefined or empty text
+    if (!extractedText || typeof extractedText !== 'string') {
+      console.log('⚠️ No extracted text available for fallback, using minimal defaults');
+      return {
+        analysis: {
+          period: period,
+          totalRevenue: 0,
+          totalExpenses: 0,
+          netIncome: 0,
+          transactionCount: 0
+        },
+        revenue: [],
+        expenses: [],
+        insights: ['Unable to analyze document - please try uploading again'],
+        transactions: [],
+        profitLossStatement: {
+          revenue: { totalRevenue: 0, categories: [] },
+          expenses: { totalExpenses: 0, categories: [] },
+          profitability: { netIncome: 0, profitMargin: 0 }
+        }
+      };
+    }
     
     // Parse the CSV data for realistic analysis
     const lines = extractedText.split('\n');
