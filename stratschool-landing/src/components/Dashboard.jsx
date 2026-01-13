@@ -160,6 +160,17 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   const [pdfPassword, setPdfPassword] = useState('');
   const [pendingFile, setPendingFile] = useState(null);
 
+  // Similar transactions modal state (for category changes)
+  const [similarTxnModal, setSimilarTxnModal] = useState({
+    show: false,
+    similarTransactions: [],
+    selectedIndices: [],
+    newCategory: '',
+    categoryType: '',
+    entityName: '',
+    originalTxn: null
+  });
+
   // Get user from multiple sources: onboardingData.user, prop, or localStorage
   const getUser = () => {
     // First check onboardingData.user (passed from questionnaire during signup)
@@ -1546,90 +1557,50 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     if (txnToUpdate) {
       const transactionDescription = txnToUpdate.description || txnToUpdate.particulars || '';
       
-      // Call backend API to save category rule and update all matching transactions
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/api/pl-statements/update-category`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            transactionDescription,
-            newCategory,
-            categoryType,
-            transactionAmount: txnToUpdate.amount,
-            transactionDate: txnToUpdate.date,
-            statementId: plData?.statementId
-          })
+      // Extract entity name from description (simple extraction)
+      const extractEntityName = (desc) => {
+        const parts = desc.split('/');
+        // Look for common patterns like UPI, NEFT, IMPS
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].trim();
+          if (part.length > 3 && !['UPI', 'NEFT', 'IMPS', 'RTGS', 'P2A', 'P2M'].includes(part.toUpperCase())) {
+            return part;
+          }
+        }
+        return parts[1] || parts[0] || desc.substring(0, 30);
+      };
+      
+      const entityName = extractEntityName(transactionDescription);
+      const entityNormalized = entityName.toLowerCase().trim();
+      
+      // Find all similar transactions with same entity
+      const similarTransactions = transactions.filter((t, idx) => {
+        if (t === txnToUpdate) return false; // Exclude the current transaction
+        const desc = (t.description || t.particulars || '').toLowerCase();
+        return desc.includes(entityNormalized);
+      });
+      
+      // If there are similar transactions, show the modal
+      if (similarTransactions.length > 0) {
+        setSimilarTxnModal({
+          show: true,
+          similarTransactions,
+          selectedIndices: similarTransactions.map((_, i) => i), // Select all by default
+          newCategory,
+          categoryType,
+          entityName,
+          originalTxn: txnToUpdate
         });
-
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('✅ Category rule saved:', result.data);
-          console.log('📝 Entity extracted:', result.data.entityName);
-          console.log('📝 Entity normalized:', result.data.entityNameNormalized);
-          console.log('📊 Transactions updated in DB:', result.data.transactionsUpdated);
-          
-          // Use the updated transactions from the backend directly
-          if (result.data.updatedTransactions && result.data.updatedTransactions.length > 0) {
-            const updatedPlData = { ...plData, transactions: result.data.updatedTransactions };
-            setPlData(updatedPlData);
-            console.log('✅ Updated plData with backend transactions');
-          } else {
-            // Fallback: Update locally using entity name
-            const entityNameNormalized = result.data.entityNameNormalized || result.data.entityName.toLowerCase().trim();
-            console.log('🔍 Fallback: Updating locally with entity:', entityNameNormalized);
-            
-            const updatedTransactions = transactions.map(t => {
-              const desc = (t.description || t.particulars || '').toLowerCase();
-              if (desc.includes(entityNameNormalized)) {
-                console.log('  ✅ Match found:', desc.substring(0, 50));
-                return {
-                  ...t,
-                  category: {
-                    type: categoryType,
-                    category: newCategory
-                  },
-                  categorySource: 'user_rule'
-                };
-              }
-              return t;
-            });
-            
-            const updatedPlData = { ...plData, transactions: updatedTransactions };
-            setPlData(updatedPlData);
-          }
-          
-          // Show feedback to user
-          if (result.data.transactionsUpdated > 1) {
-            alert(`✅ Updated ${result.data.transactionsUpdated} similar transactions to "${newCategory}". Future transactions from "${result.data.entityName}" will auto-categorize!`);
-          }
-        } else {
-          // Fallback: just update the single transaction locally
-          const originalIndex = transactions.findIndex(t => t === txnToUpdate);
-          if (originalIndex !== -1) {
-            transactions[originalIndex] = {
-              ...transactions[originalIndex],
-              category: { type: categoryType, category: newCategory }
-            };
-            setPlData({ ...plData, transactions });
-          }
-        }
-      } catch (error) {
-        console.error('Error saving category rule:', error);
-        // Fallback: update single transaction locally
-        const originalIndex = transactions.findIndex(t => t === txnToUpdate);
-        if (originalIndex !== -1) {
-          transactions[originalIndex] = {
-            ...transactions[originalIndex],
-            category: { type: categoryType, category: newCategory }
-          };
-          setPlData({ ...plData, transactions });
-        }
+        // Close the category editor but don't apply yet
+        setEditingCategory(null);
+        setSelectedCategory('');
+        setCustomCategory('');
+        setShowCustomInput(false);
+        return;
       }
+      
+      // No similar transactions - just update this one
+      await applyCategoryToTransactions([txnToUpdate], newCategory, categoryType, transactionDescription);
     }
 
     // Close the editor
@@ -1637,6 +1608,156 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
     setSelectedCategory('');
     setCustomCategory('');
     setShowCustomInput(false);
+  };
+
+  // Apply category to selected transactions
+  const applyCategoryToTransactions = async (transactionsToUpdate, newCategory, categoryType, transactionDescription) => {
+    const transactions = [...(plData?.transactions || [])];
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/pl-statements/update-category`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          transactionDescription,
+          newCategory,
+          categoryType,
+          transactionAmount: transactionsToUpdate[0]?.amount,
+          transactionDate: transactionsToUpdate[0]?.date,
+          statementId: plData?.statementId,
+          specificTransactionIds: transactionsToUpdate.map(t => t._id || t.id).filter(Boolean)
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Category rule saved:', result.data);
+        
+        // Update locally for selected transactions
+        const updatedTransactions = transactions.map(t => {
+          const shouldUpdate = transactionsToUpdate.some(ut => 
+            (ut._id && ut._id === t._id) || 
+            (ut.description === t.description && ut.date === t.date && ut.amount === t.amount)
+          );
+          
+          if (shouldUpdate) {
+            return {
+              ...t,
+              category: {
+                type: categoryType,
+                category: newCategory
+              },
+              categorySource: 'user_rule'
+            };
+          }
+          return t;
+        });
+        
+        setPlData({ ...plData, transactions: updatedTransactions });
+        
+        // Save to localStorage
+        const userPlDataKey = getUserPlDataKey();
+        localStorage.setItem(userPlDataKey, JSON.stringify({ ...plData, transactions: updatedTransactions }));
+        
+        return { success: true, count: transactionsToUpdate.length };
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+    
+    // Fallback: update locally
+    const updatedTransactions = transactions.map(t => {
+      const shouldUpdate = transactionsToUpdate.some(ut => 
+        (ut._id && ut._id === t._id) || 
+        (ut.description === t.description && ut.date === t.date && ut.amount === t.amount)
+      );
+      
+      if (shouldUpdate) {
+        return {
+          ...t,
+          category: { type: categoryType, category: newCategory }
+        };
+      }
+      return t;
+    });
+    
+    setPlData({ ...plData, transactions: updatedTransactions });
+    return { success: true, count: transactionsToUpdate.length };
+  };
+
+  // Handle similar transactions modal confirmation
+  const handleSimilarTxnConfirm = async () => {
+    const { similarTransactions, selectedIndices, newCategory, categoryType, entityName, originalTxn } = similarTxnModal;
+    
+    // Always include the original transaction
+    const transactionsToUpdate = [originalTxn];
+    
+    // Add selected similar transactions
+    selectedIndices.forEach(idx => {
+      if (similarTransactions[idx]) {
+        transactionsToUpdate.push(similarTransactions[idx]);
+      }
+    });
+    
+    const transactionDescription = originalTxn.description || originalTxn.particulars || '';
+    await applyCategoryToTransactions(transactionsToUpdate, newCategory, categoryType, transactionDescription);
+    
+    // Close modal
+    setSimilarTxnModal({
+      show: false,
+      similarTransactions: [],
+      selectedIndices: [],
+      newCategory: '',
+      categoryType: '',
+      entityName: '',
+      originalTxn: null
+    });
+  };
+
+  // Toggle selection in similar transactions modal
+  const toggleSimilarTxnSelection = (index) => {
+    setSimilarTxnModal(prev => {
+      const newSelected = prev.selectedIndices.includes(index)
+        ? prev.selectedIndices.filter(i => i !== index)
+        : [...prev.selectedIndices, index];
+      return { ...prev, selectedIndices: newSelected };
+    });
+  };
+
+  // Select/Deselect all similar transactions
+  const toggleSelectAllSimilarTxn = () => {
+    setSimilarTxnModal(prev => {
+      const allSelected = prev.selectedIndices.length === prev.similarTransactions.length;
+      return {
+        ...prev,
+        selectedIndices: allSelected ? [] : prev.similarTransactions.map((_, i) => i)
+      };
+    });
+  };
+
+  // Close similar transactions modal
+  const closeSimilarTxnModal = async () => {
+    // Just update the original transaction
+    const { newCategory, categoryType, originalTxn } = similarTxnModal;
+    if (originalTxn) {
+      const transactionDescription = originalTxn.description || originalTxn.particulars || '';
+      await applyCategoryToTransactions([originalTxn], newCategory, categoryType, transactionDescription);
+    }
+    
+    setSimilarTxnModal({
+      show: false,
+      similarTransactions: [],
+      selectedIndices: [],
+      newCategory: '',
+      categoryType: '',
+      entityName: '',
+      originalTxn: null
+    });
   };
 
   // Cancel editing
@@ -5274,6 +5395,204 @@ Give actionable insight specific to this metric. Keep response under 50 words. U
                   {synopsisModal.content}
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Similar Transactions Modal - Ask user which ones to auto-categorize */}
+      {similarTxnModal.show && (
+        <div 
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+        >
+          <div 
+            style={{
+              background: darkMode ? '#1e293b' : '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+              border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: darkMode ? '#f1f5f9' : '#1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '24px' }}>🔍</span>
+                Similar Transactions Found
+              </h3>
+              <button 
+                onClick={closeSimilarTxnModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: darkMode ? '#94a3b8' : '#64748b'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Description */}
+            <p style={{ 
+              margin: '0 0 16px 0', 
+              fontSize: '14px', 
+              color: darkMode ? '#94a3b8' : '#64748b',
+              lineHeight: '1.5'
+            }}>
+              Found <strong style={{ color: '#D4AF37' }}>{similarTxnModal.similarTransactions.length}</strong> similar transactions from <strong style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>"{similarTxnModal.entityName}"</strong>. 
+              Select which ones to categorize as <strong style={{ color: '#22c55e' }}>"{similarTxnModal.newCategory}"</strong>:
+            </p>
+
+            {/* Select All Toggle */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginBottom: '12px',
+              padding: '8px 12px',
+              background: darkMode ? '#0f172a' : '#f8fafc',
+              borderRadius: '8px'
+            }}>
+              <input 
+                type="checkbox" 
+                checked={similarTxnModal.selectedIndices.length === similarTxnModal.similarTransactions.length}
+                onChange={toggleSelectAllSimilarTxn}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#D4AF37' }}
+              />
+              <label style={{ fontSize: '14px', fontWeight: '500', color: darkMode ? '#e2e8f0' : '#334155', cursor: 'pointer' }} onClick={toggleSelectAllSimilarTxn}>
+                Select All ({similarTxnModal.selectedIndices.length}/{similarTxnModal.similarTransactions.length})
+              </label>
+            </div>
+
+            {/* Transactions List */}
+            <div style={{ 
+              flex: 1, 
+              overflow: 'auto',
+              borderRadius: '8px',
+              border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+            }}>
+              {similarTxnModal.similarTransactions.map((txn, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => toggleSimilarTxnSelection(idx)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 16px',
+                    borderBottom: idx < similarTxnModal.similarTransactions.length - 1 
+                      ? (darkMode ? '1px solid #334155' : '1px solid #e2e8f0') 
+                      : 'none',
+                    background: similarTxnModal.selectedIndices.includes(idx) 
+                      ? (darkMode ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)')
+                      : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={similarTxnModal.selectedIndices.includes(idx)}
+                    onChange={() => toggleSimilarTxnSelection(idx)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#D4AF37', flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: '13px', 
+                      color: darkMode ? '#e2e8f0' : '#334155',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {txn.description || txn.particulars || 'Unknown Transaction'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: darkMode ? '#64748b' : '#94a3b8', marginTop: '4px' }}>
+                      {txn.date} • Current: {txn.category?.category || 'Uncategorized'}
+                    </div>
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: txn.type === 'credit' ? '#22c55e' : '#ef4444',
+                    flexShrink: 0
+                  }}>
+                    {txn.type === 'credit' ? '+' : '-'}₹{Math.abs(txn.amount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              marginTop: '16px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={closeSimilarTxnModal}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+                  background: 'transparent',
+                  color: darkMode ? '#94a3b8' : '#64748b',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Skip (Update Only This One)
+              </button>
+              <button
+                onClick={handleSimilarTxnConfirm}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #D4AF37 0%, #B8972F 100%)',
+                  color: '#000',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                ✓ Update {similarTxnModal.selectedIndices.length + 1} Transactions
+              </button>
             </div>
           </div>
         </div>
