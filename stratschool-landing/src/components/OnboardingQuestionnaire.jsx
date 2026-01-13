@@ -427,9 +427,9 @@ const OnboardingQuestionnaire = ({ isOpen, onClose, onComplete, user: propUser, 
       
       const token = localStorage.getItem('token');
 
-      setProcessingStage('🔍 Analyzing bank statement with AWS Textract...');
+      setProcessingStage('🔍 Analyzing bank statement with AI...');
       
-      console.log('Starting AWS Textract analysis...');
+      console.log('Starting bank statement analysis...');
       console.log('File:', uploadedFile.name, 'Size:', (uploadedFile.size / 1024).toFixed(2), 'KB');
       
       const textractResponse = await fetch(buildApiUrl(API_ENDPOINTS.UPLOAD_BANK_STATEMENT), {
