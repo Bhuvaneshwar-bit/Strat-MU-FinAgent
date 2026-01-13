@@ -702,12 +702,189 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
   };
 
   const ScenarioModal = ({ scenario, onClose }) => {
-    const newScore = healthScore + scenario.impact;
-    const clampedScore = Math.max(0, Math.min(100, newScore));
+    const [selectedCase, setSelectedCase] = useState(null); // 'best' or 'worst'
+    const m = getMetrics || {};
+    
+    // Generate best and worst case based on scenario type and user's data
+    const generateCases = () => {
+      const baseImpact = Math.abs(scenario.impact);
+      
+      // Best case: positive outcome
+      const bestCase = {
+        impact: scenario.type === 'positive' ? +baseImpact + 3 : +Math.round(baseImpact * 0.3),
+        title: 'Best Case Scenario',
+        points: [],
+        financialImpact: 0
+      };
+      
+      // Worst case: negative outcome  
+      const worstCase = {
+        impact: scenario.type === 'negative' ? -baseImpact - 3 : -Math.round(baseImpact * 0.5),
+        title: 'Worst Case Scenario',
+        points: [],
+        financialImpact: 0
+      };
+      
+      // Customize based on scenario
+      if (scenario.id === 'reduce_top_expense' || scenario.id?.includes('reduce')) {
+        const savings = scenario.details?.financialImpact || m.topExpenseCategory?.amount * 0.3 || 10000;
+        bestCase.points = [
+          `Save ₹${Math.round(savings).toLocaleString('en-IN')} monthly`,
+          `Profit margin improves to ${(m.profitMargin + 5).toFixed(1)}%`,
+          'No impact on operations quality',
+          'Reinvest savings for growth'
+        ];
+        bestCase.financialImpact = Math.round(savings);
+        bestCase.impact = Math.min(15, Math.round(savings / (m.totalExpenses || 100000) * 40));
+        
+        worstCase.points = [
+          `Cuts affect productivity or quality`,
+          `Hidden costs emerge: ₹${Math.round(savings * 0.4).toLocaleString('en-IN')}`,
+          'Team morale drops',
+          'May need to reverse cuts'
+        ];
+        worstCase.financialImpact = Math.round(savings * 0.4);
+        worstCase.impact = -Math.round(baseImpact * 0.5);
+      }
+      else if (scenario.id === 'grow_revenue') {
+        const growth = m.totalRevenue * 0.15;
+        bestCase.points = [
+          `Revenue increases by ₹${Math.round(growth).toLocaleString('en-IN')}`,
+          `Profit margin: ${((m.totalRevenue + growth - m.totalExpenses) / (m.totalRevenue + growth) * 100).toFixed(1)}%`,
+          'Customer base expands',
+          'Brand reputation grows'
+        ];
+        bestCase.financialImpact = Math.round(growth);
+        bestCase.impact = +10;
+        
+        worstCase.points = [
+          `Growth costs exceed revenue: ₹${Math.round(growth * 0.3).toLocaleString('en-IN')} loss`,
+          'Overextend resources',
+          'Quality suffers with scale',
+          'Cash flow pressure'
+        ];
+        worstCase.financialImpact = Math.round(growth * 0.3);
+        worstCase.impact = -5;
+      }
+      else if (scenario.id === 'expense_increase' || scenario.id === 'revenue_drop') {
+        const amount = scenario.details?.financialImpact || m.totalExpenses * 0.2;
+        bestCase.points = [
+          `Absorb impact with reserves`,
+          'Quickly optimize other expenses',
+          'Find new revenue streams',
+          'Emerge leaner and stronger'
+        ];
+        bestCase.financialImpact = Math.round(amount * 0.5);
+        bestCase.impact = -Math.round(baseImpact * 0.3);
+        
+        worstCase.points = [
+          `Full ₹${Math.round(amount).toLocaleString('en-IN')} impact`,
+          `Profit margin drops to ${Math.max(0, m.profitMargin - 15).toFixed(1)}%`,
+          'Cash reserves depleted',
+          'May need debt to survive'
+        ];
+        worstCase.financialImpact = Math.round(amount);
+        worstCase.impact = -baseImpact - 5;
+      }
+      else if (scenario.id === 'emergency_fund') {
+        const target = m.totalExpenses * 3;
+        bestCase.points = [
+          `Build ₹${Math.round(target).toLocaleString('en-IN')} safety net`,
+          'Sleep peacefully during crises',
+          'Negotiate from strength',
+          'Take calculated risks'
+        ];
+        bestCase.financialImpact = Math.round(target);
+        bestCase.impact = +12;
+        
+        worstCase.points = [
+          'Takes 12+ months to build',
+          `₹${Math.round(m.totalRevenue * 0.1).toLocaleString('en-IN')}/month locked away`,
+          'Miss investment opportunities',
+          'Slow growth period'
+        ];
+        worstCase.financialImpact = Math.round(m.totalRevenue * 0.1);
+        worstCase.impact = -2;
+      }
+      else if (scenario.isCustom) {
+        // AI-generated custom scenario
+        bestCase.points = scenario.details?.benefits || [
+          'Optimal execution of plan',
+          'Maximum financial benefit',
+          'Improved cash position'
+        ];
+        bestCase.financialImpact = scenario.details?.financialImpact || 50000;
+        bestCase.impact = Math.abs(scenario.impact) + 3;
+        
+        worstCase.points = scenario.details?.consequences || [
+          'Plan doesn\'t work as expected',
+          'Unexpected costs arise',
+          'Opportunity cost'
+        ];
+        worstCase.financialImpact = Math.round((scenario.details?.financialImpact || 50000) * 0.3);
+        worstCase.impact = -Math.abs(scenario.impact);
+      }
+      else {
+        // Default cases
+        bestCase.points = scenario.details?.benefits || ['Positive financial outcome', 'Improved stability'];
+        bestCase.financialImpact = scenario.details?.financialImpact || 10000;
+        bestCase.impact = Math.max(1, scenario.impact);
+        
+        worstCase.points = scenario.details?.consequences || ['Some financial pressure', 'Requires adjustment'];
+        worstCase.financialImpact = scenario.details?.financialImpact ? Math.round(scenario.details.financialImpact * 0.3) : 5000;
+        worstCase.impact = Math.min(-1, -Math.abs(scenario.impact) * 0.5);
+      }
+      
+      return { bestCase, worstCase };
+    };
+    
+    const { bestCase, worstCase } = generateCases();
+    
+    // Determine recommendation based on user's financial health
+    const getRecommendation = () => {
+      if (m.profitMargin < 10) {
+        return {
+          suggest: 'best',
+          reason: `With your current profit margin of ${m.profitMargin?.toFixed(1)}%, focus on the best case approach - you need every advantage.`
+        };
+      }
+      if (m.savingsRate < 10) {
+        return {
+          suggest: 'best',
+          reason: `Your savings rate is ${m.savingsRate?.toFixed(1)}%. Aim for best case to build financial buffer.`
+        };
+      }
+      if (scenario.type === 'negative') {
+        return {
+          suggest: 'worst',
+          reason: 'Plan for the worst case to be prepared. Your finances should have contingencies.'
+        };
+      }
+      return {
+        suggest: 'best',
+        reason: scenario.details?.recommendation || 'Your financial health supports optimistic planning.'
+      };
+    };
+    
+    const recommendation = getRecommendation();
+    
+    // Apply simulation
+    const applySimulation = (caseType) => {
+      const impact = caseType === 'best' ? bestCase.impact : worstCase.impact;
+      const newScore = Math.max(0, Math.min(100, baseHealthScore + impact));
+      setHealthScore(newScore);
+      setActiveSimulation({
+        ...scenario,
+        appliedCase: caseType,
+        appliedImpact: impact
+      });
+      setAnimateScore(true);
+      onClose();
+    };
     
     return (
       <div className="scenario-modal-overlay" onClick={onClose}>
-        <div className="scenario-modal" onClick={e => e.stopPropagation()}>
+        <div className="scenario-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
           <button className="modal-close" onClick={onClose}>
             <X />
           </button>
@@ -717,80 +894,203 @@ Be SPECIFIC. Use their ACTUAL numbers. Reference their ACTUAL expense categories
             <h2>{scenario.title}</h2>
           </div>
           
-          <div className="modal-body">
-            {/* Score Change Visual */}
-            <div className="score-change-section">
-              <div className="score-change-visual">
-                <div className="score-box current">
-                  <span className="score-label">Current</span>
-                  <span className="score-value">{healthScore}</span>
-                </div>
-                <div className="score-arrow">
-                  {scenario.impact > 0 ? <ArrowUp className="arrow-up" /> : <ArrowDown className="arrow-down" />}
-                </div>
-                <div className={`score-box new ${scenario.type}`}>
-                  <span className="score-label">New Score</span>
-                  <span className="score-value">{clampedScore}</span>
-                </div>
-              </div>
-              <div className={`impact-badge ${scenario.type}`}>
-                {scenario.impact > 0 ? '+' : ''}{scenario.impact} points
-              </div>
+          <div className="modal-body" style={{ padding: '24px' }}>
+            {/* Current Score */}
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '8px' }}>Current Health Score</div>
+              <div style={{ 
+                fontSize: '48px', 
+                fontWeight: '700', 
+                color: getScoreColor(baseHealthScore),
+                lineHeight: 1
+              }}>{baseHealthScore}</div>
             </div>
-
-            {/* Details Section */}
-            <div className="modal-details">
-              {scenario.details.benefits && (
-                <div className="details-section benefits">
-                  <h4><CheckCircle /> Benefits</h4>
-                  <ul>
-                    {scenario.details.benefits.map((benefit, idx) => (
-                      <li key={idx}>{benefit}</li>
-                    ))}
-                  </ul>
+            
+            {/* Best Case vs Worst Case */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              {/* Best Case */}
+              <div 
+                onClick={() => setSelectedCase('best')}
+                style={{
+                  background: selectedCase === 'best' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.05)',
+                  border: selectedCase === 'best' ? '2px solid #22c55e' : '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <ArrowUp style={{ color: '#22c55e' }} size={20} />
+                  <span style={{ fontWeight: '600', color: '#22c55e' }}>Best Case</span>
+                  <span style={{ 
+                    marginLeft: 'auto', 
+                    background: '#22c55e', 
+                    color: '#000', 
+                    padding: '4px 8px', 
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '700'
+                  }}>
+                    {bestCase.impact > 0 ? '+' : ''}{bestCase.impact} pts
+                  </span>
                 </div>
-              )}
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#22c55e', marginBottom: '12px' }}>
+                  {Math.max(0, Math.min(100, baseHealthScore + bestCase.impact))}
+                  <span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}> new score</span>
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '16px', color: '#e2e8f0', fontSize: '13px' }}>
+                  {bestCase.points.map((point, idx) => (
+                    <li key={idx} style={{ marginBottom: '6px' }}>{point}</li>
+                  ))}
+                </ul>
+                <div style={{ 
+                  marginTop: '12px', 
+                  padding: '8px 12px', 
+                  background: 'rgba(34, 197, 94, 0.2)', 
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#22c55e'
+                }}>
+                  💰 Impact: +₹{bestCase.financialImpact.toLocaleString('en-IN')}
+                </div>
+              </div>
               
-              {scenario.details.consequences && (
-                <div className="details-section consequences">
-                  <h4><AlertTriangle /> Consequences</h4>
-                  <ul>
-                    {scenario.details.consequences.map((consequence, idx) => (
-                      <li key={idx}>{consequence}</li>
-                    ))}
-                  </ul>
+              {/* Worst Case */}
+              <div 
+                onClick={() => setSelectedCase('worst')}
+                style={{
+                  background: selectedCase === 'worst' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.05)',
+                  border: selectedCase === 'worst' ? '2px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <ArrowDown style={{ color: '#ef4444' }} size={20} />
+                  <span style={{ fontWeight: '600', color: '#ef4444' }}>Worst Case</span>
+                  <span style={{ 
+                    marginLeft: 'auto', 
+                    background: '#ef4444', 
+                    color: '#fff', 
+                    padding: '4px 8px', 
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '700'
+                  }}>
+                    {worstCase.impact > 0 ? '+' : ''}{worstCase.impact} pts
+                  </span>
                 </div>
-              )}
-
-              {scenario.details.financialImpact && (
-                <div className="financial-impact">
-                  <DollarSign />
-                  <span>Financial Impact: </span>
-                  <strong>₹{scenario.details.financialImpact.toLocaleString('en-IN')}</strong>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#ef4444', marginBottom: '12px' }}>
+                  {Math.max(0, Math.min(100, baseHealthScore + worstCase.impact))}
+                  <span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8' }}> new score</span>
                 </div>
-              )}
-
-              {scenario.details.newProfitMargin && (
-                <div className="new-margin">
-                  <Activity />
-                  <span>New Profit Margin: </span>
-                  <strong>{scenario.details.newProfitMargin}%</strong>
+                <ul style={{ margin: 0, paddingLeft: '16px', color: '#e2e8f0', fontSize: '13px' }}>
+                  {worstCase.points.map((point, idx) => (
+                    <li key={idx} style={{ marginBottom: '6px' }}>{point}</li>
+                  ))}
+                </ul>
+                <div style={{ 
+                  marginTop: '12px', 
+                  padding: '8px 12px', 
+                  background: 'rgba(239, 68, 68, 0.2)', 
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#ef4444'
+                }}>
+                  💸 Risk: -₹{worstCase.financialImpact.toLocaleString('en-IN')}
                 </div>
-              )}
-
-              {scenario.details.targetAmount && (
-                <div className="target-amount">
-                  <Target />
-                  <span>Target Amount: </span>
-                  <strong>₹{scenario.details.targetAmount.toLocaleString('en-IN')}</strong>
-                </div>
-              )}
-
-              <div className="recommendation">
-                <Info />
-                <p>{scenario.details.recommendation}</p>
               </div>
             </div>
+            
+            {/* AI Recommendation */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Sparkles style={{ color: '#D4AF37' }} size={18} />
+                <span style={{ fontWeight: '600', color: '#D4AF37' }}>AI Recommendation</span>
+                <span style={{
+                  marginLeft: 'auto',
+                  background: recommendation.suggest === 'best' ? '#22c55e' : '#ef4444',
+                  color: recommendation.suggest === 'best' ? '#000' : '#fff',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase'
+                }}>
+                  Plan for {recommendation.suggest} case
+                </span>
+              </div>
+              <p style={{ margin: 0, color: '#e2e8f0', fontSize: '14px', lineHeight: '1.5' }}>
+                {recommendation.reason}
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => applySimulation('best')}
+                disabled={selectedCase !== 'best'}
+                style={{
+                  flex: 1,
+                  padding: '14px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: selectedCase === 'best' 
+                    ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' 
+                    : 'rgba(34, 197, 94, 0.2)',
+                  color: selectedCase === 'best' ? '#000' : '#22c55e',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: selectedCase === 'best' ? 'pointer' : 'not-allowed',
+                  opacity: selectedCase === 'best' ? 1 : 0.5,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <ArrowUp size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Simulate Best Case
+              </button>
+              <button
+                onClick={() => applySimulation('worst')}
+                disabled={selectedCase !== 'worst'}
+                style={{
+                  flex: 1,
+                  padding: '14px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: selectedCase === 'worst' 
+                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
+                    : 'rgba(239, 68, 68, 0.2)',
+                  color: '#fff',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: selectedCase === 'worst' ? 'pointer' : 'not-allowed',
+                  opacity: selectedCase === 'worst' ? 1 : 0.5,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <ArrowDown size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Simulate Worst Case
+              </button>
+            </div>
+            
+            <p style={{ 
+              textAlign: 'center', 
+              color: '#64748b', 
+              fontSize: '12px', 
+              marginTop: '12px',
+              marginBottom: 0 
+            }}>
+              Click on Best Case or Worst Case above to select, then simulate
+            </p>
           </div>
         </div>
       </div>
