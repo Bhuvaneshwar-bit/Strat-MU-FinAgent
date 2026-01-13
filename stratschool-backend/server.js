@@ -56,6 +56,7 @@ app.use('/api', require('./src/routes/authRoutes')); // Direct auth routes (sign
 app.use('/api/invoices', require('./src/routes/invoiceRoutes'));
 app.use('/api/gst-invoices', require('./src/routes/gstInvoiceRoutes')); // GST Invoice routes
 app.use('/api/pl-statements', require('./src/routes/plStatements'));
+app.use('/api/pl', require('./src/routes/plStatements')); // Alias for frontend compatibility
 app.use('/api/chat', require('./src/routes/chat'));
 app.use('/api/bookkeeping', require('./src/routes/automatedBookkeeping'));
 app.use('/api/password-protected', require('./src/routes/passwordProtectedDocuments'));
