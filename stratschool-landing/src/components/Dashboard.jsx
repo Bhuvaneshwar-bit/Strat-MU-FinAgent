@@ -567,32 +567,28 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
       if (result.success && result.data) {
         // Transform the bank statement data to P&L format for Dashboard display
         const bankData = result.data;
+        const totalCredits = bankData.summary?.total_credits || 0;
+        const totalDebits = bankData.summary?.total_debits || 0;
+        const netIncome = totalCredits - totalDebits;
+        const profitMargin = totalCredits > 0 ? ((netIncome / totalCredits) * 100).toFixed(2) : 0;
         
-        // Create P&L structure from bank statement data
+        // Create P&L structure matching what getPlMetrics() expects
         const plDataFormatted = {
-          // Analysis metrics
-          analysis: {
-            period: 'Monthly',
-            totalRevenue: bankData.summary?.total_credits || 0,
-            totalExpenses: bankData.summary?.total_debits || 0,
-            netIncome: (bankData.summary?.total_credits || 0) - (bankData.summary?.total_debits || 0),
+          // analysisMetrics - this is what getPlMetrics() looks for first!
+          analysisMetrics: {
+            totalRevenue: totalCredits,
+            totalExpenses: totalDebits,
+            netIncome: netIncome,
+            netProfit: netIncome,
+            profitMargin: profitMargin,
             transactionCount: bankData.transactions?.length || 0
           },
           
-          // Account info
-          accountInfo: {
-            accountNumber: bankData.account_number,
-            accountHolder: bankData.account_holder,
-            bank: bankData.bank_name
-          },
-          
-          // Transactions
-          transactions: bankData.transactions || [],
-          
-          // P&L Statement format
-          profitLossStatement: {
+          // plStatement - fallback structure getPlMetrics() uses
+          plStatement: {
             revenue: {
-              totalRevenue: bankData.summary?.total_credits || 0,
+              totalRevenue: totalCredits,
+              total: totalCredits,
               categories: bankData.transactions
                 ?.filter(t => t.type === 'credit')
                 ?.reduce((acc, t) => {
@@ -604,7 +600,8 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 }, []) || []
             },
             expenses: {
-              totalExpenses: bankData.summary?.total_debits || 0,
+              totalExpenses: totalDebits,
+              total: totalDebits,
               categories: bankData.transactions
                 ?.filter(t => t.type === 'debit')
                 ?.reduce((acc, t) => {
@@ -616,18 +613,36 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
                 }, []) || []
             },
             profitability: {
-              netIncome: (bankData.summary?.total_credits || 0) - (bankData.summary?.total_debits || 0),
-              profitMargin: bankData.summary?.total_credits > 0 
-                ? (((bankData.summary?.total_credits - bankData.summary?.total_debits) / bankData.summary?.total_credits) * 100).toFixed(2)
-                : 0
+              netIncome: netIncome,
+              netProfitMargin: profitMargin
             }
           },
+          
+          // Account info
+          accountInfo: {
+            accountNumber: bankData.account_number,
+            accountHolder: bankData.account_holder,
+            bank: bankData.bank_name
+          },
+          
+          // Transactions - format for Dashboard display
+          transactions: (bankData.transactions || []).map(t => ({
+            ...t,
+            amount: t.type === 'credit' ? Math.abs(parseFloat(t.amount) || 0) : -Math.abs(parseFloat(t.amount) || 0)
+          })),
           
           // Metadata
           metadata: bankData.metadata || {
             processedAt: new Date().toISOString()
           }
         };
+        
+        console.log('📊 Transformed P&L data:', {
+          totalRevenue: plDataFormatted.analysisMetrics.totalRevenue,
+          totalExpenses: plDataFormatted.analysisMetrics.totalExpenses,
+          netIncome: plDataFormatted.analysisMetrics.netIncome,
+          transactionCount: plDataFormatted.transactions.length
+        });
         
         // Save new P&L data
         const userPlDataKey = getUserPlDataKey();
