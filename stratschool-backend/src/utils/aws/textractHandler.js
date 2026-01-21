@@ -17,6 +17,46 @@ const { PDFDocument } = require('pdf-lib');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 /**
+ * Filter out summary/total rows from transactions
+ * These are not actual transactions but summaries
+ */
+function filterSummaryRows(transactions) {
+  if (!transactions || !Array.isArray(transactions)) return [];
+  
+  const summaryPatterns = [
+    /^total$/i,
+    /^total\s*$/i,
+    /total\s*debits?$/i,
+    /total\s*credits?$/i,
+    /total\s*dr\/cr/i,
+    /total\s*transactions?/i,
+    /grand\s*total/i,
+    /sub\s*total/i,
+    /statement\s*summary/i,
+    /end\s*of\s*report/i,
+    /end\s*of\s*statement/i,
+    /opening\s*balance/i,
+    /closing\s*balance/i,
+    /balance\s*b\/f/i,
+    /balance\s*c\/f/i,
+  ];
+  
+  return transactions.filter(tx => {
+    if (!tx || !tx.description) return true; // Keep if no description
+    const desc = tx.description.toString().trim();
+    
+    // Check against patterns
+    for (const pattern of summaryPatterns) {
+      if (pattern.test(desc)) {
+        console.log(`   ⏭️ Filtering out summary row: "${desc}"`);
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+/**
  * Parse bank statement PDF directly using Gemini 1.5 Flash (supports PDF natively)
  * @param {Buffer} pdfBuffer - PDF file buffer
  * @returns {Promise<Object>} - Structured transaction data
@@ -147,12 +187,20 @@ async function parseTransactionsWithGemini(rawText) {
     const prompt = `You are a bank statement parser. Extract ALL transactions from this bank statement text.
 
 IMPORTANT RULES:
-1. Extract EVERY transaction line - do not skip any
+1. Extract EVERY individual transaction line - do not skip any
 2. Identify the date (DD-MM-YYYY or DD/MM/YYYY format)
 3. Identify the description/narration
 4. Identify if it's a DEBIT (money out) or CREDIT (money in)
 5. Extract the transaction amount (ignore the balance column)
 6. Return ONLY valid JSON, no markdown, no explanation
+
+CRITICAL - EXCLUDE THESE (they are NOT transactions):
+- Rows with description "Total" or "Grand Total" or "Sub Total"
+- Rows labeled "Total Debits" or "Total Credits"
+- Rows showing "Opening Balance" or "Closing Balance"
+- Rows showing "Balance B/F" or "Balance C/F"
+- Summary rows or totals at the end
+- Header rows with column names
 
 Look for patterns like:
 - Date columns (transaction date, value date)
@@ -232,7 +280,9 @@ async function analyzePreExtractedText(extractedText) {
     const geminiResult = await parseTransactionsWithGemini(extractedText);
     
     if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
-      console.log(`✅ Gemini parsed ${geminiResult.transactions.length} transactions from pre-extracted text`);
+      // Filter out summary rows like "Total", "Grand Total", etc.
+      const filteredTransactions = filterSummaryRows(geminiResult.transactions);
+      console.log(`✅ Gemini parsed ${geminiResult.transactions.length} transactions, ${filteredTransactions.length} after filtering`);
       
       return {
         text: [],
@@ -242,7 +292,7 @@ async function analyzePreExtractedText(extractedText) {
         pageCount: 0,
         source: 'password-protected-pdf-parse',
         geminiParsed: geminiResult,
-        parsedTransactions: geminiResult.transactions.map(tx => ({
+        parsedTransactions: filteredTransactions.map(tx => ({
           date: tx.date,
           description: tx.description,
           debit: tx.type === 'debit' ? tx.amount : 0,
@@ -927,7 +977,9 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
     const geminiResult = await parsePdfWithGemini(pdfBuffer);
     
     if (geminiResult && geminiResult.transactions && geminiResult.transactions.length > 0) {
-      console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions`);
+      // Filter out summary rows
+      const filteredTransactions = filterSummaryRows(geminiResult.transactions);
+      console.log(`✅ Gemini AI extracted ${geminiResult.transactions.length} transactions, ${filteredTransactions.length} after filtering`);
       
       return {
         text: [],
@@ -937,7 +989,7 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
         pageCount: 0,
         source: 'gemini-ai',
         geminiParsed: geminiResult,
-        parsedTransactions: geminiResult.transactions.map(tx => ({
+        parsedTransactions: filteredTransactions.map(tx => ({
           date: tx.date,
           description: tx.description,
           debit: tx.type === 'debit' ? tx.amount : 0,
@@ -960,12 +1012,14 @@ async function analyzeDocumentFromBufferComplete(pdfBuffer) {
     try {
       const geminiResult = await parsePdfWithGemini(pdfBuffer);
       if (geminiResult && geminiResult.transactions?.length > 0) {
+        // Filter out summary rows
+        const filteredTransactions = filterSummaryRows(geminiResult.transactions);
         console.log('✅ Last resort Gemini analysis succeeded');
         return {
           text: [],
           source: 'gemini-ai',
           geminiParsed: geminiResult,
-          parsedTransactions: geminiResult.transactions.map(tx => ({
+          parsedTransactions: filteredTransactions.map(tx => ({
             date: tx.date,
             description: tx.description,
             debit: tx.type === 'debit' ? tx.amount : 0,

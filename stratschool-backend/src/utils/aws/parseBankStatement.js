@@ -366,12 +366,53 @@ function parseTransactionRow(row, columnMap, headers) {
   if (!row || row.every(cell => !cell || cell.toString().trim() === '')) return null;
   
   const rowText = row.join(' ').toLowerCase();
-  if (rowText.includes('total dr/cr') || (rowText.includes('total') && rowText.includes('transaction')) ||
-      rowText.includes('opening balance') || rowText.includes('closing balance') ||
-      rowText.includes('balance b/f') || rowText.includes('balance c/f') ||
-      rowText.includes('s.no') || rowText.includes('particulars') ||
-      rowText.includes('tran date') || rowText.includes('value date')) {
-    return null;
+  
+  // Skip summary/total rows - these are not actual transactions
+  const summaryPatterns = [
+    /^total$/i,                          // Just "Total"
+    /^total\s*$/i,                        // "Total " with trailing space
+    /total\s*debits?/i,                   // "Total Debits" or "Total Debit"
+    /total\s*credits?/i,                  // "Total Credits" or "Total Credit"
+    /total\s*dr\/cr/i,                    // "Total Dr/Cr"
+    /total\s*transactions?/i,             // "Total Transactions"
+    /grand\s*total/i,                     // "Grand Total"
+    /sub\s*total/i,                       // "Sub Total"
+    /statement\s*summary/i,               // "Statement Summary"
+    /summary\s*of/i,                      // "Summary of..."
+    /end\s*of\s*report/i,                 // "End of Report"
+    /end\s*of\s*statement/i,              // "End of Statement"
+    /opening\s*balance/i,                 // "Opening Balance"
+    /closing\s*balance/i,                 // "Closing Balance"
+    /balance\s*b\/f/i,                    // "Balance B/F"
+    /balance\s*c\/f/i,                    // "Balance C/F"
+    /brought\s*forward/i,                 // "Brought Forward"
+    /carried\s*forward/i,                 // "Carried Forward"
+    /s\.?no\.?/i,                         // "S.No" or "S.No."
+    /particulars/i,                       // Column header
+    /tran\s*date/i,                       // Column header
+    /value\s*date/i,                      // Column header
+    /narration/i,                         // Column header if alone
+    /^date$/i,                            // Just "Date" header
+  ];
+  
+  // Check if any summary pattern matches
+  for (const pattern of summaryPatterns) {
+    if (pattern.test(rowText)) {
+      console.log(`   ⏭️ Skipping summary row: "${rowText.substring(0, 50)}..."`);
+      return null;
+    }
+  }
+  
+  // Also check if description cell alone is "Total" or similar
+  const descIdx = columnMap.description;
+  if (descIdx !== undefined && row[descIdx]) {
+    const descText = row[descIdx].toString().trim().toLowerCase();
+    if (descText === 'total' || descText === 'grand total' || descText === 'sub total' ||
+        descText === 'total debits' || descText === 'total credits' ||
+        descText.startsWith('total ') || descText === 'end of report') {
+      console.log(`   ⏭️ Skipping summary row (by description): "${descText}"`);
+      return null;
+    }
   }
   
   const transaction = { date: null, description: null, amount: null, type: null, balance: null, reference: null, category: null };
