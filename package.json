@@ -1,6 +1,13 @@
 {
   "dependencies": {
+    "autocannon": "^8.0.0",
     "form-data": "^4.0.4",
+    "jest": "^30.2.0",
     "node-fetch": "^3.3.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "NODE_ENV=test node e2e-tests.js",
+    "test:load": "node load-test.js"
   }
 }
