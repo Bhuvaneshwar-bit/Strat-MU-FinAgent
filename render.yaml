@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: strat-mu-finagent-1
+    env: static
+    buildCommand: cd stratschool-landing && npm install && npm run build
+    staticPublishPath: stratschool-landing/dist
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; connect-src 'self' https://strat-mu-finagent.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src 'self' blob:"
