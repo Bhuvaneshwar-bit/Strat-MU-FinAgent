@@ -102,7 +102,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   
   // Dark mode state
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('nebulaa-dark-mode');
+    const saved = localStorage.getItem('app-dark-mode');
     return saved ? JSON.parse(saved) : true; // Default to dark mode
   });
 
@@ -113,7 +113,7 @@ const Dashboard = ({ user: propUser, onLogout, onboardingData }) => {
   useEffect(() => {
     document.body.classList.toggle('dark-mode', darkMode);
     document.body.classList.toggle('light-mode', !darkMode);
-    localStorage.setItem('nebulaa-dark-mode', JSON.stringify(darkMode));
+    localStorage.setItem('app-dark-mode', JSON.stringify(darkMode));
   }, [darkMode]);
   
   // Expense breakdown dropdown states

@@ -11,8 +11,6 @@ import {
   ArrowRight
 } from 'lucide-react';
 import '../styles/Footer.css';
-import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
-import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.jpg';
 
 const Footer = ({ onBookDemo, darkMode }) => {
   const footerLinks = {
@@ -94,8 +92,6 @@ const Footer = ({ onBookDemo, darkMode }) => {
           {/* Company Info */}
           <div className="footer-brand">
             <div className="footer-logo">
-              <img src={darkMode ? LogoDark : LogoLight} alt="Nebulaa InFINity" className="logo-img" />
-              <span className="logo-text">Nebulaa InFINity</span>
             </div>
             <p className="footer-description">
               Empowering solo entrepreneurs and startups with AI-powered financial management. 
@@ -104,7 +100,7 @@ const Footer = ({ onBookDemo, darkMode }) => {
             <div className="footer-contact">
               <div className="contact-item">
                 <Mail className="contact-icon" />
-                <span>hello@nebulaainfinity.com</span>
+                <span>hello@example.com</span>
               </div>
               <div className="contact-item">
                 <Phone className="contact-icon" />
@@ -202,7 +198,7 @@ const Footer = ({ onBookDemo, darkMode }) => {
         <div className="footer-bottom">
           <div className="footer-bottom-left">
             <p className="copyright">
-              © 2025 Nebulaa InFINity. All rights reserved.
+              © 2025 All rights reserved.
             </p>
             <div className="footer-badges">
               <span className="badge">SOC 2 Compliant</span>

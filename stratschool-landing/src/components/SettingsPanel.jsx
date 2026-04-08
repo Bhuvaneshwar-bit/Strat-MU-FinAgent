@@ -86,7 +86,7 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
 
   // Load saved settings from localStorage
   useEffect(() => {
-    const savedProfile = localStorage.getItem('nebulaa-user-profile');
+    const savedProfile = localStorage.getItem('app-user-profile');
     if (savedProfile) {
       try {
         const parsed = JSON.parse(savedProfile);
@@ -96,7 +96,7 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
       }
     }
 
-    const savedNotifications = localStorage.getItem('nebulaa-notifications');
+    const savedNotifications = localStorage.getItem('app-notifications');
     if (savedNotifications) {
       try {
         setNotifications(JSON.parse(savedNotifications));
@@ -126,7 +126,7 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
     setIsSaving(true);
     try {
       // Save to localStorage for now (can integrate with backend later)
-      localStorage.setItem('nebulaa-user-profile', JSON.stringify(profileData));
+      localStorage.setItem('app-user-profile', JSON.stringify(profileData));
       
       setSaveMessage({ type: 'success', text: 'Profile saved successfully!' });
       setIsEditing(false);
@@ -183,15 +183,15 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
   const handleNotificationChange = (key) => {
     const updated = { ...notifications, [key]: !notifications[key] };
     setNotifications(updated);
-    localStorage.setItem('nebulaa-notifications', JSON.stringify(updated));
+    localStorage.setItem('app-notifications', JSON.stringify(updated));
   };
 
   const handleExportData = async () => {
     try {
       const token = localStorage.getItem('token');
       // Get P&L data
-      const plData = localStorage.getItem('nebulaa-pl-data');
-      const profile = localStorage.getItem('nebulaa-user-profile');
+      const plData = localStorage.getItem('app-pl-data');
+      const profile = localStorage.getItem('app-user-profile');
       
       const exportData = {
         profile: profile ? JSON.parse(profile) : {},
@@ -203,7 +203,7 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `nebulaa-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -863,22 +863,22 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
               <div className="subsection">
                 <h4><HelpCircle size={16} /> Help & Support</h4>
                 <div className="help-links">
-                  <a href="https://nebulaa.com/help" target="_blank" rel="noopener noreferrer" className="help-link">
+                  <a href="#" className="help-link">
                     <HelpCircle size={18} />
                     <span>Help Center</span>
                     <ExternalLink size={14} />
                   </a>
-                  <a href="mailto:support@nebulaa.com" className="help-link">
+                  <a href="mailto:support@example.com" className="help-link">
                     <Mail size={18} />
                     <span>Contact Support</span>
                     <ExternalLink size={14} />
                   </a>
-                  <a href="https://nebulaa.com/privacy" target="_blank" rel="noopener noreferrer" className="help-link">
+                  <a href="#" className="help-link">
                     <Shield size={18} />
                     <span>Privacy Policy</span>
                     <ExternalLink size={14} />
                   </a>
-                  <a href="https://nebulaa.com/terms" target="_blank" rel="noopener noreferrer" className="help-link">
+                  <a href="#" className="help-link">
                     <FileText size={18} />
                     <span>Terms of Service</span>
                     <ExternalLink size={14} />

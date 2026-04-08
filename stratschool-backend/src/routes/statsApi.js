@@ -282,7 +282,7 @@ router.get('/summary/public/:identifier', async (req, res) => {
     const apiKey = req.headers['x-api-key'];
 
     // Simple API key validation
-    const validApiKey = process.env.INTERNAL_API_KEY || 'nebulaa-internal-key';
+    const validApiKey = process.env.INTERNAL_API_KEY || 'internal-key';
     if (apiKey !== validApiKey) {
       return res.status(401).json({
         success: false,
@@ -384,7 +384,7 @@ router.get('/summary/public/:identifier', async (req, res) => {
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    service: 'InFINity Stats API',
+    service: 'Stats API',
     version: '2.0.0',
     timestamp: new Date().toISOString()
   });

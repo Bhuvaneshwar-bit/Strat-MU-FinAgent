@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
 import '../styles/Header.css';
-import LogoDark from '../assets/Dark Mode - Nebulaa - Logo only.png';
-import LogoLight from '../assets/Light Mode - Nebulaa - Logo only.jpg';
 
 const Header = ({ onBookDemo, onSignIn, onSignUp, darkMode, setDarkMode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -40,15 +38,6 @@ const Header = ({ onBookDemo, onSignIn, onSignUp, darkMode, setDarkMode }) => {
     <header className={`header ${darkMode ? 'dark' : ''}`}>
       <div className="header-container">
         <div className="header-logo">
-          <img 
-            src={darkMode ? LogoDark : LogoLight} 
-            alt="Nebulaa Logo" 
-            className="logo-img"
-          />
-          <div className="logo-text-container">
-            <span className="logo-text">Nebulaa</span>
-            <span className="logo-subtext">InFINity</span>
-          </div>
         </div>
 
         <nav className={`header-nav ${isMenuOpen ? 'nav-open' : ''}`}>
