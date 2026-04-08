@@ -771,7 +771,7 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
               <div className="section-header">
                 <div>
                   <h3>Appearance</h3>
-                  <p>Customize how InFINity looks</p>
+                  <p>Customize how the app looks</p>
                 </div>
               </div>
 
@@ -888,8 +888,8 @@ const SettingsPanel = ({ darkMode, setDarkMode, user, onLogout }) => {
 
               {/* App Info */}
               <div className="app-info">
-                <p>Nebulaa InFINity v1.0.0</p>
-                <p>© 2026 Nebulaa Technologies. All rights reserved.</p>
+                <p>AI Finance v1.0.0</p>
+                <p>© 2026 All rights reserved.</p>
               </div>
             </div>
           )}

@@ -18,7 +18,7 @@ const Hero = ({ onBookDemo, darkMode }) => {
           </h1>
           
           <p className="hero-description">
-            Nebulaa InFINity's Agentic AI automates your entire financial workflow. From bookkeeping 
+            Our Agentic AI automates your entire financial workflow. From bookkeeping
             to investor reports, cashflow forecasting to GST filing - get a complete CFO 
             solution designed for startups and solo entrepreneurs.
           </p>
@@ -72,7 +72,7 @@ const Hero = ({ onBookDemo, darkMode }) => {
                 <span></span>
                 <span></span>
               </div>
-              <span className="mockup-title">Nebulaa InFINity Dashboard</span>
+              <span className="mockup-title">AI Finance Dashboard</span>
             </div>
             <div className="mockup-content">
               <div className="mockup-sidebar">

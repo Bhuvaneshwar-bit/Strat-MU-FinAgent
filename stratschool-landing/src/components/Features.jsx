@@ -102,7 +102,7 @@ const Features = ({ darkMode }) => {
             Everything you need to manage your finances
           </h2>
           <p className="features-description">
-            Nebulaa InFINity's AI CFO provides a complete suite of financial tools designed 
+            Our AI CFO provides a complete suite of financial tools designed
             specifically for solo entrepreneurs and startups. No more juggling multiple apps.
           </p>
         </div>
@@ -128,7 +128,7 @@ const Features = ({ darkMode }) => {
         </div>
 
         <div className="benefits-section">
-          <h3 className="benefits-title">Why Choose Nebulaa InFINity AI CFO?</h3>
+          <h3 className="benefits-title">Why Choose Our AI CFO?</h3>
           <div className="benefits-grid">
             {benefits.map((benefit, index) => (
               <div key={index} className="benefit-card">
